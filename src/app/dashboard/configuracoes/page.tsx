@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, DatabaseBackup } from "lucide-react";
+import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,7 +111,7 @@ export default function ConfiguracoesPage() {
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <DatabaseBackup className="w-4 h-4 text-gray-500" />
+            <HardDrive className="w-4 h-4 text-gray-500" />
             <CardTitle>Backup & Restauração</CardTitle>
           </div>
         </CardHeader>
