@@ -1,10 +1,59 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Settings, Key, CheckCircle2, ExternalLink } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, DatabaseBackup } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const DATA_KEYS = [
+  "jur_processos",
+  "jur_prazos",
+  "jur_audiencias",
+  "jur_movimentacoes",
+  "jur_honorarios",
+  "jur_publicacoes",
+  "jur_atendimentos",
+  "jur_clientes",
+  "lexfy_datajud_apikey",
+];
+
+function exportarDados() {
+  const backup: Record<string, unknown> = { _versao: 1, _exportado_em: new Date().toISOString() };
+  DATA_KEYS.forEach((key) => {
+    const val = localStorage.getItem(key);
+    if (val) backup[key] = JSON.parse(val);
+  });
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `lexfy-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarDados(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        let count = 0;
+        DATA_KEYS.forEach((key) => {
+          if (data[key] !== undefined) {
+            localStorage.setItem(key, JSON.stringify(data[key]));
+            count++;
+          }
+        });
+        resolve(count);
+      } catch {
+        reject(new Error("Arquivo inválido"));
+      }
+    };
+    reader.readAsText(file);
+  });
+}
 
 const DATAJUD_KEY_STORAGE = "lexfy_datajud_apikey";
 
@@ -20,10 +69,27 @@ export function setDatajudApiKey(key: string): void {
 export default function ConfiguracoesPage() {
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [importStatus, setImportStatus] = useState<"idle" | "ok" | "erro">("idle");
+  const [importMsg, setImportMsg] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setApiKey(getDatajudApiKey());
   }, []);
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const count = await importarDados(file);
+      setImportMsg(`${count} categorias restauradas com sucesso! Recarregue a página.`);
+      setImportStatus("ok");
+    } catch {
+      setImportMsg("Arquivo inválido. Use um backup gerado pelo Lexfy.");
+      setImportStatus("erro");
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   function handleSave() {
     setDatajudApiKey(apiKey.trim());
@@ -40,6 +106,55 @@ export default function ConfiguracoesPage() {
         </div>
         <p className="text-gray-400 text-sm mt-1">Integrações e preferências do sistema</p>
       </div>
+
+      {/* Backup & Restauração */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <DatabaseBackup className="w-4 h-4 text-gray-500" />
+            <CardTitle>Backup & Restauração</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="text-sm text-gray-600">
+            Os dados ficam salvos no seu navegador. Use o backup para transferi-los entre dispositivos ou navegadores diferentes (ex: do computador para o site).
+          </p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Download className="w-4 h-4 text-gray-500" />
+                <p className="text-sm font-semibold text-gray-800">Exportar dados</p>
+              </div>
+              <p className="text-xs text-gray-500">Baixa um arquivo <code>.json</code> com todos os seus processos, clientes, prazos e demais registros.</p>
+              <Button variant="secondary" onClick={exportarDados} className="w-full">
+                <Download className="w-4 h-4" /> Baixar backup
+              </Button>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Upload className="w-4 h-4 text-gray-500" />
+                <p className="text-sm font-semibold text-gray-800">Importar dados</p>
+              </div>
+              <p className="text-xs text-gray-500">Restaura um backup anterior. Os dados existentes neste navegador serão substituídos.</p>
+              <input ref={fileRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
+              <Button variant="secondary" onClick={() => fileRef.current?.click()} className="w-full">
+                <Upload className="w-4 h-4" /> Carregar backup
+              </Button>
+            </div>
+          </div>
+
+          {importStatus !== "idle" && (
+            <div className={`flex items-center gap-2 text-sm font-medium rounded-lg px-4 py-2.5 ${
+              importStatus === "ok" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+            }`}>
+              {importStatus === "ok" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : null}
+              {importMsg}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
