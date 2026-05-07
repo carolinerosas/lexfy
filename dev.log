@@ -1,0 +1,77 @@
+
+> juridico@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.5 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.205:3000
+✓ Ready in 1234ms
+
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 8.7s (next.js: 7.1s, application-code: 1629ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 320ms (next.js: 50ms, application-code: 270ms)
+[PJe] buscando 0800913-15.2026.8.19.0007 em https://tjrj.pje.jus.br
+ POST /api/pje 404 in 1955ms (next.js: 254ms, application-code: 1702ms)
+[PJe] buscando 0800913-15.2026.8.19.0007 em https://tjrj.pje.jus.br
+ POST /api/pje 404 in 824ms (next.js: 6ms, application-code: 818ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 425ms (next.js: 43ms, application-code: 382ms)
+[PJe] buscando 0800913-15.2026.8.19.0007 em https://tjrj.pje.jus.br
+ POST /api/pje 404 in 759ms (next.js: 7ms, application-code: 752ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 2.4s (next.js: 2.1s, application-code: 284ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 266ms (next.js: 135ms, application-code: 132ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 3.0s (next.js: 495ms, application-code: 2.5s)
+[PJe] tentando base: https://tjrj.pje.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v2/processos/publico?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v1/processos?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v2/consulta/processo/publico?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v1/consulta/paginacao/processos?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] tentando base: https://pje1g.tjrj.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] tentando base: https://pje.tjrj.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+ POST /api/pje 404 in 1011ms (next.js: 114ms, application-code: 897ms)
+✓ Compiled in 1607ms
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 726ms (next.js: 411ms, application-code: 316ms)
+✓ Compiled in 3.3s
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 1630ms (next.js: 1135ms, application-code: 494ms)
+✓ Compiled in 1433ms
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 654ms (next.js: 436ms, application-code: 217ms)
+✓ Compiled in 474ms
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 868ms (next.js: 596ms, application-code: 272ms)
+✓ Compiled in 428ms
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 930ms (next.js: 733ms, application-code: 197ms)
+✓ Compiled in 348ms
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 768ms (next.js: 442ms, application-code: 326ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 1459ms (next.js: 963ms, application-code: 496ms)
+ GET /dashboard/processos 200 in 229ms (next.js: 154ms, application-code: 75ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 223ms (next.js: 39ms, application-code: 184ms)
+[PJe] tentando base: https://tjrj.pje.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v2/processos/publico?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v1/processos?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v2/consulta/processo/publico?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] REST https://tjrj.pje.jus.br/pje/api/v1/consulta/paginacao/processos?numero=0800913-15.2026.8.19.0007 → 404
+[PJe] tentando base: https://pje1g.tjrj.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] tentando base: https://pje.tjrj.jus.br numero: 0800913-15.2026.8.19.0007
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+[PJe] REST erro: fetch failed
+ POST /api/pje 404 in 1503ms (next.js: 242ms, application-code: 1261ms)
+ GET /dashboard/audiencias 200 in 3.2s (next.js: 2.6s, application-code: 647ms)
+ GET /dashboard/financeiro 200 in 356ms (next.js: 270ms, application-code: 86ms)
+○ Compiling /dashboard/configuracoes ...
+ GET /dashboard/configuracoes 200 in 5.5s (next.js: 5.2s, application-code: 208ms)
+ GET /dashboard/configuracoes 200 in 187ms (next.js: 18ms, application-code: 169ms)
+ GET /dashboard 200 in 225ms (next.js: 169ms, application-code: 56ms)
+ GET /dashboard/processos 200 in 77ms (next.js: 19ms, application-code: 58ms)
+ GET /dashboard/processos/8bbe16cb-fc0e-465d-8019-4f3421d055b0 200 in 217ms (next.js: 54ms, application-code: 163ms)
+ GET /dashboard/processos 200 in 37ms (next.js: 6ms, application-code: 31ms)
