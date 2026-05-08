@@ -1,5 +1,3 @@
-"use client";
-
 const PERFIL_KEY = "lexfy_perfil_advogado";
 
 export interface PerfilAdvogado {

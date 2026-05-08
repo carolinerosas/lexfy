@@ -71,6 +71,10 @@ export default function PublicacoesPage() {
   const [buscando, setBuscando] = useState(false);
   const [statusBusca, setStatusBusca] = useState<{ tipo: "ok" | "erro" | "vazio"; msg: string } | null>(null);
   const [ultimaBusca, setUltimaBusca] = useState<string | null>(null);
+  const [perfilNome, setPerfilNome] = useState<string>("");
+  const [perfilOAB, setPerfilOAB] = useState<string>("");
+  const [perfilUF, setPerfilUF] = useState<string>("RJ");
+  const [mounted, setMounted] = useState(false);
 
   const load = useCallback(() => {
     setPublicacoes(
@@ -81,24 +85,29 @@ export default function PublicacoesPage() {
     setUltimaBusca(getUltimaBusca());
   }, []);
 
-  useEffect(() => { load(); }, [load]);
-
-  // Auto-busca ao abrir se passaram mais de 24h
   useEffect(() => {
+    const p = getPerfilAdvogado();
+    setPerfilNome(p.nome ?? "");
+    setPerfilOAB(p.oab_numero ?? "");
+    setPerfilUF(p.oab_uf ?? "RJ");
+    setMounted(true);
+    load();
+  }, [load]);
+
+  // Auto-busca ao abrir se passaram mais de 24h (só após montar)
+  useEffect(() => {
+    if (!mounted || !perfilNome) return;
     const ultima = getUltimaBusca();
-    const perfil = getPerfilAdvogado();
-    if (!perfil.nome) return;
     if (ultima) {
       const diff = Date.now() - new Date(ultima).getTime();
-      if (diff < 23 * 60 * 60 * 1000) return; // menos de 23h
+      if (diff < 23 * 60 * 60 * 1000) return;
     }
     buscarAgora();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mounted]);
 
   async function buscarAgora() {
-    const perfil = getPerfilAdvogado();
-    if (!perfil.nome) {
+    if (!perfilNome) {
       setStatusBusca({ tipo: "erro", msg: "Configure seu nome e OAB em Configurações antes de buscar." });
       return;
     }
@@ -111,9 +120,9 @@ export default function PublicacoesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome: perfil.nome,
-          oabNumero: perfil.oab_numero,
-          oabUF: perfil.oab_uf,
+          nome: perfilNome,
+          oabNumero: perfilOAB,
+          oabUF: perfilUF,
         }),
       });
 
@@ -172,7 +181,6 @@ export default function PublicacoesPage() {
   });
 
   const naoLidas = publicacoes.filter((p) => !p.lida).length;
-  const perfil = typeof window !== "undefined" ? getPerfilAdvogado() : null;
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
@@ -203,7 +211,7 @@ export default function PublicacoesPage() {
       </div>
 
       {/* Status da busca automática */}
-      {!perfil?.nome ? (
+      {mounted && !perfilNome ? (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
@@ -225,7 +233,7 @@ export default function PublicacoesPage() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white">Busca automática ativa</p>
             <p className="text-xs text-gray-400 mt-0.5">
-              Buscando por <span className="text-gray-200">{perfil.nome}</span> · OAB/{perfil.oab_uf} {perfil.oab_numero}
+              Buscando por <span className="text-gray-200">{perfilNome}</span> · OAB/{perfilUF} {perfilOAB}
               {ultimaBusca && (
                 <> · última busca: {new Date(ultimaBusca).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</>
               )}
