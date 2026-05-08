@@ -141,7 +141,7 @@ export default function ProcessoDetailPage() {
   ];
 
   return (
-    <div className="px-8 py-8 max-w-6xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start gap-4">

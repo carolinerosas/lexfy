@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { Clock, Plus, CheckCircle, Trash2, AlertTriangle } from "lucide-react";
@@ -45,7 +45,7 @@ export default function PrazosPage() {
   const proximos = prazos.filter((p) => !p.concluido && daysUntil(p.data_prazo) >= 0 && daysUntil(p.data_prazo) <= 7).length;
 
   return (
-    <div className="px-8 py-8 max-w-4xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Prazos</h1>

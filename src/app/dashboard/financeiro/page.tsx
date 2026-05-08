@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { DollarSign, Plus, CheckCircle, Trash2, TrendingUp, TrendingDown } from "lucide-react";
@@ -58,7 +58,7 @@ export default function FinanceiroPage() {
     .reduce((s, h) => s + h.valor, 0);
 
   return (
-    <div className="px-8 py-8 max-w-5xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>

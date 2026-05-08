@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive } from "lucide-react";
@@ -98,7 +98,7 @@ export default function ConfiguracoesPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-3xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-3xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-1">
           <Settings className="w-5 h-5 text-gray-400" />

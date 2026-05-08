@@ -130,7 +130,7 @@ export default function DashboardPage() {
   })();
 
   return (
-    <div className="px-8 py-8 max-w-7xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
@@ -214,7 +214,8 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="grid grid-cols-7 divide-x divide-gray-100 border-t border-gray-100">
+          <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 divide-x divide-gray-100 border-t border-gray-100 min-w-[560px]">
             {weekDays.map((day) => {
               const isToday = isSameDay(day, today);
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
@@ -253,6 +254,7 @@ export default function DashboardPage() {
             })}
           </div>
 
+          </div>{/* end overflow-x-auto */}
           {/* Legenda */}
           <div className="flex items-center gap-4 px-4 py-3 border-t border-gray-100 bg-gray-50">
             <div className="flex items-center gap-1.5">

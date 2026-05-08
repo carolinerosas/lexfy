@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -50,7 +50,7 @@ export default function ClientesPage() {
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
 
   return (
-    <div className="px-8 py-8 max-w-5xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
