@@ -1,10 +1,11 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive } from "lucide-react";
+import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 const DATA_KEYS = [
   "jur_processos",
@@ -56,6 +57,7 @@ function importarDados(file: File): Promise<number> {
 }
 
 const DATAJUD_KEY_STORAGE = "lexfy_datajud_apikey";
+const PERFIL_KEY = "lexfy_perfil_advogado";
 
 export function getDatajudApiKey(): string {
   if (typeof window === "undefined") return "";
@@ -66,16 +68,48 @@ export function setDatajudApiKey(key: string): void {
   localStorage.setItem(DATAJUD_KEY_STORAGE, key);
 }
 
+export interface PerfilAdvogado {
+  nome: string;
+  oab_numero: string;
+  oab_uf: string;
+}
+
+export function getPerfilAdvogado(): PerfilAdvogado {
+  if (typeof window === "undefined") return { nome: "", oab_numero: "", oab_uf: "RJ" };
+  try {
+    return JSON.parse(localStorage.getItem(PERFIL_KEY) ?? "{}") as PerfilAdvogado;
+  } catch {
+    return { nome: "", oab_numero: "", oab_uf: "RJ" };
+  }
+}
+
+export function setPerfilAdvogado(perfil: PerfilAdvogado): void {
+  localStorage.setItem(PERFIL_KEY, JSON.stringify(perfil));
+}
+
+const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+].map((uf) => ({ value: uf, label: uf }));
+
 export default function ConfiguracoesPage() {
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [importStatus, setImportStatus] = useState<"idle" | "ok" | "erro">("idle");
   const [importMsg, setImportMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [perfil, setPerfil] = useState<PerfilAdvogado>({ nome: "", oab_numero: "", oab_uf: "RJ" });
+  const [perfilSaved, setPerfilSaved] = useState(false);
 
   useEffect(() => {
     setApiKey(getDatajudApiKey());
+    setPerfil(getPerfilAdvogado());
   }, []);
+
+  function handleSavePerfil() {
+    setPerfilAdvogado(perfil);
+    setPerfilSaved(true);
+    setTimeout(() => setPerfilSaved(false), 3000);
+  }
 
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -106,6 +140,51 @@ export default function ConfiguracoesPage() {
         </div>
         <p className="text-gray-400 text-sm mt-1">Integrações e preferências do sistema</p>
       </div>
+
+      {/* Perfil do Advogado */}
+      <Card className="mb-6">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <UserRound className="w-4 h-4 text-gray-500" />
+            <CardTitle>Perfil do Advogado</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Usado para buscar automaticamente suas publicações nos Diários Oficiais (DOU e DJE-TJERJ).
+          </p>
+          <Input
+            label="Nome completo (como consta nos diários)"
+            placeholder="Ex: Caroline Frosas Rosas"
+            value={perfil.nome}
+            onChange={(e) => setPerfil((p) => ({ ...p, nome: e.target.value }))}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Número OAB"
+              placeholder="Ex: 123456"
+              value={perfil.oab_numero}
+              onChange={(e) => setPerfil((p) => ({ ...p, oab_numero: e.target.value }))}
+            />
+            <Select
+              label="Seccional OAB"
+              options={ufs}
+              value={perfil.oab_uf}
+              onChange={(e) => setPerfil((p) => ({ ...p, oab_uf: e.target.value }))}
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleSavePerfil} disabled={!perfil.nome.trim()}>
+              Salvar perfil
+            </Button>
+            {perfilSaved && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                <CheckCircle2 className="w-4 h-4" /> Salvo com sucesso
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Backup & Restauração */}
       <Card className="mb-6">
