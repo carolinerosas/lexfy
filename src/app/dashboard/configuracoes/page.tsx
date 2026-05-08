@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { getPerfilAdvogado, setPerfilAdvogado, type PerfilAdvogado } from "@/lib/perfil";
 
 const DATA_KEYS = [
   "jur_processos",
@@ -57,7 +58,6 @@ function importarDados(file: File): Promise<number> {
 }
 
 const DATAJUD_KEY_STORAGE = "lexfy_datajud_apikey";
-const PERFIL_KEY = "lexfy_perfil_advogado";
 
 export function getDatajudApiKey(): string {
   if (typeof window === "undefined") return "";
@@ -66,25 +66,6 @@ export function getDatajudApiKey(): string {
 
 export function setDatajudApiKey(key: string): void {
   localStorage.setItem(DATAJUD_KEY_STORAGE, key);
-}
-
-export interface PerfilAdvogado {
-  nome: string;
-  oab_numero: string;
-  oab_uf: string;
-}
-
-export function getPerfilAdvogado(): PerfilAdvogado {
-  if (typeof window === "undefined") return { nome: "", oab_numero: "", oab_uf: "RJ" };
-  try {
-    return JSON.parse(localStorage.getItem(PERFIL_KEY) ?? "{}") as PerfilAdvogado;
-  } catch {
-    return { nome: "", oab_numero: "", oab_uf: "RJ" };
-  }
-}
-
-export function setPerfilAdvogado(perfil: PerfilAdvogado): void {
-  localStorage.setItem(PERFIL_KEY, JSON.stringify(perfil));
 }
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",

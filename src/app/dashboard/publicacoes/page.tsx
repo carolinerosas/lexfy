@@ -14,10 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos } from "@/lib/store";
-import { getPerfilAdvogado } from "@/app/dashboard/configuracoes/page";
+import { getPerfilAdvogado } from "@/lib/perfil";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo } from "@/types";
-import type { PubEncontrada } from "@/app/api/publicacoes/route";
+interface PubEncontrada {
+  titulo: string;
+  conteudo?: string;
+  data_publicacao: string;
+  diario: string;
+  url?: string;
+  hash: string;
+}
 
 const ULTIMA_BUSCA_KEY = "lexfy_ultima_busca_pub";
 const HASHES_KEY = "lexfy_pub_hashes";
