@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import {
-  Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw,
-  CheckCircle2, AlertCircle, Settings,
-} from "lucide-react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Settings } from "lucide-react";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
@@ -14,40 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos } from "@/lib/store";
-import { getPerfilAdvogado } from "@/lib/perfil";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo } from "@/types";
-interface PubEncontrada {
-  titulo: string;
-  conteudo?: string;
-  data_publicacao: string;
-  diario: string;
-  url?: string;
-  hash: string;
-}
 
 const ULTIMA_BUSCA_KEY = "lexfy_ultima_busca_pub";
 const HASHES_KEY = "lexfy_pub_hashes";
-
-function getUltimaBusca(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(ULTIMA_BUSCA_KEY);
-}
-
-function getHashesImportados(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    return new Set(JSON.parse(localStorage.getItem(HASHES_KEY) ?? "[]") as string[]);
-  } catch {
-    return new Set();
-  }
-}
-
-function addHashesImportados(hashes: string[]) {
-  const existentes = getHashesImportados();
-  hashes.forEach((h) => existentes.add(h));
-  localStorage.setItem(HASHES_KEY, JSON.stringify([...existentes]));
-}
+const PERFIL_KEY = "lexfy_perfil_advogado";
 
 const diarioOptions = [
   { value: "DOU", label: "Diário Oficial da União (DOU)" },
@@ -63,81 +32,111 @@ const diarioOptions = [
   { value: "outro", label: "Outro" },
 ];
 
+interface PubEncontrada {
+  titulo: string;
+  conteudo?: string;
+  data_publicacao: string;
+  diario: string;
+  url?: string;
+  hash: string;
+}
+
+interface Perfil {
+  nome?: string;
+  oab_numero?: string;
+  oab_uf?: string;
+}
+
 export default function PublicacoesPage() {
   const [publicacoes, setPublicacoes] = useState<Publicacao[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todas" | "nao_lidas">("nao_lidas");
   const [buscando, setBuscando] = useState(false);
-  const [statusBusca, setStatusBusca] = useState<{ tipo: "ok" | "erro" | "vazio"; msg: string } | null>(null);
-  const [ultimaBusca, setUltimaBusca] = useState<string | null>(null);
-  const [perfilNome, setPerfilNome] = useState<string>("");
-  const [perfilOAB, setPerfilOAB] = useState<string>("");
-  const [perfilUF, setPerfilUF] = useState<string>("RJ");
-  const [mounted, setMounted] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [statusTipo, setStatusTipo] = useState<"ok" | "erro" | "info" | "">("");
+  const [ultimaBusca, setUltimaBusca] = useState("");
+  const [perfil, setPerfil] = useState<Perfil>({});
+  const autoSearched = useRef(false);
 
   const load = useCallback(() => {
-    setPublicacoes(
-      getPublicacoes().sort(
+    try {
+      const todas = getPublicacoes().sort(
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-    );
-    setUltimaBusca(getUltimaBusca());
+      );
+      setPublicacoes(todas);
+    } catch { /* silently fail */ }
+
+    try {
+      setUltimaBusca(localStorage.getItem(ULTIMA_BUSCA_KEY) ?? "");
+    } catch { /* silently fail */ }
   }, []);
 
   useEffect(() => {
-    const p = getPerfilAdvogado();
-    setPerfilNome(p.nome ?? "");
-    setPerfilOAB(p.oab_numero ?? "");
-    setPerfilUF(p.oab_uf ?? "RJ");
-    setMounted(true);
+    // Carrega dados do localStorage apenas no cliente
     load();
+
+    try {
+      const raw = localStorage.getItem(PERFIL_KEY);
+      if (raw) setPerfil(JSON.parse(raw) as Perfil);
+    } catch { /* silently fail */ }
   }, [load]);
 
-  // Auto-busca ao abrir se passaram mais de 24h (só após montar)
+  // Auto-busca só uma vez, após perfil carregado
   useEffect(() => {
-    if (!mounted || !perfilNome) return;
-    const ultima = getUltimaBusca();
-    if (ultima) {
-      const diff = Date.now() - new Date(ultima).getTime();
-      if (diff < 23 * 60 * 60 * 1000) return;
-    }
-    buscarAgora();
+    if (autoSearched.current) return;
+    if (!perfil.nome) return;
+    autoSearched.current = true;
+
+    try {
+      const ultima = localStorage.getItem(ULTIMA_BUSCA_KEY);
+      if (ultima) {
+        const diff = Date.now() - new Date(ultima).getTime();
+        if (diff < 23 * 60 * 60 * 1000) return; // menos de 23h
+      }
+      buscarAgora();
+    } catch { /* silently fail */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted]);
+  }, [perfil.nome]);
 
   async function buscarAgora() {
-    if (!perfilNome) {
-      setStatusBusca({ tipo: "erro", msg: "Configure seu nome e OAB em Configurações antes de buscar." });
+    if (!perfil.nome) {
+      setStatusTipo("erro");
+      setStatusMsg("Configure seu nome e OAB em Configurações antes de buscar.");
       return;
     }
 
     setBuscando(true);
-    setStatusBusca(null);
+    setStatusTipo("");
+    setStatusMsg("");
 
     try {
       const res = await fetch("/api/publicacoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome: perfilNome,
-          oabNumero: perfilOAB,
-          oabUF: perfilUF,
+          nome: perfil.nome,
+          oabNumero: perfil.oab_numero ?? "",
+          oabUF: perfil.oab_uf ?? "RJ",
         }),
       });
 
-      const data = (await res.json()) as {
-        resultados: PubEncontrada[];
-        erros: string[];
-        buscadoEm: string;
-      };
+      const data = await res.json() as { resultados?: PubEncontrada[]; erros?: string[]; buscadoEm?: string };
 
       // Salva timestamp
-      localStorage.setItem(ULTIMA_BUSCA_KEY, data.buscadoEm ?? new Date().toISOString());
+      const agora = data.buscadoEm ?? new Date().toISOString();
+      localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
+      setUltimaBusca(agora);
 
-      // Importa apenas publicações novas (deduplica por hash)
-      const hashesJaImportados = getHashesImportados();
-      const novas = (data.resultados ?? []).filter((p) => !hashesJaImportados.has(p.hash));
+      // Deduplica por hash
+      let hashesSet: Set<string>;
+      try {
+        hashesSet = new Set(JSON.parse(localStorage.getItem(HASHES_KEY) ?? "[]") as string[]);
+      } catch {
+        hashesSet = new Set();
+      }
+
+      const novas = (data.resultados ?? []).filter((p) => !hashesSet.has(p.hash));
 
       novas.forEach((p) => {
         createPublicacao({
@@ -148,59 +147,63 @@ export default function PublicacoesPage() {
           url: p.url || undefined,
           lida: false,
         });
+        hashesSet.add(p.hash);
       });
 
-      if (novas.length > 0) {
-        addHashesImportados(novas.map((p) => p.hash));
-      }
+      try {
+        localStorage.setItem(HASHES_KEY, JSON.stringify([...hashesSet]));
+      } catch { /* silently fail */ }
 
       load();
 
       const erros = data.erros ?? [];
       if (novas.length > 0) {
-        setStatusBusca({ tipo: "ok", msg: `${novas.length} nova${novas.length > 1 ? "s" : ""} publicação${novas.length > 1 ? "ões" : ""} importada${novas.length > 1 ? "s" : ""}!` });
+        setStatusTipo("ok");
+        setStatusMsg(`${novas.length} nova${novas.length > 1 ? "s" : ""} publicação${novas.length > 1 ? "ões" : ""} importada${novas.length > 1 ? "s" : ""}!`);
       } else if (erros.length > 0) {
-        setStatusBusca({ tipo: "erro", msg: `Erros: ${erros.join(" | ")}` });
+        setStatusTipo("erro");
+        setStatusMsg(`Erros: ${erros.join(" | ")}`);
       } else {
-        setStatusBusca({ tipo: "vazio", msg: "Nenhuma publicação nova encontrada para hoje." });
+        setStatusTipo("info");
+        setStatusMsg("Nenhuma publicação nova encontrada para hoje.");
       }
     } catch (err) {
-      setStatusBusca({ tipo: "erro", msg: `Falha na busca: ${err instanceof Error ? err.message : "erro desconhecido"}` });
+      setStatusTipo("erro");
+      setStatusMsg(`Falha: ${err instanceof Error ? err.message : "erro desconhecido"}`);
     } finally {
       setBuscando(false);
     }
   }
 
   const filtered = publicacoes.filter((p) => {
-    const matchFilter = filter === "todas" || !p.lida;
-    const matchSearch =
-      !search ||
-      (p.titulo ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (p.conteudo ?? "").toLowerCase().includes(search.toLowerCase());
-    return matchFilter && matchSearch;
+    if (filter === "nao_lidas" && p.lida) return false;
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (p.titulo ?? "").toLowerCase().includes(s) || (p.conteudo ?? "").toLowerCase().includes(s);
   });
 
   const naoLidas = publicacoes.filter((p) => !p.lida).length;
+  const temPerfil = !!perfil.nome;
+
+  const ultimaBuscaLabel = ultimaBusca
+    ? new Date(ultimaBusca).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
+
+      {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Publicações</h1>
           <p className="text-gray-500 text-sm mt-1">
-            {naoLidas > 0 ? (
-              <span className="text-blue-600 font-medium">{naoLidas} não {naoLidas > 1 ? "lidas" : "lida"}</span>
-            ) : (
-              "Todas lidas"
-            )}
+            {naoLidas > 0
+              ? <span className="text-blue-600 font-medium">{naoLidas} não {naoLidas > 1 ? "lidas" : "lida"}</span>
+              : "Todas lidas"}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          <Button
-            variant="secondary"
-            onClick={buscarAgora}
-            disabled={buscando}
-          >
+          <Button variant="secondary" onClick={buscarAgora} disabled={buscando}>
             <RefreshCw className={`w-4 h-4 ${buscando ? "animate-spin" : ""}`} />
             {buscando ? "Buscando..." : "Buscar agora"}
           </Button>
@@ -210,55 +213,45 @@ export default function PublicacoesPage() {
         </div>
       </div>
 
-      {/* Status da busca automática */}
-      {mounted && !perfilNome ? (
+      {/* Banner de status */}
+      {!temPerfil ? (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-semibold text-amber-800 mb-0.5">Configure seu perfil para busca automática</p>
             <p className="text-amber-700">
-              Informe seu nome e OAB em{" "}
-              <Link href="/dashboard/configuracoes" className="underline font-medium">
-                Configurações
-              </Link>{" "}
-              para buscar publicações automaticamente no DOU e DJE-TJERJ todo dia.
+              Acesse{" "}
+              <Link href="/dashboard/configuracoes" className="underline font-medium">Configurações</Link>
+              {" "}e preencha seu nome e OAB para buscar publicações automaticamente no DOU e DJE-TJERJ.
             </p>
           </div>
         </div>
       ) : (
         <div className="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-4 flex gap-3 items-center">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-            <RefreshCw className="w-4 h-4 text-gray-300" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">Busca automática ativa</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Buscando por <span className="text-gray-200">{perfilNome}</span> · OAB/{perfilUF} {perfilOAB}
-              {ultimaBusca && (
-                <> · última busca: {new Date(ultimaBusca).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</>
-              )}
+          <RefreshCw className="w-4 h-4 text-gray-400 shrink-0" />
+          <div className="flex-1 min-w-0 text-sm">
+            <p className="font-semibold text-white">Busca automática ativa</p>
+            <p className="text-gray-400 text-xs mt-0.5">
+              {perfil.nome} · OAB/{perfil.oab_uf ?? "RJ"} {perfil.oab_numero}
+              {ultimaBuscaLabel && <> · última busca: {ultimaBuscaLabel}</>}
             </p>
           </div>
-          <Link href="/dashboard/configuracoes">
-            <button className="text-gray-500 hover:text-white transition-colors">
-              <Settings className="w-4 h-4" />
-            </button>
+          <Link href="/dashboard/configuracoes" className="text-gray-500 hover:text-white transition-colors">
+            <Settings className="w-4 h-4" />
           </Link>
         </div>
       )}
 
       {/* Status da última busca */}
-      {statusBusca && (
-        <div className={`mb-4 flex items-center gap-2 text-sm font-medium rounded-lg px-4 py-3 ${
-          statusBusca.tipo === "ok"
-            ? "bg-green-50 text-green-700 border border-green-200"
-            : statusBusca.tipo === "vazio"
-            ? "bg-gray-50 text-gray-600 border border-gray-200"
-            : "bg-red-50 text-red-600 border border-red-200"
+      {statusMsg && (
+        <div className={`mb-4 flex items-center gap-2 text-sm font-medium rounded-lg px-4 py-3 border ${
+          statusTipo === "ok" ? "bg-green-50 text-green-700 border-green-200" :
+          statusTipo === "erro" ? "bg-red-50 text-red-600 border-red-200" :
+          "bg-gray-50 text-gray-600 border-gray-200"
         }`}>
-          {statusBusca.tipo === "ok" && <CheckCircle2 className="w-4 h-4 shrink-0" />}
-          {statusBusca.tipo === "erro" && <AlertCircle className="w-4 h-4 shrink-0" />}
-          <span>{statusBusca.msg}</span>
+          {statusTipo === "ok" && <CheckCircle2 className="w-4 h-4 shrink-0" />}
+          {statusTipo === "erro" && <AlertCircle className="w-4 h-4 shrink-0" />}
+          {statusMsg}
         </div>
       )}
 
@@ -289,19 +282,15 @@ export default function PublicacoesPage() {
         </div>
       </div>
 
+      {/* Lista */}
       {filtered.length === 0 ? (
         <Card>
-          <div className="flex flex-col items-center py-16 text-center px-6">
-            <Newspaper className="w-12 h-12 text-gray-200 mb-4" />
+          <CardContent className="py-16 text-center">
+            <Newspaper className="w-12 h-12 text-gray-200 mx-auto mb-4" />
             <p className="text-gray-500 font-medium">
               {filter === "nao_lidas" ? "Nenhuma publicação não lida" : "Nenhuma publicação registrada"}
             </p>
-            <p className="text-gray-400 text-sm mt-1">
-              {filter === "nao_lidas"
-                ? "Clique em Todas para ver publicações anteriores"
-                : "Use o botão Buscar agora ou registre manualmente"}
-            </p>
-          </div>
+          </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -324,7 +313,7 @@ export default function PublicacoesPage() {
                       <p className="text-sm text-gray-600 line-clamp-3">{pub.conteudo}</p>
                     )}
                   </div>
-                  <div className="flex gap-2 shrink-0 flex-col sm:flex-row">
+                  <div className="flex gap-2 shrink-0">
                     {pub.url && (
                       <a href={pub.url} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="sm">
@@ -333,11 +322,7 @@ export default function PublicacoesPage() {
                       </a>
                     )}
                     {!pub.lida && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => { marcarPublicacaoLida(pub.id); load(); }}
-                      >
+                      <Button variant="secondary" size="sm" onClick={() => { marcarPublicacaoLida(pub.id); load(); }}>
                         <Eye className="w-3.5 h-3.5" /> Lida
                       </Button>
                     )}
@@ -349,7 +334,7 @@ export default function PublicacoesPage() {
         </div>
       )}
 
-      <RegistrarPublicacaoModal
+      <RegistrarModal
         open={showModal}
         onClose={() => setShowModal(false)}
         onCreated={() => { load(); setShowModal(false); }}
@@ -358,11 +343,7 @@ export default function PublicacoesPage() {
   );
 }
 
-function RegistrarPublicacaoModal({
-  open, onClose, onCreated,
-}: {
-  open: boolean; onClose: () => void; onCreated: () => void;
-}) {
+function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [processoId, setProcessoId] = useState("");
   const [titulo, setTitulo] = useState("");
@@ -392,47 +373,14 @@ function RegistrarPublicacaoModal({
   return (
     <Modal open={open} onClose={onClose} title="Registrar Publicação" size="md">
       <form onSubmit={submit} className="space-y-4">
-        <Select
-          label="Processo (opcional)"
-          options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
-          placeholder="Selecione se aplicável..."
-          value={processoId}
-          onChange={(e) => setProcessoId(e.target.value)}
-        />
-        <Input
-          label="Título / Resumo"
-          placeholder="Ex: Despacho — intimação para audiência"
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-        />
+        <Select label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={(e) => setProcessoId(e.target.value)} />
+        <Input label="Título / Resumo" placeholder="Ex: Despacho — intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <div className="grid grid-cols-2 gap-4">
-          <Select
-            label="Diário / Fonte"
-            options={diarioOptions}
-            placeholder="Selecione..."
-            value={diario}
-            onChange={(e) => setDiario(e.target.value)}
-          />
-          <Input
-            label="Data de Publicação"
-            type="date"
-            value={dataPub}
-            onChange={(e) => setDataPub(e.target.value)}
-          />
+          <Select label="Diário / Fonte" options={diarioOptions} placeholder="Selecione..." value={diario} onChange={(e) => setDiario(e.target.value)} />
+          <Input label="Data de Publicação" type="date" value={dataPub} onChange={(e) => setDataPub(e.target.value)} />
         </div>
-        <Textarea
-          label="Conteúdo / Teor"
-          placeholder="Cole aqui o teor da publicação ou intimação..."
-          rows={5}
-          value={conteudo}
-          onChange={(e) => setConteudo(e.target.value)}
-        />
-        <Input
-          label="URL (opcional)"
-          placeholder="https://..."
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
+        <Textarea label="Conteúdo / Teor" placeholder="Cole aqui o teor da publicação..." rows={4} value={conteudo} onChange={(e) => setConteudo(e.target.value)} />
+        <Input label="URL (opcional)" placeholder="https://..." value={url} onChange={(e) => setUrl(e.target.value)} />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit">Salvar</Button>
