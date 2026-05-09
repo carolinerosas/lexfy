@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -34,7 +34,6 @@ const statusVariant: Record<string, "success" | "warning" | "neutral" | "danger"
 export default function ClienteDetailPage() {
   const params = useParams();
   const router = useRouter();
-  // params.nome contains the client ID (linked from list as /clientes/${c.id})
   const id = params.nome as string;
 
   const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -45,21 +44,32 @@ export default function ClienteDetailPage() {
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [editOpen, setEditOpen] = useState(false);
 
-  function load() {
-    const c = getCliente(id);
+  const load = useCallback(async () => {
+    const c = await getCliente(id);
     if (!c) { router.push("/dashboard/clientes"); return; }
     setCliente(c);
-    // Busca por ID e por nome para cobrir processos sem cliente_id ainda definido
     const dedup = <T extends { id: string }>(arr: T[]) =>
       arr.filter((item, i, self) => self.findIndex((x) => x.id === item.id) === i);
-    setProcessos(dedup([...getProcessosByCliente(c.id), ...getProcessosByCliente(c.nome)]));
-    setHonorarios(dedup([...getHonorariosByCliente(c.id), ...getHonorariosByCliente(c.nome)]));
-    setAtendimentos(dedup([...getAtendimentosByCliente(c.id), ...getAtendimentosByCliente(c.nome)]));
-    setPrazos(dedup([...getPrazosByCliente(c.id), ...getPrazosByCliente(c.nome)]));
-    setAudiencias(dedup([...getAudienciasByCliente(c.id), ...getAudienciasByCliente(c.nome)]));
-  }
+    const [procId, procNome, honId, honNome, atenId, atenNome, prazId, prazNome, audId, audNome] = await Promise.all([
+      getProcessosByCliente(c.id),
+      getProcessosByCliente(c.nome),
+      getHonorariosByCliente(c.id),
+      getHonorariosByCliente(c.nome),
+      getAtendimentosByCliente(c.id),
+      getAtendimentosByCliente(c.nome),
+      getPrazosByCliente(c.id),
+      getPrazosByCliente(c.nome),
+      getAudienciasByCliente(c.id),
+      getAudienciasByCliente(c.nome),
+    ]);
+    setProcessos(dedup([...procId, ...procNome]));
+    setHonorarios(dedup([...honId, ...honNome]));
+    setAtendimentos(dedup([...atenId, ...atenNome]));
+    setPrazos(dedup([...prazId, ...prazNome]));
+    setAudiencias(dedup([...audId, ...audNome]));
+  }, [id, router]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   if (!cliente) return null;
 
@@ -82,9 +92,9 @@ export default function ClienteDetailPage() {
     cliente.cep,
   ].filter(Boolean).join(", ");
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!confirm(`Excluir o cliente "${cliente!.nome}"? Esta ação não pode ser desfeita.`)) return;
-    deleteCliente(id);
+    await deleteCliente(id);
     router.push("/dashboard/clientes");
   }
 
@@ -117,7 +127,6 @@ export default function ClienteDetailPage() {
         </div>
       </div>
 
-      {/* Info cards */}
       <div className="grid lg:grid-cols-2 gap-4 mb-8">
         <Card>
           <CardContent className="p-5 space-y-3">
@@ -179,7 +188,6 @@ export default function ClienteDetailPage() {
         </Card>
       )}
 
-      {/* Financial summary */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="p-5">
@@ -388,9 +396,9 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
   useEffect(() => { setForm({ ...cliente }); }, [cliente]);
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    updateCliente(cliente.id, {
+    await updateCliente(cliente.id, {
       nome: form.nome, cpf: form.cpf || undefined, rg: form.rg || undefined,
       email: form.email || undefined, celular: form.celular || undefined,
       cep: form.cep || undefined, logradouro: form.logradouro || undefined,
