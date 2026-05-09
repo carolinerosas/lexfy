@@ -50,9 +50,10 @@ export function Sidebar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  function refreshBadges() {
-    setMovNaoLidas(getMovimentacoesNaoLidas());
-    setPubNaoLidas(getPublicacoes().filter((p) => !p.lida).length);
+  async function refreshBadges() {
+    const [mov, pubs] = await Promise.all([getMovimentacoesNaoLidas(), getPublicacoes()]);
+    setMovNaoLidas(mov);
+    setPubNaoLidas(pubs.filter((p) => !p.lida).length);
   }
 
   useEffect(() => {
