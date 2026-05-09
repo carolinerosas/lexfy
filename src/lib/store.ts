@@ -284,7 +284,8 @@ export async function createCliente(
   input: Omit<Cliente, "id" | "created_at" | "updated_at" | "user_id">
 ): Promise<Cliente> {
   const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
-  const { data } = await supabase.from("clientes").insert(novo).select().single();
+  const { data, error } = await supabase.from("clientes").insert(novo).select().single();
+  if (error) throw new Error(error.message);
   return data as Cliente;
 }
 
