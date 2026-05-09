@@ -6,7 +6,6 @@ import {
   FolderOpen,
   Clock,
   Calendar,
-  DollarSign,
   AlertTriangle,
   Bell,
   ArrowRight,
@@ -173,12 +172,11 @@ export default function DashboardPage() {
       )}
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon={<FolderOpen className="w-5 h-5 text-gray-600" />} label="Processos Ativos" value={stats.processosAtivos} sub={`${stats.totalProcessos} total`} href="/dashboard/processos" />
         <StatCard icon={<Users className="w-5 h-5 text-gray-600" />} label="Atendimentos" value={stats.atendimentosProximos} sub="próximos 7 dias" href="/dashboard/atendimentos" />
         <StatCard icon={<Clock className="w-5 h-5 text-gray-600" />} label="Prazos Próximos" value={stats.prazosProximos} sub={stats.prazosVencidos > 0 ? `${stats.prazosVencidos} vencidos` : "próximos 7 dias"} subColor={stats.prazosVencidos > 0 ? "text-red-500" : undefined} href="/dashboard/prazos" />
         <StatCard icon={<Calendar className="w-5 h-5 text-gray-600" />} label="Audiências" value={stats.audienciasProximas} sub="próximos 7 dias" href="/dashboard/audiencias" />
-        <StatCard icon={<DollarSign className="w-5 h-5 text-gray-600" />} label="Recebido no Mês" value={formatCurrency(stats.honorariosRecebidosMes)} sub={`${formatCurrency(stats.honorariosPendentes)} a receber`} href="/dashboard/financeiro" />
       </div>
 
       {/* Agenda da Semana */}
