@@ -36,11 +36,19 @@ function matches(query: string, ...fields: (string | undefined | null)[]) {
   return fields.some((f) => f && normalize(f).includes(q));
 }
 
-function search(query: string): ResultItem[] {
+async function search(query: string): Promise<ResultItem[]> {
   if (!query.trim()) return [];
   const results: ResultItem[] = [];
 
-  getProcessos().forEach((p) => {
+  const [processos, prazos, audiencias, atendimentos, honorarios] = await Promise.all([
+    getProcessos(),
+    getPrazosWithProcesso(),
+    getAudienciasWithProcesso(),
+    getAtendimentosWithProcesso(),
+    getHonorariosWithProcesso(),
+  ]);
+
+  processos.forEach((p) => {
     if (matches(query, p.numero, p.titulo, p.cliente_nome, p.parte_contraria, p.descricao)) {
       results.push({
         kind: "processo",
@@ -52,7 +60,7 @@ function search(query: string): ResultItem[] {
     }
   });
 
-  getPrazosWithProcesso().forEach((p) => {
+  prazos.forEach((p) => {
     if (matches(query, p.titulo, p.descricao, p.processo?.cliente_nome, p.processo?.numero)) {
       results.push({
         kind: "prazo",
@@ -64,7 +72,7 @@ function search(query: string): ResultItem[] {
     }
   });
 
-  getAudienciasWithProcesso().forEach((a) => {
+  audiencias.forEach((a) => {
     if (matches(query, a.titulo, a.local, a.processo?.cliente_nome, a.processo?.numero)) {
       results.push({
         kind: "audiencia",
@@ -76,7 +84,7 @@ function search(query: string): ResultItem[] {
     }
   });
 
-  getAtendimentosWithProcesso().forEach((a) => {
+  atendimentos.forEach((a) => {
     if (matches(query, a.cliente_nome, a.notas)) {
       results.push({
         kind: "atendimento",
@@ -88,7 +96,7 @@ function search(query: string): ResultItem[] {
     }
   });
 
-  getHonorariosWithProcesso().forEach((h) => {
+  honorarios.forEach((h) => {
     if (matches(query, h.descricao, h.processo?.cliente_nome, h.processo?.numero)) {
       results.push({
         kind: "honorario",
@@ -125,9 +133,14 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
   }, [open]);
 
   useEffect(() => {
-    const r = search(query);
-    setResults(r);
-    setSelected(0);
+    let cancelled = false;
+    search(query).then((r) => {
+      if (!cancelled) {
+        setResults(r);
+        setSelected(0);
+      }
+    });
+    return () => { cancelled = true; };
   }, [query]);
 
   const navigate = useCallback(
@@ -154,12 +167,9 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Panel */}
       <div className="relative w-full max-w-xl mx-4 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
-        {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
           <Search className="w-5 h-5 text-gray-400 shrink-0" />
           <input
@@ -177,7 +187,6 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
           <kbd className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-mono hidden sm:block">ESC</kbd>
         </div>
 
-        {/* Results */}
         {query && (
           <div className="max-h-[50vh] overflow-y-auto">
             {results.length === 0 ? (
@@ -218,7 +227,6 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
           </div>
         )}
 
-        {/* Empty state / hints */}
         {!query && (
           <div className="py-8 px-4 text-center">
             <p className="text-xs text-gray-400 mb-3">Pesquise por nome de cliente, número de processo, descrição…</p>

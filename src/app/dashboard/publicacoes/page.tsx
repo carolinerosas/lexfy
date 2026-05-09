@@ -59,12 +59,10 @@ export default function PublicacoesPage() {
   const [perfil, setPerfil] = useState<Perfil>({});
   const autoSearched = useRef(false);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     try {
-      const todas = getPublicacoes().sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-      setPublicacoes(todas);
+      const todas = await getPublicacoes();
+      setPublicacoes(todas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
     } catch { /* silently fail */ }
 
     try {
@@ -73,7 +71,6 @@ export default function PublicacoesPage() {
   }, []);
 
   useEffect(() => {
-    // Carrega dados do localStorage apenas no cliente
     load();
 
     try {
@@ -82,7 +79,6 @@ export default function PublicacoesPage() {
     } catch { /* silently fail */ }
   }, [load]);
 
-  // Auto-busca só uma vez, após perfil carregado
   useEffect(() => {
     if (autoSearched.current) return;
     if (!perfil.nome) return;
@@ -92,7 +88,7 @@ export default function PublicacoesPage() {
       const ultima = localStorage.getItem(ULTIMA_BUSCA_KEY);
       if (ultima) {
         const diff = Date.now() - new Date(ultima).getTime();
-        if (diff < 23 * 60 * 60 * 1000) return; // menos de 23h
+        if (diff < 23 * 60 * 60 * 1000) return;
       }
       buscarAgora();
     } catch { /* silently fail */ }
@@ -123,12 +119,10 @@ export default function PublicacoesPage() {
 
       const data = await res.json() as { resultados?: PubEncontrada[]; erros?: string[]; buscadoEm?: string };
 
-      // Salva timestamp
       const agora = data.buscadoEm ?? new Date().toISOString();
       localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
       setUltimaBusca(agora);
 
-      // Deduplica por hash
       let hashesSet: Set<string>;
       try {
         hashesSet = new Set(JSON.parse(localStorage.getItem(HASHES_KEY) ?? "[]") as string[]);
@@ -138,8 +132,8 @@ export default function PublicacoesPage() {
 
       const novas = (data.resultados ?? []).filter((p) => !hashesSet.has(p.hash));
 
-      novas.forEach((p) => {
-        createPublicacao({
+      for (const p of novas) {
+        await createPublicacao({
           titulo: p.titulo,
           conteudo: p.conteudo,
           data_publicacao: p.data_publicacao,
@@ -148,7 +142,7 @@ export default function PublicacoesPage() {
           lida: false,
         });
         hashesSet.add(p.hash);
-      });
+      }
 
       try {
         localStorage.setItem(HASHES_KEY, JSON.stringify([...hashesSet]));
@@ -192,7 +186,6 @@ export default function PublicacoesPage() {
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
 
-      {/* Header */}
       <div className="flex items-start justify-between mb-6 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Publicações</h1>
@@ -213,7 +206,6 @@ export default function PublicacoesPage() {
         </div>
       </div>
 
-      {/* Banner de status */}
       {!temPerfil ? (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 items-start">
           <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -242,7 +234,6 @@ export default function PublicacoesPage() {
         </div>
       )}
 
-      {/* Status da última busca */}
       {statusMsg && (
         <div className={`mb-4 flex items-center gap-2 text-sm font-medium rounded-lg px-4 py-3 border ${
           statusTipo === "ok" ? "bg-green-50 text-green-700 border-green-200" :
@@ -255,7 +246,6 @@ export default function PublicacoesPage() {
         </div>
       )}
 
-      {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -282,7 +272,6 @@ export default function PublicacoesPage() {
         </div>
       </div>
 
-      {/* Lista */}
       {filtered.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
@@ -322,7 +311,7 @@ export default function PublicacoesPage() {
                       </a>
                     )}
                     {!pub.lida && (
-                      <Button variant="secondary" size="sm" onClick={() => { marcarPublicacaoLida(pub.id); load(); }}>
+                      <Button variant="secondary" size="sm" onClick={async () => { await marcarPublicacaoLida(pub.id); load(); }}>
                         <Eye className="w-3.5 h-3.5" /> Lida
                       </Button>
                     )}
@@ -352,11 +341,11 @@ function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: 
   const [dataPub, setDataPub] = useState(new Date().toISOString().split("T")[0]);
   const [url, setUrl] = useState("");
 
-  useEffect(() => { if (open) setProcessos(getProcessos()); }, [open]);
+  useEffect(() => { if (open) getProcessos().then(setProcessos); }, [open]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    createPublicacao({
+    await createPublicacao({
       processo_id: processoId || undefined,
       titulo: titulo || undefined,
       conteudo: conteudo || undefined,

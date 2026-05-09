@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { Calendar, Plus, CheckCircle, Trash2, MapPin, Clock } from "lucide-react";
@@ -33,12 +33,9 @@ export default function AudienciasPage() {
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState<"proximas" | "realizadas" | "todas">("proximas");
 
-  const load = useCallback(() => {
-    setAudiencias(
-      getAudienciasWithProcesso().sort(
-        (a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()
-      )
-    );
+  const load = useCallback(async () => {
+    const data = await getAudienciasWithProcesso();
+    setAudiencias(data.sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -64,7 +61,6 @@ export default function AudienciasPage() {
         </Button>
       </div>
 
-      {/* Filter */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {(["proximas", "todas", "realizadas"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
@@ -90,7 +86,6 @@ export default function AudienciasPage() {
               <Card key={a.id} className={`transition-all ${a.realizada ? "opacity-60" : isToday ? "ring-2 ring-gray-400" : ""}`}>
                 <CardContent className="py-4 px-5">
                   <div className="flex items-start gap-4">
-                    {/* Date badge */}
                     <div className={`shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center text-center ${a.realizada ? "bg-gray-100" : isToday ? "bg-gray-900" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                       <span className={`text-lg font-bold leading-none ${a.realizada ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                         {new Date(a.data_hora).getDate()}
@@ -113,13 +108,13 @@ export default function AudienciasPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => { updateAudiencia(a.id, { realizada: !a.realizada }); load(); }}
+                        onClick={async () => { await updateAudiencia(a.id, { realizada: !a.realizada }); load(); }}
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${a.realizada ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
                         title={a.realizada ? "Marcar como não realizada" : "Marcar como realizada"}
                       >
                         {a.realizada && <CheckCircle className="w-4 h-4 text-white" />}
                       </button>
-                      <button onClick={() => { deleteAudiencia(a.id); load(); }} className="text-gray-300 hover:text-red-500 transition-colors">
+                      <button onClick={async () => { await deleteAudiencia(a.id); load(); }} className="text-gray-300 hover:text-red-500 transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -144,12 +139,12 @@ function NovaAudienciaModal({ open, onClose, onCreated }: { open: boolean; onClo
   const [local, setLocal] = useState("");
   const [tipo, setTipo] = useState("");
 
-  useEffect(() => { if (open) setProcessos(getProcessos()); }, [open]);
+  useEffect(() => { if (open) getProcessos().then(setProcessos); }, [open]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !dataHora || !processoId) return;
-    createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, tipo: tipo as any || undefined, realizada: false });
+    await createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, tipo: tipo as any || undefined, realizada: false });
     setTitulo(""); setDataHora(""); setLocal(""); setTipo(""); setProcessoId("");
     onCreated();
   }

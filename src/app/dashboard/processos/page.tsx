@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
@@ -42,8 +42,8 @@ export default function ProcessosPage() {
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [showModal, setShowModal] = useState(false);
 
-  const load = useCallback(() => {
-    setProcessos(getProcessos());
+  const load = useCallback(async () => {
+    setProcessos(await getProcessos());
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -71,7 +71,6 @@ export default function ProcessosPage() {
         </Button>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex-1 min-w-48 max-w-sm">
           <div className="relative">
@@ -103,7 +102,6 @@ export default function ProcessosPage() {
         </div>
       </div>
 
-      {/* Lista */}
       {filtered.length === 0 ? (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">

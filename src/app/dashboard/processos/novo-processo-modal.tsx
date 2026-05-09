@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { createProcesso, updateProcesso, createCliente, getClientes } from "@/lib/store";
+import { createProcesso, createCliente, getClientes } from "@/lib/store";
 import type { Cliente } from "@/types";
 
 const ufs = [
@@ -53,7 +53,9 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) setClientes(getClientes());
+    if (open) {
+      getClientes().then(setClientes);
+    }
   }, [open]);
 
   function set(field: string, value: string) {
@@ -73,47 +75,49 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.numero || !form.titulo || !form.cliente_nome) return;
     setSaving(true);
-    // Auto-cadastra o cliente se ainda não estiver registrado
-    let resolvedClienteId = clienteId;
-    if (!resolvedClienteId && form.cliente_nome.trim()) {
-      const existente = clientes.find(
-        (c) => c.nome.toLowerCase().trim() === form.cliente_nome.toLowerCase().trim()
-      );
-      if (existente) {
-        resolvedClienteId = existente.id;
-      } else {
-        const novo = createCliente({
-          nome: form.cliente_nome.trim(),
-          cpf: form.cliente_cpf_cnpj || undefined,
-        });
-        resolvedClienteId = novo.id;
+    try {
+      let resolvedClienteId = clienteId;
+      if (!resolvedClienteId && form.cliente_nome.trim()) {
+        const existente = clientes.find(
+          (c) => c.nome.toLowerCase().trim() === form.cliente_nome.toLowerCase().trim()
+        );
+        if (existente) {
+          resolvedClienteId = existente.id;
+        } else {
+          const novo = await createCliente({
+            nome: form.cliente_nome.trim(),
+            cpf: form.cliente_cpf_cnpj || undefined,
+          });
+          resolvedClienteId = novo.id;
+        }
       }
-    }
 
-    const novoProcesso = createProcesso({
-      numero: form.numero,
-      titulo: form.titulo,
-      cliente_id: resolvedClienteId || undefined,
-      cliente_nome: form.cliente_nome,
-      cliente_cpf_cnpj: form.cliente_cpf_cnpj || undefined,
-      parte_contraria: form.parte_contraria || undefined,
-      tribunal: form.tribunal || undefined,
-      vara: form.vara || undefined,
-      comarca: form.comarca || undefined,
-      uf: form.uf || undefined,
-      tipo: (form.tipo as any) || undefined,
-      fase: form.fase || undefined,
-      valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
-      data_distribuicao: form.data_distribuicao || undefined,
-      descricao: form.descricao || undefined,
-      status: "ativo",
-    });
-    setSaving(false);
-    onCreated();
+      await createProcesso({
+        numero: form.numero,
+        titulo: form.titulo,
+        cliente_id: resolvedClienteId || undefined,
+        cliente_nome: form.cliente_nome,
+        cliente_cpf_cnpj: form.cliente_cpf_cnpj || undefined,
+        parte_contraria: form.parte_contraria || undefined,
+        tribunal: form.tribunal || undefined,
+        vara: form.vara || undefined,
+        comarca: form.comarca || undefined,
+        uf: form.uf || undefined,
+        tipo: (form.tipo as any) || undefined,
+        fase: form.fase || undefined,
+        valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
+        data_distribuicao: form.data_distribuicao || undefined,
+        descricao: form.descricao || undefined,
+        status: "ativo",
+      });
+      onCreated();
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (

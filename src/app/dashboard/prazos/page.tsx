@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { Clock, Plus, CheckCircle, Trash2, AlertTriangle } from "lucide-react";
@@ -25,12 +25,9 @@ export default function PrazosPage() {
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState<"pendentes" | "concluidos" | "todos">("pendentes");
 
-  const load = useCallback(() => {
-    setPrazos(
-      getPrazosWithProcesso().sort(
-        (a, b) => new Date(a.data_prazo).getTime() - new Date(b.data_prazo).getTime()
-      )
-    );
+  const load = useCallback(async () => {
+    const data = await getPrazosWithProcesso();
+    setPrazos(data.sort((a, b) => new Date(a.data_prazo).getTime() - new Date(b.data_prazo).getTime()));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -65,7 +62,6 @@ export default function PrazosPage() {
         </Button>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {(["pendentes", "todos", "concluidos"] as const).map((f) => (
           <button
@@ -94,7 +90,7 @@ export default function PrazosPage() {
                 <CardContent className="py-3.5 px-5">
                   <div className="flex items-center gap-4">
                     <button
-                      onClick={() => { updatePrazo(p.id, { concluido: !p.concluido }); load(); }}
+                      onClick={async () => { await updatePrazo(p.id, { concluido: !p.concluido }); load(); }}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${p.concluido ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
                     >
                       {p.concluido && <CheckCircle className="w-3 h-3 text-white" />}
@@ -116,7 +112,7 @@ export default function PrazosPage() {
                       )}
                       <p className="text-xs text-gray-400 mt-1">{formatDate(p.data_prazo)}</p>
                     </div>
-                    <button onClick={() => { deletePrazo(p.id); load(); }} className="text-gray-300 hover:text-red-500 transition-colors">
+                    <button onClick={async () => { await deletePrazo(p.id); load(); }} className="text-gray-300 hover:text-red-500 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -140,12 +136,12 @@ function NovoPrazoModal({ open, onClose, onCreated }: { open: boolean; onClose: 
   const [tipo, setTipo] = useState("");
   const [prioridade, setPrioridade] = useState("media");
 
-  useEffect(() => { if (open) setProcessos(getProcessos()); }, [open]);
+  useEffect(() => { if (open) getProcessos().then(setProcessos); }, [open]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !data || !processoId) return;
-    createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: prioridade as any, concluido: false });
+    await createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: prioridade as any, concluido: false });
     setTitulo(""); setData(""); setTipo(""); setPrioridade("media"); setProcessoId("");
     onCreated();
   }
@@ -160,7 +156,6 @@ function NovoPrazoModal({ open, onClose, onCreated }: { open: boolean; onClose: 
           value={processoId}
           onChange={(e) => setProcessoId(e.target.value)}
         />
-
         <Input label="Título *" placeholder="Ex: Recurso de Apelação" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">
           <Select label="Tipo" options={prazoTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />

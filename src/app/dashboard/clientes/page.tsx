@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Users, TrendingUp, FolderOpen, ChevronRight, Search, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,9 +9,8 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesSummary, getClientes, createCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
+import { getClientesSummary, createCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Cliente } from "@/types";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -27,24 +26,23 @@ export default function ClientesPage() {
 
   const naoCadastrados = clientes.filter((c) => !c.cadastrado).length;
 
-  function handleImportar() {
-    const count = importarClientesExistentes();
+  async function handleImportar() {
+    const count = await importarClientesExistentes();
     if (count > 0) {
       load();
     }
   }
 
-  function load() {
-    setClientes(getClientesSummary());
-  }
+  const load = useCallback(async () => {
+    setClientes(await getClientesSummary());
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const filtered = clientes.filter((c) =>
     c.nome.toLowerCase().includes(query.toLowerCase())
   );
 
-  const totalCobrado = clientes.reduce((s, c) => s + c.totalCobrado, 0);
   const totalPago = clientes.reduce((s, c) => s + c.totalPago, 0);
   const totalSaldo = clientes.reduce((s, c) => s + c.saldo, 0);
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
@@ -70,7 +68,6 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         <Card>
           <CardContent className="p-5">
@@ -101,7 +98,6 @@ export default function ClientesPage() {
         </Card>
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
@@ -112,7 +108,6 @@ export default function ClientesPage() {
         />
       </div>
 
-      {/* List */}
       {filtered.length === 0 ? (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
@@ -219,10 +214,10 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nome.trim()) return;
-    createCliente({
+    await createCliente({
       nome: form.nome.trim(),
       cpf: form.cpf || undefined,
       rg: form.rg || undefined,
@@ -244,7 +239,6 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
   return (
     <Modal open={open} onClose={onClose} title="Novo Cliente" size="lg">
       <form onSubmit={submit} className="space-y-5">
-        {/* Identificação */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
           <div className="space-y-3">
@@ -256,7 +250,6 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
           </div>
         </div>
 
-        {/* Contato */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contato</p>
           <div className="grid grid-cols-2 gap-3">
@@ -265,7 +258,6 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
           </div>
         </div>
 
-        {/* Endereço */}
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Endereço</p>
           <div className="space-y-3">
@@ -287,7 +279,6 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
           </div>
         </div>
 
-        {/* Observações */}
         <Textarea label="Observações" placeholder="Informações adicionais sobre o cliente..." rows={3} value={form.observacoes} onChange={(e) => set("observacoes", e.target.value)} />
 
         <div className="flex justify-end gap-3 pt-1">

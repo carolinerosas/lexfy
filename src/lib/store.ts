@@ -1,5 +1,4 @@
-"use client";
-
+import { supabase } from "./supabase";
 import type {
   Cliente,
   Processo,
@@ -11,6 +10,8 @@ import type {
   Publicacao,
 } from "@/types";
 
+const USER_ID = "lexfy_shared";
+
 function generateId(): string {
   return crypto.randomUUID();
 }
@@ -19,380 +20,292 @@ function now(): string {
   return new Date().toISOString();
 }
 
-// Generic local storage CRUD
-function getAll<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? "[]") as T[];
-  } catch {
-    return [];
-  }
-}
-
-function setAll<T>(key: string, items: T[]): void {
-  localStorage.setItem(key, JSON.stringify(items));
-}
-
 // --- Processos ---
-const PROCESSOS_KEY = "jur_processos";
 
-export function getProcessos(): Processo[] {
-  return getAll<Processo>(PROCESSOS_KEY).sort(
-    (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-  );
+export async function getProcessos(): Promise<Processo[]> {
+  const { data } = await supabase
+    .from("processos")
+    .select("*")
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as Processo[];
 }
 
-export function getProcesso(id: string): Processo | undefined {
-  return getAll<Processo>(PROCESSOS_KEY).find((p) => p.id === id);
+export async function getProcesso(id: string): Promise<Processo | undefined> {
+  const { data } = await supabase
+    .from("processos")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data as Processo | undefined;
 }
 
-export function createProcesso(
-  data: Omit<Processo, "id" | "created_at" | "updated_at" | "user_id">
-): Processo {
-  const items = getAll<Processo>(PROCESSOS_KEY);
-  const novo: Processo = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    updated_at: now(),
-    user_id: "local",
-  };
-  setAll(PROCESSOS_KEY, [...items, novo]);
-  return novo;
+export async function createProcesso(
+  input: Omit<Processo, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<Processo> {
+  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("processos").insert(novo).select().single();
+  return data as Processo;
 }
 
-export function updateProcesso(id: string, data: Partial<Processo>): void {
-  const items = getAll<Processo>(PROCESSOS_KEY);
-  setAll(
-    PROCESSOS_KEY,
-    items.map((p) =>
-      p.id === id ? { ...p, ...data, updated_at: now() } : p
-    )
-  );
+export async function updateProcesso(id: string, input: Partial<Processo>): Promise<void> {
+  await supabase.from("processos").update({ ...input, updated_at: now() }).eq("id", id);
 }
 
-export function deleteProcesso(id: string): void {
-  setAll(PROCESSOS_KEY, getAll<Processo>(PROCESSOS_KEY).filter((p) => p.id !== id));
-  // cascade
-  setPrazos(getPrazos().filter((p) => p.processo_id !== id));
-  setAudiencias(getAudiencias().filter((a) => a.processo_id !== id));
-  setMovimentacoes(getMovimentacoes().filter((m) => m.processo_id !== id));
-  setHonorarios(getHonorarios().filter((h) => h.processo_id !== id));
-  setAtendimentos(getAtendimentos().filter((a) => a.processo_id !== id));
+export async function deleteProcesso(id: string): Promise<void> {
+  await Promise.all([
+    supabase.from("prazos").delete().eq("processo_id", id),
+    supabase.from("audiencias").delete().eq("processo_id", id),
+    supabase.from("movimentacoes").delete().eq("processo_id", id),
+    supabase.from("honorarios").delete().eq("processo_id", id),
+    supabase.from("atendimentos").delete().eq("processo_id", id),
+  ]);
+  await supabase.from("processos").delete().eq("id", id);
 }
 
 // --- Prazos ---
-const PRAZOS_KEY = "jur_prazos";
 
-export function getPrazos(): Prazo[] {
-  return getAll<Prazo>(PRAZOS_KEY);
+export async function getPrazos(): Promise<Prazo[]> {
+  const { data } = await supabase.from("prazos").select("*");
+  return (data ?? []) as Prazo[];
 }
 
-function setPrazos(items: Prazo[]): void {
-  setAll(PRAZOS_KEY, items);
-}
-
-export function getPrazosWithProcesso(): (Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[] {
-  const processos = getAll<Processo>(PROCESSOS_KEY);
-  return getPrazos().map((p) => {
+export async function getPrazosWithProcesso(): Promise<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {
+  const [prazos, processos] = await Promise.all([getPrazos(), getProcessos()]);
+  return prazos.map((p) => {
     const proc = processos.find((pr) => pr.id === p.processo_id);
-    return {
-      ...p,
-      processo: proc
-        ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome }
-        : undefined,
-    };
+    return { ...p, processo: proc ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome } : undefined };
   });
 }
 
-export function createPrazo(
-  data: Omit<Prazo, "id" | "created_at" | "user_id">
-): Prazo {
-  const items = getPrazos();
-  const novo: Prazo = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(PRAZOS_KEY, [...items, novo]);
-  return novo;
+export async function createPrazo(
+  input: Omit<Prazo, "id" | "created_at" | "user_id">
+): Promise<Prazo> {
+  const novo = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("prazos").insert(novo).select().single();
+  return data as Prazo;
 }
 
-export function updatePrazo(id: string, data: Partial<Prazo>): void {
-  setPrazos(getPrazos().map((p) => (p.id === id ? { ...p, ...data } : p)));
+export async function updatePrazo(id: string, input: Partial<Prazo>): Promise<void> {
+  await supabase.from("prazos").update(input).eq("id", id);
 }
 
-export function deletePrazo(id: string): void {
-  setPrazos(getPrazos().filter((p) => p.id !== id));
+export async function deletePrazo(id: string): Promise<void> {
+  await supabase.from("prazos").delete().eq("id", id);
 }
 
 // --- Audiências ---
-const AUDIENCIAS_KEY = "jur_audiencias";
 
-export function getAudiencias(): Audiencia[] {
-  return getAll<Audiencia>(AUDIENCIAS_KEY);
+export async function getAudiencias(): Promise<Audiencia[]> {
+  const { data } = await supabase.from("audiencias").select("*");
+  return (data ?? []) as Audiencia[];
 }
 
-function setAudiencias(items: Audiencia[]): void {
-  setAll(AUDIENCIAS_KEY, items);
-}
-
-export function getAudienciasWithProcesso(): (Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[] {
-  const processos = getAll<Processo>(PROCESSOS_KEY);
-  return getAudiencias().map((a) => {
+export async function getAudienciasWithProcesso(): Promise<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {
+  const [audiencias, processos] = await Promise.all([getAudiencias(), getProcessos()]);
+  return audiencias.map((a) => {
     const proc = processos.find((pr) => pr.id === a.processo_id);
-    return {
-      ...a,
-      processo: proc
-        ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome }
-        : undefined,
-    };
+    return { ...a, processo: proc ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome } : undefined };
   });
 }
 
-export function createAudiencia(
-  data: Omit<Audiencia, "id" | "created_at" | "user_id">
-): Audiencia {
-  const items = getAudiencias();
-  const nova: Audiencia = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(AUDIENCIAS_KEY, [...items, nova]);
-  return nova;
+export async function createAudiencia(
+  input: Omit<Audiencia, "id" | "created_at" | "user_id">
+): Promise<Audiencia> {
+  const nova = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("audiencias").insert(nova).select().single();
+  return data as Audiencia;
 }
 
-export function updateAudiencia(id: string, data: Partial<Audiencia>): void {
-  setAudiencias(getAudiencias().map((a) => (a.id === id ? { ...a, ...data } : a)));
+export async function updateAudiencia(id: string, input: Partial<Audiencia>): Promise<void> {
+  await supabase.from("audiencias").update(input).eq("id", id);
 }
 
-export function deleteAudiencia(id: string): void {
-  setAudiencias(getAudiencias().filter((a) => a.id !== id));
+export async function deleteAudiencia(id: string): Promise<void> {
+  await supabase.from("audiencias").delete().eq("id", id);
 }
 
 // --- Movimentações ---
-const MOV_KEY = "jur_movimentacoes";
 
-export function getMovimentacoes(): Movimentacao[] {
-  return getAll<Movimentacao>(MOV_KEY);
+export async function getMovimentacoes(): Promise<Movimentacao[]> {
+  const { data } = await supabase.from("movimentacoes").select("*");
+  return (data ?? []) as Movimentacao[];
 }
 
-function setMovimentacoes(items: Movimentacao[]): void {
-  setAll(MOV_KEY, items);
+export async function getMovimentacoesByProcesso(processoId: string): Promise<Movimentacao[]> {
+  const { data } = await supabase
+    .from("movimentacoes")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("data_movimentacao", { ascending: false });
+  return (data ?? []) as Movimentacao[];
 }
 
-export function getMovimentacoesByProcesso(processoId: string): Movimentacao[] {
-  return getMovimentacoes()
-    .filter((m) => m.processo_id === processoId)
-    .sort((a, b) => new Date(b.data_movimentacao).getTime() - new Date(a.data_movimentacao).getTime());
+export async function createMovimentacao(
+  input: Omit<Movimentacao, "id" | "created_at" | "user_id">
+): Promise<Movimentacao> {
+  const nova = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("movimentacoes").insert(nova).select().single();
+  return data as Movimentacao;
 }
 
-export function createMovimentacao(
-  data: Omit<Movimentacao, "id" | "created_at" | "user_id">
-): Movimentacao {
-  const items = getMovimentacoes();
-  const nova: Movimentacao = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(MOV_KEY, [...items, nova]);
-  return nova;
+export async function marcarMovimentacaoLida(id: string): Promise<void> {
+  await supabase.from("movimentacoes").update({ lida: true }).eq("id", id);
 }
 
-export function marcarMovimentacaoLida(id: string): void {
-  setMovimentacoes(getMovimentacoes().map((m) => (m.id === id ? { ...m, lida: true } : m)));
+export async function marcarTodasMovimentacoesLidas(processoId: string): Promise<void> {
+  await supabase.from("movimentacoes").update({ lida: true }).eq("processo_id", processoId);
 }
 
-export function marcarTodasMovimentacoesLidas(processoId: string): void {
-  setMovimentacoes(
-    getMovimentacoes().map((m) => (m.processo_id === processoId ? { ...m, lida: true } : m))
-  );
+export async function getMovimentacoesNaoLidas(): Promise<number> {
+  const { count } = await supabase
+    .from("movimentacoes")
+    .select("*", { count: "exact", head: true })
+    .eq("lida", false);
+  return count ?? 0;
 }
 
-export function getMovimentacoesNaoLidas(): number {
-  return getMovimentacoes().filter((m) => !m.lida).length;
-}
-
-export function deleteMovimentacao(id: string): void {
-  setMovimentacoes(getMovimentacoes().filter((m) => m.id !== id));
+export async function deleteMovimentacao(id: string): Promise<void> {
+  await supabase.from("movimentacoes").delete().eq("id", id);
 }
 
 // --- Honorários ---
-const HON_KEY = "jur_honorarios";
 
-export function getHonorarios(): Honorario[] {
-  // Backwards compat: entries without categoria default to "pagamento"
-  return getAll<Honorario>(HON_KEY).map((h) => ({
-    ...h,
-    categoria: h.categoria ?? "pagamento",
-  }));
+export async function getHonorarios(): Promise<Honorario[]> {
+  const { data } = await supabase.from("honorarios").select("*");
+  return ((data ?? []) as Honorario[]).map((h) => ({ ...h, categoria: h.categoria ?? "pagamento" }));
 }
 
-function setHonorarios(items: Honorario[]): void {
-  setAll(HON_KEY, items);
-}
-
-export function getHonorariosWithProcesso(): (Honorario & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[] {
-  const processos = getAll<Processo>(PROCESSOS_KEY);
-  return getHonorarios().map((h) => {
+export async function getHonorariosWithProcesso(): Promise<(Honorario & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {
+  const [honorarios, processos] = await Promise.all([getHonorarios(), getProcessos()]);
+  return honorarios.map((h) => {
     const proc = processos.find((pr) => pr.id === h.processo_id);
-    return {
-      ...h,
-      processo: proc
-        ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome }
-        : undefined,
-    };
+    return { ...h, processo: proc ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome } : undefined };
   });
 }
 
-export function createHonorario(
-  data: Omit<Honorario, "id" | "created_at" | "user_id">
-): Honorario {
-  const items = getHonorarios();
-  const novo: Honorario = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(HON_KEY, [...items, novo]);
-  return novo;
+export async function createHonorario(
+  input: Omit<Honorario, "id" | "created_at" | "user_id">
+): Promise<Honorario> {
+  const novo = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("honorarios").insert(novo).select().single();
+  return data as Honorario;
 }
 
-export function updateHonorario(id: string, data: Partial<Honorario>): void {
-  setHonorarios(getHonorarios().map((h) => (h.id === id ? { ...h, ...data } : h)));
+export async function updateHonorario(id: string, input: Partial<Honorario>): Promise<void> {
+  await supabase.from("honorarios").update(input).eq("id", id);
 }
 
-export function deleteHonorario(id: string): void {
-  setHonorarios(getHonorarios().filter((h) => h.id !== id));
+export async function deleteHonorario(id: string): Promise<void> {
+  await supabase.from("honorarios").delete().eq("id", id);
 }
 
 // --- Publicações ---
-const PUB_KEY = "jur_publicacoes";
 
-export function getPublicacoes(): Publicacao[] {
-  return getAll<Publicacao>(PUB_KEY);
+export async function getPublicacoes(): Promise<Publicacao[]> {
+  const { data } = await supabase
+    .from("publicacoes")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []) as Publicacao[];
 }
 
-export function createPublicacao(
-  data: Omit<Publicacao, "id" | "created_at" | "user_id">
-): Publicacao {
-  const items = getPublicacoes();
-  const nova: Publicacao = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(PUB_KEY, [...items, nova]);
-  return nova;
+export async function createPublicacao(
+  input: Omit<Publicacao, "id" | "created_at" | "user_id">
+): Promise<Publicacao> {
+  const nova = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("publicacoes").insert(nova).select().single();
+  return data as Publicacao;
 }
 
-export function marcarPublicacaoLida(id: string): void {
-  setAll(
-    PUB_KEY,
-    getPublicacoes().map((p) => (p.id === id ? { ...p, lida: true } : p))
-  );
+export async function marcarPublicacaoLida(id: string): Promise<void> {
+  await supabase.from("publicacoes").update({ lida: true }).eq("id", id);
 }
 
 // --- Atendimentos ---
-const ATEN_KEY = "jur_atendimentos";
 
-export function getAtendimentos(): Atendimento[] {
-  return getAll<Atendimento>(ATEN_KEY);
+export async function getAtendimentos(): Promise<Atendimento[]> {
+  const { data } = await supabase.from("atendimentos").select("*");
+  return (data ?? []) as Atendimento[];
 }
 
-function setAtendimentos(items: Atendimento[]): void {
-  setAll(ATEN_KEY, items);
-}
-
-export function getAtendimentosWithProcesso(): Atendimento[] {
-  const processos = getAll<Processo>(PROCESSOS_KEY);
-  return getAtendimentos().map((a) => {
+export async function getAtendimentosWithProcesso(): Promise<Atendimento[]> {
+  const [atendimentos, processos] = await Promise.all([getAtendimentos(), getProcessos()]);
+  return atendimentos.map((a) => {
     const proc = processos.find((p) => p.id === a.processo_id);
-    return {
-      ...a,
-      processo: proc
-        ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome }
-        : undefined,
-    };
+    return { ...a, processo: proc ? { numero: proc.numero, titulo: proc.titulo, cliente_nome: proc.cliente_nome } : undefined };
   });
 }
 
-export function getAtendimentosByProcesso(processoId: string): Atendimento[] {
-  return getAtendimentos()
-    .filter((a) => a.processo_id === processoId)
-    .sort((a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
+export async function getAtendimentosByProcesso(processoId: string): Promise<Atendimento[]> {
+  const { data } = await supabase
+    .from("atendimentos")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("data_hora", { ascending: false });
+  return (data ?? []) as Atendimento[];
 }
 
-export function createAtendimento(
-  data: Omit<Atendimento, "id" | "created_at" | "user_id" | "processo">
-): Atendimento {
-  const items = getAtendimentos();
-  const novo: Atendimento = {
-    ...data,
-    id: generateId(),
-    created_at: now(),
-    user_id: "local",
-  };
-  setAll(ATEN_KEY, [...items, novo]);
-  return novo;
+export async function createAtendimento(
+  input: Omit<Atendimento, "id" | "created_at" | "user_id" | "processo">
+): Promise<Atendimento> {
+  const novo = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("atendimentos").insert(novo).select().single();
+  return data as Atendimento;
 }
 
-export function updateAtendimento(id: string, data: Partial<Atendimento>): void {
-  setAtendimentos(getAtendimentos().map((a) => (a.id === id ? { ...a, ...data } : a)));
+export async function updateAtendimento(id: string, input: Partial<Atendimento>): Promise<void> {
+  await supabase.from("atendimentos").update(input).eq("id", id);
 }
 
-export function deleteAtendimento(id: string): void {
-  setAtendimentos(getAtendimentos().filter((a) => a.id !== id));
+export async function deleteAtendimento(id: string): Promise<void> {
+  await supabase.from("atendimentos").delete().eq("id", id);
 }
 
-// --- Clientes (cadastro) ---
-const CLI_KEY = "jur_clientes";
+// --- Clientes ---
 
-export function getClientes(): Cliente[] {
-  return getAll<Cliente>(CLI_KEY).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+export async function getClientes(): Promise<Cliente[]> {
+  const { data } = await supabase
+    .from("clientes")
+    .select("*")
+    .order("nome", { ascending: true });
+  return (data ?? []) as Cliente[];
 }
 
-export function getCliente(id: string): Cliente | undefined {
-  return getAll<Cliente>(CLI_KEY).find((c) => c.id === id);
+export async function getCliente(id: string): Promise<Cliente | undefined> {
+  const { data } = await supabase
+    .from("clientes")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data as Cliente | undefined;
 }
 
-export function createCliente(data: Omit<Cliente, "id" | "created_at" | "updated_at" | "user_id">): Cliente {
-  const items = getAll<Cliente>(CLI_KEY);
-  const novo: Cliente = { ...data, id: generateId(), created_at: now(), updated_at: now(), user_id: "local" };
-  setAll(CLI_KEY, [...items, novo]);
-  return novo;
+export async function createCliente(
+  input: Omit<Cliente, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<Cliente> {
+  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data } = await supabase.from("clientes").insert(novo).select().single();
+  return data as Cliente;
 }
 
-export function updateCliente(id: string, data: Partial<Cliente>): void {
-  setAll(CLI_KEY, getAll<Cliente>(CLI_KEY).map((c) => c.id === id ? { ...c, ...data, updated_at: now() } : c));
+export async function updateCliente(id: string, input: Partial<Cliente>): Promise<void> {
+  await supabase.from("clientes").update({ ...input, updated_at: now() }).eq("id", id);
 }
 
-export function deleteCliente(id: string): void {
-  setAll(CLI_KEY, getAll<Cliente>(CLI_KEY).filter((c) => c.id !== id));
+export async function deleteCliente(id: string): Promise<void> {
+  await supabase.from("clientes").delete().eq("id", id);
 }
 
-export function importarClientesExistentes(): number {
-  const processos = getAll<Processo>(PROCESSOS_KEY);
+export async function importarClientesExistentes(): Promise<number> {
+  const [processos, clientesExistentes] = await Promise.all([getProcessos(), getClientes()]);
   let count = 0;
 
-  // 1. Para clientes JÁ cadastrados: vincula processos que ainda não têm cliente_id
-  const clientesExistentes = getClientes();
-  clientesExistentes.forEach((cliente) => {
-    const semLink = processos.filter(
-      (p) => p.cliente_nome === cliente.nome && !p.cliente_id
-    );
-    semLink.forEach((p) => updateProcesso(p.id, { cliente_id: cliente.id }));
+  for (const cliente of clientesExistentes) {
+    const semLink = processos.filter((p) => p.cliente_nome === cliente.nome && !p.cliente_id);
+    for (const p of semLink) await updateProcesso(p.id, { cliente_id: cliente.id });
     if (semLink.length > 0) count++;
-  });
+  }
 
-  // 2. Cria novos clientes para nomes que ainda não estão cadastrados
   const nomesRegistrados = new Set(clientesExistentes.map((c) => c.nome.toLowerCase().trim()));
   const novosNomes = new Map<string, string | undefined>();
   processos.forEach((p) => {
@@ -402,18 +315,17 @@ export function importarClientesExistentes(): number {
     }
   });
 
-  novosNomes.forEach((cpf, nome) => {
-    const novo = createCliente({ nome, cpf: cpf || undefined });
-    processos
-      .filter((p) => p.cliente_nome === nome && !p.cliente_id)
-      .forEach((p) => updateProcesso(p.id, { cliente_id: novo.id }));
+  for (const [nome, cpf] of novosNomes.entries()) {
+    const novo = await createCliente({ nome, cpf: cpf || undefined });
+    const sem = processos.filter((p) => p.cliente_nome === nome && !p.cliente_id);
+    for (const p of sem) await updateProcesso(p.id, { cliente_id: novo.id });
     count++;
-  });
+  }
 
   return count;
 }
 
-// --- Clientes (summary) ---
+// --- Clientes Summary ---
 
 export interface ClienteSummary {
   nome: string;
@@ -425,11 +337,13 @@ export interface ClienteSummary {
   ultimoContato?: string;
 }
 
-export function getClientesSummary(): (ClienteSummary & { id?: string; cadastrado: boolean })[] {
-  const clientes = getClientes();
-  const processos = getAll<Processo>(PROCESSOS_KEY);
-  const honorarios = getHonorarios();
-  const atendimentos = getAtendimentos();
+export async function getClientesSummary(): Promise<(ClienteSummary & { id?: string; cadastrado: boolean })[]> {
+  const [clientes, processos, honorarios, atendimentos] = await Promise.all([
+    getClientes(),
+    getProcessos(),
+    getHonorarios(),
+    getAtendimentos(),
+  ]);
 
   function buildSummary(id: string | undefined, nome: string, cadastrado: boolean) {
     const procs = processos.filter((p) =>
@@ -456,56 +370,64 @@ export function getClientesSummary(): (ClienteSummary & { id?: string; cadastrad
     };
   }
 
-  // Registered clients
   const registeredNomes = new Set(clientes.map((c) => c.nome));
   const registered = clientes.map((c) => buildSummary(c.id, c.nome, true));
 
-  // Unregistered (in processos/atendimentos but not in Cliente registry)
   const nomesSet = new Set<string>();
-  processos.forEach((p) => { if (!registeredNomes.has(p.cliente_nome)) nomesSet.add(p.cliente_nome); });
-  atendimentos.forEach((a) => { if (!registeredNomes.has(a.cliente_nome)) nomesSet.add(a.cliente_nome); });
+  processos.forEach((p) => { if (p.cliente_nome && !registeredNomes.has(p.cliente_nome)) nomesSet.add(p.cliente_nome); });
+  atendimentos.forEach((a) => { if (a.cliente_nome && !registeredNomes.has(a.cliente_nome)) nomesSet.add(a.cliente_nome); });
   const unregistered = Array.from(nomesSet).filter(Boolean).map((nome) => buildSummary(undefined, nome, false));
 
   return [...registered, ...unregistered].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
-export function getProcessosByCliente(idOrNome: string): Processo[] {
-  return getAll<Processo>(PROCESSOS_KEY)
-    .filter((p) => p.cliente_id === idOrNome || p.cliente_nome === idOrNome)
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+export async function getProcessosByCliente(idOrNome: string): Promise<Processo[]> {
+  const { data } = await supabase
+    .from("processos")
+    .select("*")
+    .or(`cliente_id.eq.${idOrNome},cliente_nome.eq.${idOrNome}`)
+    .order("updated_at", { ascending: false });
+  return (data ?? []) as Processo[];
 }
 
-export function getPrazosByCliente(idOrNome: string): (Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[] {
-  const procs = getAll<Processo>(PROCESSOS_KEY).filter((p) => p.cliente_id === idOrNome || p.cliente_nome === idOrNome);
+export async function getPrazosByCliente(idOrNome: string): Promise<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {
+  const procs = await getProcessosByCliente(idOrNome);
   const procIds = new Set(procs.map((p) => p.id));
-  return getPrazosWithProcesso()
+  const todos = await getPrazosWithProcesso();
+  return todos
     .filter((p) => procIds.has(p.processo_id))
     .sort((a, b) => new Date(a.data_prazo).getTime() - new Date(b.data_prazo).getTime());
 }
 
-export function getAudienciasByCliente(idOrNome: string): (Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[] {
-  const procs = getAll<Processo>(PROCESSOS_KEY).filter((p) => p.cliente_id === idOrNome || p.cliente_nome === idOrNome);
+export async function getAudienciasByCliente(idOrNome: string): Promise<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {
+  const procs = await getProcessosByCliente(idOrNome);
   const procIds = new Set(procs.map((p) => p.id));
-  return getAudienciasWithProcesso()
+  const todos = await getAudienciasWithProcesso();
+  return todos
     .filter((a) => procIds.has(a.processo_id))
     .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime());
 }
 
-export function getHonorariosByCliente(idOrNome: string): Honorario[] {
-  const procs = getAll<Processo>(PROCESSOS_KEY).filter((p) => p.cliente_id === idOrNome || p.cliente_nome === idOrNome);
+export async function getHonorariosByCliente(idOrNome: string): Promise<Honorario[]> {
+  const procs = await getProcessosByCliente(idOrNome);
   const procIds = new Set(procs.map((p) => p.id));
-  return getHonorarios()
+  const todos = await getHonorarios();
+  return todos
     .filter((h) => procIds.has(h.processo_id))
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
-export function getAtendimentosByCliente(idOrNome: string): Atendimento[] {
-  return getAtendimentos()
-    .filter((a) => a.cliente_id === idOrNome || a.cliente_nome === idOrNome)
-    .sort((a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
+export async function getAtendimentosByCliente(idOrNome: string): Promise<Atendimento[]> {
+  const { data } = await supabase
+    .from("atendimentos")
+    .select("*")
+    .or(`cliente_id.eq.${idOrNome},cliente_nome.eq.${idOrNome}`)
+    .order("data_hora", { ascending: false });
+  return (data ?? []) as Atendimento[];
 }
 
-// --- Dashboard stats ---
+// --- Dashboard Stats ---
+
 export interface DashboardStats {
   totalProcessos: number;
   processosAtivos: number;
@@ -519,31 +441,37 @@ export interface DashboardStats {
   movimentacoesNaoLidas: number;
 }
 
-export function getDashboardStats(): DashboardStats {
-  const processos = getProcessos();
-  const prazos = getPrazos().filter((p) => !p.concluido);
-  const audiencias = getAudiencias().filter((a) => !a.realizada);
-  const atendimentos = getAtendimentos().filter((a) => a.status === "agendado");
-  const honorarios = getHonorarios();
-  const publicacoes = getPublicacoes();
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const [processos, prazos, audiencias, atendimentos, honorarios, publicacoes, movNaoLidas] = await Promise.all([
+    getProcessos(),
+    getPrazos(),
+    getAudiencias(),
+    getAtendimentos(),
+    getHonorarios(),
+    getPublicacoes(),
+    getMovimentacoesNaoLidas(),
+  ]);
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const em7dias = new Date(hoje);
   em7dias.setDate(em7dias.getDate() + 7);
 
-  const prazosVencidos = prazos.filter((p) => new Date(p.data_prazo) < hoje).length;
-  const prazosProximos = prazos.filter((p) => {
+  const prazosAtivos = prazos.filter((p) => !p.concluido);
+  const prazosVencidos = prazosAtivos.filter((p) => new Date(p.data_prazo) < hoje).length;
+  const prazosProximos = prazosAtivos.filter((p) => {
     const d = new Date(p.data_prazo);
     return d >= hoje && d <= em7dias;
   }).length;
 
   const audienciasProximas = audiencias.filter((a) => {
+    if (a.realizada) return false;
     const d = new Date(a.data_hora);
     return d >= hoje && d <= em7dias;
   }).length;
 
   const atendimentosProximos = atendimentos.filter((a) => {
+    if (a.status !== "agendado") return false;
     const d = new Date(a.data_hora);
     return d >= hoje && d <= em7dias;
   }).length;
@@ -553,13 +481,8 @@ export function getDashboardStats(): DashboardStats {
     .filter((h) => h.categoria === "pagamento" && h.data_recebimento && new Date(h.data_recebimento) >= inicioMes)
     .reduce((sum, h) => sum + h.valor, 0);
 
-  const totalCobrado = honorarios
-    .filter((h) => h.categoria === "cobranca")
-    .reduce((sum, h) => sum + h.valor, 0);
-  const totalPago = honorarios
-    .filter((h) => h.categoria === "pagamento")
-    .reduce((sum, h) => sum + h.valor, 0);
-  const honorariosPendentes = Math.max(0, totalCobrado - totalPago);
+  const totalCobrado = honorarios.filter((h) => h.categoria === "cobranca").reduce((sum, h) => sum + h.valor, 0);
+  const totalPago = honorarios.filter((h) => h.categoria === "pagamento").reduce((sum, h) => sum + h.valor, 0);
 
   return {
     totalProcessos: processos.length,
@@ -568,21 +491,22 @@ export function getDashboardStats(): DashboardStats {
     prazosVencidos,
     audienciasProximas,
     atendimentosProximos,
-    honorariosPendentes,
+    honorariosPendentes: Math.max(0, totalCobrado - totalPago),
     honorariosRecebidosMes,
     publicacoesNaoLidas: publicacoes.filter((p) => !p.lida).length,
-    movimentacoesNaoLidas: getMovimentacoesNaoLidas(),
+    movimentacoesNaoLidas: movNaoLidas,
   };
 }
 
 // --- DataJud sync ---
+
 export interface SyncResult {
   novas: number;
   erro?: string;
 }
 
 export async function sincronizarProcesso(processoId: string): Promise<SyncResult> {
-  const processo = getProcesso(processoId);
+  const processo = await getProcesso(processoId);
   if (!processo) return { novas: 0, erro: "Processo não encontrado" };
 
   const { parseCNJ } = await import("./datajud");
@@ -598,12 +522,11 @@ export async function sincronizarProcesso(processoId: string): Promise<SyncResul
     return { novas: 0, erro: err instanceof Error ? err.message : "Erro desconhecido" };
   }
 
-  const existentes = getMovimentacoesByProcesso(processoId);
+  const existentes = await getMovimentacoesByProcesso(processoId);
   const chaves = new Set(existentes.map((m) => `${m.data_movimentacao.slice(0, 10)}|${m.descricao}`));
 
   let novas = 0;
   for (const mov of movimentos) {
-    // Normalise date: dd/mm/yyyy → ISO or keep ISO
     let iso = mov.data;
     if (/^\d{2}\/\d{2}\/\d{4}/.test(mov.data)) {
       const [d, m, y] = mov.data.slice(0, 10).split("/");
@@ -611,8 +534,7 @@ export async function sincronizarProcesso(processoId: string): Promise<SyncResul
     }
     const chave = `${iso.slice(0, 10)}|${mov.descricao}`;
     if (chaves.has(chave)) continue;
-
-    createMovimentacao({
+    await createMovimentacao({
       processo_id: processoId,
       descricao: mov.descricao,
       data_movimentacao: iso,
@@ -623,14 +545,15 @@ export async function sincronizarProcesso(processoId: string): Promise<SyncResul
     novas++;
   }
 
-  updateProcesso(processoId, { ultimo_sync: new Date().toISOString() });
+  await updateProcesso(processoId, { ultimo_sync: now() });
   return { novas };
 }
 
 export async function sincronizarTodos(): Promise<SyncResult> {
-  const processos = getProcessos().filter((p) => p.monitorar_datajud && p.status === "ativo");
+  const processos = await getProcessos();
+  const ativos = processos.filter((p) => p.monitorar_datajud && p.status === "ativo");
   let totalNovas = 0;
-  for (const p of processos) {
+  for (const p of ativos) {
     const r = await sincronizarProcesso(p.id);
     totalNovas += r.novas;
   }

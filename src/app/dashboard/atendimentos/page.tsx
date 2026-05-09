@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -61,12 +61,9 @@ export default function AtendimentosPage() {
   const [filter, setFilter] = useState<"agendados" | "realizados" | "todos">("agendados");
   const [search, setSearch] = useState("");
 
-  const load = useCallback(() => {
-    setAtendimentos(
-      getAtendimentosWithProcesso().sort(
-        (a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()
-      )
-    );
+  const load = useCallback(async () => {
+    const data = await getAtendimentosWithProcesso();
+    setAtendimentos(data.sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -86,11 +83,7 @@ export default function AtendimentosPage() {
   });
 
   const agendados = atendimentos.filter((a) => a.status === "agendado").length;
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
   const proximos7 = atendimentos.filter((a) => {
-    const d = new Date(a.data_hora);
-    d.setHours(0, 0, 0, 0);
     const diff = daysUntil(a.data_hora);
     return a.status === "agendado" && diff >= 0 && diff <= 7;
   }).length;
@@ -109,7 +102,6 @@ export default function AtendimentosPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="relative flex-1 min-w-48 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -135,7 +127,6 @@ export default function AtendimentosPage() {
       </div>
 
       <div className="flex gap-6">
-        {/* Lista */}
         <div className={`flex-1 ${selected ? "max-w-xl" : ""}`}>
           {filtered.length === 0 ? (
             <Card>
@@ -162,7 +153,6 @@ export default function AtendimentosPage() {
                   >
                     <CardContent className="py-3.5 px-5">
                       <div className="flex items-center gap-4">
-                        {/* Date */}
                         <div className={`shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center ${a.status === "realizado" ? "bg-gray-100" : isToday ? "bg-gray-900" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                           <span className={`text-base font-black leading-none ${a.status === "realizado" ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                             {new Date(a.data_hora).getDate()}
@@ -205,7 +195,6 @@ export default function AtendimentosPage() {
           )}
         </div>
 
-        {/* Painel lateral de detalhe */}
         {selected && (
           <AtendimentoDetail
             atendimento={selected}
@@ -225,7 +214,6 @@ export default function AtendimentosPage() {
   );
 }
 
-// --- Painel de detalhe ---
 function AtendimentoDetail({
   atendimento,
   onClose,
@@ -240,18 +228,18 @@ function AtendimentoDetail({
   const [showPrazoModal, setShowPrazoModal] = useState(false);
   const [showAudModal, setShowAudModal] = useState(false);
 
-  function marcarRealizado() {
-    updateAtendimento(atendimento.id, { status: "realizado" });
+  async function marcarRealizado() {
+    await updateAtendimento(atendimento.id, { status: "realizado" });
     onUpdate();
   }
 
-  function marcarCancelado() {
-    updateAtendimento(atendimento.id, { status: "cancelado" });
+  async function marcarCancelado() {
+    await updateAtendimento(atendimento.id, { status: "cancelado" });
     onUpdate();
   }
 
-  function handleDelete() {
-    deleteAtendimento(atendimento.id);
+  async function handleDelete() {
+    await deleteAtendimento(atendimento.id);
     onDelete();
   }
 
@@ -267,7 +255,6 @@ function AtendimentoDetail({
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pb-5">
-          {/* Info */}
           <div>
             <p className="text-lg font-bold text-gray-900">{atendimento.cliente_nome}</p>
             <div className="flex items-center gap-2 mt-1">
@@ -296,7 +283,6 @@ function AtendimentoDetail({
             </div>
           )}
 
-          {/* Ações */}
           {atendimento.status === "agendado" && (
             <div className="space-y-2 pt-2 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ações</p>
@@ -309,7 +295,6 @@ function AtendimentoDetail({
             </div>
           )}
 
-          {/* Criar a partir deste atendimento */}
           {atendimento.processo_id && (
             <div className="space-y-2 pt-2 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Criar para este processo</p>
@@ -364,7 +349,6 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
   );
 }
 
-// --- Modais ---
 function NovoAtendimentoModal({
   open,
   onClose,
@@ -390,8 +374,8 @@ function NovoAtendimentoModal({
 
   useEffect(() => {
     if (open) {
-      setProcessos(getProcessos());
-      setClientes(getClientes());
+      getProcessos().then(setProcessos);
+      getClientes().then(setClientes);
     }
   }, [open]);
 
@@ -412,10 +396,10 @@ function NovoAtendimentoModal({
     }
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.cliente_nome || !form.data_hora) return;
-    const novo = createAtendimento({
+    const novo = await createAtendimento({
       cliente_id: clienteId || undefined,
       cliente_nome: form.cliente_nome,
       processo_id: form.processo_id || undefined,
@@ -518,10 +502,10 @@ function CriarPrazoModal({
   const [data, setData] = useState("");
   const [tipo, setTipo] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !data) return;
-    createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: "media", concluido: false });
+    await createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: "media", concluido: false });
     setTitulo(""); setData(""); setTipo("");
     onCreated();
   }
@@ -557,10 +541,10 @@ function CriarAudienciaModal({
   const [dataHora, setDataHora] = useState("");
   const [local, setLocal] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !dataHora) return;
-    createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, realizada: false });
+    await createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, realizada: false });
     setTitulo(""); setDataHora(""); setLocal("");
     onCreated();
   }

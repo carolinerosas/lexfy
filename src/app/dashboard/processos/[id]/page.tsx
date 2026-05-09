@@ -92,12 +92,11 @@ export default function ProcessoDetailPage() {
     setTimeout(() => setSyncMsg(null), 4000);
   }
 
-  function toggleMonitorar() {
-    updateProcesso(id, { monitorar_datajud: !processo?.monitorar_datajud });
+  async function toggleMonitorar() {
+    await updateProcesso(id, { monitorar_datajud: !processo?.monitorar_datajud });
     load();
   }
 
-  // Modal states
   const [movModal, setMovModal] = useState(false);
   const [prazoModal, setPrazoModal] = useState(false);
   const [audModal, setAudModal] = useState(false);
@@ -106,21 +105,28 @@ export default function ProcessoDetailPage() {
   const [editModal, setEditModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
 
-  const load = useCallback(() => {
-    const p = getProcesso(id);
+  const load = useCallback(async () => {
+    const p = await getProcesso(id);
     if (!p) { router.push("/dashboard/processos"); return; }
     setProcesso(p);
-    setMovimentacoes(getMovimentacoesByProcesso(id));
-    setPrazos(getPrazos().filter((pr) => pr.processo_id === id));
-    setAudiencias(getAudiencias().filter((a) => a.processo_id === id));
-    setHonorarios(getHonorarios().filter((h) => h.processo_id === id));
-    setAtendimentos(getAtendimentosByProcesso(id));
+    const [movs, prazosAll, audienciasAll, honorariosAll, atendimentosData] = await Promise.all([
+      getMovimentacoesByProcesso(id),
+      getPrazos(),
+      getAudiencias(),
+      getHonorarios(),
+      getAtendimentosByProcesso(id),
+    ]);
+    setMovimentacoes(movs);
+    setPrazos(prazosAll.filter((pr) => pr.processo_id === id));
+    setAudiencias(audienciasAll.filter((a) => a.processo_id === id));
+    setHonorarios(honorariosAll.filter((h) => h.processo_id === id));
+    setAtendimentos(atendimentosData);
   }, [id, router]);
 
   useEffect(() => { load(); }, [load]);
 
-  function handleDelete() {
-    deleteProcesso(id);
+  async function handleDelete() {
+    await deleteProcesso(id);
     router.push("/dashboard/processos");
   }
 
@@ -142,7 +148,6 @@ export default function ProcessoDetailPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start gap-4">
           <Link href="/dashboard/processos">
@@ -183,7 +188,6 @@ export default function ProcessoDetailPage() {
         </div>
       </div>
 
-      {/* Info cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <InfoCard icon={<User className="w-4 h-4 text-blue-500" />} label="Cliente" value={processo.cliente_nome} />
         <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
@@ -191,7 +195,6 @@ export default function ProcessoDetailPage() {
         <InfoCard icon={<DollarSign className="w-4 h-4 text-amber-500" />} label="Valor da Causa" value={processo.valor_causa ? formatCurrency(processo.valor_causa) : "—"} />
       </div>
 
-      {/* Descrição */}
       {processo.descricao && (
         <Card className="mb-6">
           <CardContent className="py-4">
@@ -201,7 +204,6 @@ export default function ProcessoDetailPage() {
         </Card>
       )}
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
         {tabs.map((t) => (
           <button
@@ -226,13 +228,12 @@ export default function ProcessoDetailPage() {
         ))}
       </div>
 
-      {/* Tab content */}
       {tab === "movimentacoes" && (
         <MovimentacoesTab
           movimentacoes={movimentacoes}
           onAdd={() => setMovModal(true)}
-          onDelete={(mid) => { deleteMovimentacao(mid); load(); }}
-          onMarcarLidas={() => { marcarTodasMovimentacoesLidas(id); load(); }}
+          onDelete={async (mid) => { await deleteMovimentacao(mid); load(); }}
+          onMarcarLidas={async () => { await marcarTodasMovimentacoesLidas(id); load(); }}
           naoLidas={movNaoLidas}
         />
       )}
@@ -240,35 +241,34 @@ export default function ProcessoDetailPage() {
         <PrazosTab
           prazos={prazos}
           onAdd={() => setPrazoModal(true)}
-          onToggle={(pid) => { const p = prazos.find((x) => x.id === pid); if (p) updatePrazo(pid, { concluido: !p.concluido }); load(); }}
-          onDelete={(pid) => { deletePrazo(pid); load(); }}
+          onToggle={async (pid) => { const p = prazos.find((x) => x.id === pid); if (p) await updatePrazo(pid, { concluido: !p.concluido }); load(); }}
+          onDelete={async (pid) => { await deletePrazo(pid); load(); }}
         />
       )}
       {tab === "audiencias" && (
         <AudienciasTab
           audiencias={audiencias}
           onAdd={() => setAudModal(true)}
-          onToggle={(aid) => { const a = audiencias.find((x) => x.id === aid); if (a) updateAudiencia(aid, { realizada: !a.realizada }); load(); }}
-          onDelete={(aid) => { deleteAudiencia(aid); load(); }}
+          onToggle={async (aid) => { const a = audiencias.find((x) => x.id === aid); if (a) await updateAudiencia(aid, { realizada: !a.realizada }); load(); }}
+          onDelete={async (aid) => { await deleteAudiencia(aid); load(); }}
         />
       )}
       {tab === "honorarios" && (
         <HonorariosTab
           honorarios={honorarios}
           onAdd={(cat) => { setHonCategoria(cat); setHonModal(true); }}
-          onDelete={(hid) => { deleteHonorario(hid); load(); }}
+          onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
         />
       )}
       {tab === "atendimentos" && (
         <AtendimentosTab
           atendimentos={atendimentos}
           onAdd={() => setAtenModal(true)}
-          onUpdate={(aid, data) => { updateAtendimento(aid, data); load(); }}
-          onDelete={(aid) => { deleteAtendimento(aid); load(); }}
+          onUpdate={async (aid, data) => { await updateAtendimento(aid, data); load(); }}
+          onDelete={async (aid) => { await deleteAtendimento(aid); load(); }}
         />
       )}
 
-      {/* Modals */}
       <NovaMovimentacaoModal open={movModal} onClose={() => setMovModal(false)} processoId={id} onCreated={() => { load(); setMovModal(false); }} />
       <NovoPrazoModal open={prazoModal} onClose={() => setPrazoModal(false)} processoId={id} onCreated={() => { load(); setPrazoModal(false); }} />
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
@@ -276,7 +276,6 @@ export default function ProcessoDetailPage() {
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
       <EditarProcessoModal open={editModal} onClose={() => setEditModal(false)} processo={processo} onSaved={() => { load(); setEditModal(false); }} />
 
-      {/* Delete confirm */}
       <Modal open={deleteModal} onClose={() => setDeleteModal(false)} title="Excluir Processo" size="sm">
         <p className="text-gray-600 text-sm mb-6">Tem certeza que deseja excluir este processo? Todos os prazos, audiências e honorários associados também serão excluídos. Esta ação não pode ser desfeita.</p>
         <div className="flex justify-end gap-3">
@@ -424,7 +423,6 @@ function HonorariosTab({ honorarios, onAdd, onDelete }: {
 
   return (
     <div className="space-y-6">
-      {/* Resumo */}
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Cobrado</p>
@@ -440,7 +438,6 @@ function HonorariosTab({ honorarios, onAdd, onDelete }: {
         </div>
       </div>
 
-      {/* Cobranças */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold text-gray-700">Cobranças</h4>
@@ -473,7 +470,6 @@ function HonorariosTab({ honorarios, onAdd, onDelete }: {
         )}
       </div>
 
-      {/* Pagamentos */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-semibold text-gray-700">Pagamentos recebidos</h4>
@@ -579,17 +575,15 @@ function AtendimentosTab({
   );
 }
 
-// -- Small modals --
-
 function NovaMovimentacaoModal({ open, onClose, processoId, onCreated }: { open: boolean; onClose: () => void; processoId: string; onCreated: () => void }) {
   const [descricao, setDescricao] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [tipo, setTipo] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao) return;
-    createMovimentacao({ processo_id: processoId, descricao, data_movimentacao: data, tipo: tipo || undefined, fonte: "manual", lida: true });
+    await createMovimentacao({ processo_id: processoId, descricao, data_movimentacao: data, tipo: tipo || undefined, fonte: "manual", lida: true });
     setDescricao(""); setTipo("");
     onCreated();
   }
@@ -611,10 +605,10 @@ function NovoPrazoModal({ open, onClose, processoId, onCreated }: { open: boolea
   const [tipo, setTipo] = useState("");
   const [prioridade, setPrioridade] = useState("media");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !data) return;
-    createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: prioridade as any, concluido: false });
+    await createPrazo({ processo_id: processoId, titulo, data_prazo: data, tipo: tipo as any || undefined, prioridade: prioridade as any, concluido: false });
     setTitulo(""); setData(""); setTipo(""); setPrioridade("media");
     onCreated();
   }
@@ -639,10 +633,10 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
   const [local, setLocal] = useState("");
   const [tipo, setTipo] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo || !dataHora) return;
-    createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, tipo: tipo as any || undefined, realizada: false });
+    await createAudiencia({ processo_id: processoId, titulo, data_hora: dataHora, local: local || undefined, tipo: tipo as any || undefined, realizada: false });
     setTitulo(""); setDataHora(""); setLocal(""); setTipo("");
     onCreated();
   }
@@ -668,10 +662,10 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
   const [tipo, setTipo] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao || !valor) return;
-    createHonorario({
+    await createHonorario({
       processo_id: processoId,
       descricao,
       valor: parseFloat(valor),
@@ -721,10 +715,10 @@ function NovoAtendimentoModal({ open, onClose, processoId, clienteNome, onCreate
   const [duracao, setDuracao] = useState("60");
   const [notas, setNotas] = useState("");
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!dataHora) return;
-    createAtendimento({
+    await createAtendimento({
       processo_id: processoId,
       cliente_nome: clienteNome,
       data_hora: dataHora,
@@ -766,9 +760,9 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    updateProcesso(processo.id, {
+    await updateProcesso(processo.id, {
       titulo: form.titulo, cliente_nome: form.cliente_nome,
       parte_contraria: form.parte_contraria || undefined,
       tribunal: form.tribunal || undefined, vara: form.vara || undefined,

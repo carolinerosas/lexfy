@@ -57,55 +57,69 @@ export default function DashboardPage() {
   const [eventosPorDia, setEventosPorDia] = useState<Map<string, Evento[]>>(new Map());
 
   useEffect(() => {
-    setStats(getDashboardStats());
-
-    const allPrazos = getPrazosWithProcesso()
-      .filter((p) => !p.concluido)
-      .sort((a, b) => new Date(a.data_prazo).getTime() - new Date(b.data_prazo).getTime())
-      .slice(0, 5);
-    setPrazos(allPrazos);
-
-    const now = new Date();
-    const allAudiencias = getAudienciasWithProcesso()
-      .filter((a) => !a.realizada && new Date(a.data_hora) >= now)
-      .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
-      .slice(0, 5);
-    setAudiencias(allAudiencias);
+    async function load() {
+      const [s, allPrazosRaw, allAudienciasRaw] = await Promise.all([
+        getDashboardStats(),
+        getPrazosWithProcesso(),
+        getAudienciasWithProcesso(),
+      ]);
+      setStats(s);
+      setPrazos(
+        allPrazosRaw
+          .filter((p) => !p.concluido)
+          .sort((a, b) => new Date(a.data_prazo).getTime() - new Date(b.data_prazo).getTime())
+          .slice(0, 5)
+      );
+      const now = new Date();
+      setAudiencias(
+        allAudienciasRaw
+          .filter((a) => !a.realizada && new Date(a.data_hora) >= now)
+          .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime())
+          .slice(0, 5)
+      );
+    }
+    load();
   }, []);
 
   useEffect(() => {
-    const today = new Date();
-    const monday = getMonday(today);
-    monday.setDate(monday.getDate() + weekOffset * 7);
+    async function buildAgenda() {
+      const today = new Date();
+      const monday = getMonday(today);
+      monday.setDate(monday.getDate() + weekOffset * 7);
 
-    const dias = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(d.getDate() + i);
-      return d;
-    });
+      const dias = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i);
+        return d;
+      });
 
-    const mapa = new Map<string, Evento[]>();
-    dias.forEach((d) => mapa.set(dateKey(d), []));
+      const mapa = new Map<string, Evento[]>();
+      dias.forEach((d) => mapa.set(dateKey(d), []));
 
-    const allPrazos = getPrazosWithProcesso().filter((p) => !p.concluido);
-    allPrazos.forEach((p) => {
-      const key = p.data_prazo.slice(0, 10);
-      if (mapa.has(key)) mapa.get(key)!.push({ kind: "prazo", data: p });
-    });
+      const [allPrazos, allAudiencias, allAtendimentos] = await Promise.all([
+        getPrazosWithProcesso(),
+        getAudienciasWithProcesso(),
+        getAtendimentosWithProcesso(),
+      ]);
 
-    const allAudiencias = getAudienciasWithProcesso().filter((a) => !a.realizada);
-    allAudiencias.forEach((a) => {
-      const key = a.data_hora.slice(0, 10);
-      if (mapa.has(key)) mapa.get(key)!.push({ kind: "audiencia", data: a });
-    });
+      allPrazos.filter((p) => !p.concluido).forEach((p) => {
+        const key = p.data_prazo.slice(0, 10);
+        if (mapa.has(key)) mapa.get(key)!.push({ kind: "prazo", data: p });
+      });
 
-    const allAtendimentos = getAtendimentosWithProcesso().filter((a) => a.status === "agendado");
-    allAtendimentos.forEach((a) => {
-      const key = a.data_hora.slice(0, 10);
-      if (mapa.has(key)) mapa.get(key)!.push({ kind: "atendimento", data: a });
-    });
+      allAudiencias.filter((a) => !a.realizada).forEach((a) => {
+        const key = a.data_hora.slice(0, 10);
+        if (mapa.has(key)) mapa.get(key)!.push({ kind: "audiencia", data: a });
+      });
 
-    setEventosPorDia(mapa);
+      allAtendimentos.filter((a) => a.status === "agendado").forEach((a) => {
+        const key = a.data_hora.slice(0, 10);
+        if (mapa.has(key)) mapa.get(key)!.push({ kind: "atendimento", data: a });
+      });
+
+      setEventosPorDia(mapa);
+    }
+    buildAgenda();
   }, [weekOffset]);
 
   if (!stats) return null;
@@ -225,7 +239,6 @@ export default function DashboardPage() {
                   key={dateKey(day)}
                   className={`min-h-[180px] p-3 flex flex-col ${isToday ? "bg-gray-900" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}
                 >
-                  {/* Day header */}
                   <div className="mb-2.5">
                     <p className={`text-[10px] font-semibold uppercase tracking-wider ${isToday ? "text-gray-400" : "text-gray-400"}`}>
                       {day.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}
@@ -238,7 +251,6 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Eventos */}
                   <div className="flex flex-col gap-1 flex-1">
                     {totalEventos === 0 && (
                       <p className={`text-[10px] ${isToday ? "text-gray-600" : "text-gray-300"} mt-1`}>—</p>
@@ -252,8 +264,7 @@ export default function DashboardPage() {
             })}
           </div>
 
-          </div>{/* end overflow-x-auto */}
-          {/* Legenda */}
+          </div>
           <div className="flex items-center gap-4 px-4 py-3 border-t border-gray-100 bg-gray-50">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
