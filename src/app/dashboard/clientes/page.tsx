@@ -217,26 +217,21 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.nome.trim()) return;
-    try {
-      await createCliente({
-        nome: form.nome.trim(),
-        cpf: form.cpf || undefined,
-        rg: form.rg || undefined,
-        email: form.email || undefined,
-        celular: form.celular || undefined,
-        cep: form.cep || undefined,
-        logradouro: form.logradouro || undefined,
-        numero_end: form.numero_end || undefined,
-        complemento: form.complemento || undefined,
-        bairro: form.bairro || undefined,
-        cidade: form.cidade || undefined,
-        uf: form.uf || undefined,
-        observacoes: form.observacoes || undefined,
-      });
-    } catch (err) {
-      alert("Erro ao salvar: " + (err instanceof Error ? err.message : String(err)));
-      return;
-    }
+    await createCliente({
+      nome: form.nome.trim(),
+      cpf: form.cpf || undefined,
+      rg: form.rg || undefined,
+      email: form.email || undefined,
+      celular: form.celular || undefined,
+      cep: form.cep || undefined,
+      logradouro: form.logradouro || undefined,
+      numero_end: form.numero_end || undefined,
+      complemento: form.complemento || undefined,
+      bairro: form.bairro || undefined,
+      cidade: form.cidade || undefined,
+      uf: form.uf || undefined,
+      observacoes: form.observacoes || undefined,
+    });
     setForm(empty);
     onCreated();
   }
