@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Users, TrendingUp, FolderOpen, ChevronRight, Search, Plus } from "lucide-react";
+import { Users, ChevronRight, Search, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getClientesSummary, createCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -43,8 +43,6 @@ export default function ClientesPage() {
     c.nome.toLowerCase().includes(query.toLowerCase())
   );
 
-  const totalPago = clientes.reduce((s, c) => s + c.totalPago, 0);
-  const totalSaldo = clientes.reduce((s, c) => s + c.saldo, 0);
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
 
   return (
@@ -68,35 +66,6 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-5">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-              <Users className="w-5 h-5 text-gray-600" />
-            </div>
-            <p className="text-xl font-black tracking-tight text-gray-900">{clientes.length}</p>
-            <p className="text-sm text-gray-500 mt-0.5">Total de Clientes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5">
-            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-              <TrendingUp className="w-5 h-5 text-gray-600" />
-            </div>
-            <p className="text-xl font-black tracking-tight text-gray-900">{formatCurrency(totalPago)}</p>
-            <p className="text-sm text-gray-500 mt-0.5">Total Recebido</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-5">
-            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center mb-3">
-              <FolderOpen className="w-5 h-5 text-gray-300" />
-            </div>
-            <p className="text-xl font-black tracking-tight text-white">{formatCurrency(totalSaldo)}</p>
-            <p className="text-sm text-gray-400 mt-0.5">Saldo a Receber</p>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -122,9 +91,6 @@ export default function ClientesPage() {
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
                 <th className="text-left px-6 py-3">Cliente</th>
                 <th className="text-center px-4 py-3">Processos</th>
-                <th className="text-right px-4 py-3">Cobrado</th>
-                <th className="text-right px-4 py-3">Recebido</th>
-                <th className="text-right px-4 py-3">Saldo</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -156,13 +122,6 @@ export default function ClientesPage() {
                       {c.processosAtivos > 0 && (
                         <span className="ml-1.5 text-xs text-green-600 font-medium">({c.processosAtivos} ativo{c.processosAtivos !== 1 ? "s" : ""})</span>
                       )}
-                    </td>
-                    <td className="px-4 py-4 text-right text-sm text-gray-700 font-medium">{formatCurrency(c.totalCobrado)}</td>
-                    <td className="px-4 py-4 text-right text-sm text-green-700 font-medium">{formatCurrency(c.totalPago)}</td>
-                    <td className="px-4 py-4 text-right">
-                      <span className={`text-sm font-bold ${c.saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>
-                        {formatCurrency(c.saldo)}
-                      </span>
                     </td>
                     <td className="px-4 py-4">
                       {c.id ? (
