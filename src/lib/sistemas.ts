@@ -42,25 +42,48 @@ async function buscarNoDataJudComoFonte(
 }
 
 async function buscarPjeRJ(numero: string): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
-  console.log("[PJe-RJ] chamando /api/pje-rj com", numero);
+  // 1ª opção: scraper externo com Playwright (NEXT_PUBLIC_SCRAPER_URL configurado)
+  const scraperUrl = process.env.NEXT_PUBLIC_SCRAPER_URL;
+  if (scraperUrl) {
+    try {
+      console.log("[PJe-RJ via scraper Playwright]", numero);
+      const res = await fetch(`${scraperUrl.replace(/\/$/, "")}/pje-rj`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.NEXT_PUBLIC_SCRAPER_KEY ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_SCRAPER_KEY}` } : {}),
+        },
+        body: JSON.stringify({ numero }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.debug) console.log("[Scraper debug]", JSON.stringify(data.debug, null, 2));
+      if (res.ok && Array.isArray(data.movimentos) && data.movimentos.length > 0) {
+        return data.movimentos.map((m: { data: string; descricao: string }) => ({
+          ...m,
+          fonte: "PJe-RJ",
+        }));
+      }
+    } catch (err) {
+      console.log("[Scraper erro]", err);
+    }
+  }
+
+  // 2ª opção: fallback pra rota interna (tentativa de scraping serverless)
   try {
     const res = await fetch("/api/pje-rj", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero }),
     });
-    console.log("[PJe-RJ] status:", res.status);
-    const data = await res.json().catch((e) => { console.log("[PJe-RJ] json parse erro:", e); return {}; });
-    console.log("[PJe-RJ] resposta:", JSON.stringify(data).slice(0, 1000));
-    if (data.debug) console.log("[PJe-RJ debug]", JSON.stringify(data.debug, null, 2));
+    const data = await res.json().catch(() => ({}));
+    if (data.debug) console.log("[PJe-RJ interno]", JSON.stringify(data.debug, null, 2));
     if (!res.ok) return null;
     const movs = (data.movimentos ?? []).map((m: { data: string; descricao: string }) => ({
       ...m,
       fonte: "PJe-RJ",
     }));
     return movs.length > 0 ? movs : null;
-  } catch (err) {
-    console.log("[PJe-RJ fetch erro]", err);
+  } catch {
     return null;
   }
 }
