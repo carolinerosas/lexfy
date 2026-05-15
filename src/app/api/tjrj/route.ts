@@ -62,46 +62,69 @@ export async function POST(req: NextRequest) {
   }
 
   const encoded = encodeURIComponent(numero);
+  const soDigitos = numero.replace(/\D/g, "");
   const urls = [
     `http://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/movimentos`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}/movimentos`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}`,
   ];
+
+  const todasMovs: TJRJMovimento[] = [];
+  const seen = new Set<string>();
 
   for (const url of urls) {
     try {
       console.log("[TJRJ] tentando:", url);
       const html = await fetchTJRJ(url);
+      let movs: TJRJMovimento[] = [];
 
       // Try JSON first (REST API)
       try {
         const json = JSON.parse(html);
-        if (Array.isArray(json)) {
-          const movimentos = json.map((m: { dataHora?: string; descricao?: string; nome?: string }) => ({
-            data: m.dataHora ? m.dataHora.split("T")[0] : "",
-            descricao: m.descricao ?? m.nome ?? "",
-          })).filter((m) => m.descricao);
-          if (movimentos.length > 0) {
-            console.log("[TJRJ] JSON encontrado:", movimentos.length, "movimentos");
-            return NextResponse.json({ movimentos });
-          }
+        const arr = Array.isArray(json) ? json : (json.movimentos ?? json.data?.movimentos ?? []);
+        if (Array.isArray(arr) && arr.length > 0) {
+          movs = arr.map((m: { dataHora?: string; data?: string; descricao?: string; nome?: string; texto?: string; complementosTabelados?: { descricao?: string }[] }) => {
+            const dataRaw = m.dataHora ?? m.data ?? "";
+            const data = /^\d{4}-\d{2}-\d{2}/.test(dataRaw)
+              ? dataRaw.slice(0, 10).split("-").reverse().join("/")
+              : dataRaw;
+            const compl = m.complementosTabelados?.map((c) => c.descricao).filter(Boolean).join(" — ") ?? "";
+            const desc = [m.descricao ?? m.nome ?? m.texto, compl].filter(Boolean).join(" — ");
+            return { data, descricao: desc };
+          }).filter((m) => m.descricao);
         }
       } catch {
         // not JSON, parse as HTML
+        movs = parseTJRJHtml(html);
       }
 
-      const movimentos = parseTJRJHtml(html);
-      console.log("[TJRJ] HTML parseado:", movimentos.length, "movimentos de", url);
-
-      if (movimentos.length > 0) {
-        return NextResponse.json({ movimentos });
+      console.log("[TJRJ]", movs.length, "movs de", url);
+      for (const m of movs) {
+        const k = `${m.data}|${m.descricao}`;
+        if (!seen.has(k)) {
+          seen.add(k);
+          todasMovs.push(m);
+        }
       }
     } catch (err) {
       console.log("[TJRJ] falhou:", url, err instanceof Error ? err.message : err);
     }
   }
 
-  return NextResponse.json(
-    { error: "Processo não encontrado no portal TJERJ. Verifique se o número está correto." },
-    { status: 404 }
-  );
+  if (todasMovs.length === 0) {
+    return NextResponse.json(
+      { error: "Processo não encontrado no portal TJERJ. Verifique se o número está correto." },
+      { status: 404 }
+    );
+  }
+
+  // Ordena: mais recentes primeiro
+  todasMovs.sort((a, b) => {
+    const da = a.data.split("/").reverse().join("");
+    const db = b.data.split("/").reverse().join("");
+    return db.localeCompare(da);
+  });
+
+  return NextResponse.json({ movimentos: todasMovs });
 }

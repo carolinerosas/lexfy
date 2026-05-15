@@ -171,26 +171,32 @@ export default function ProcessoDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleMonitorar}
-            title={processo.monitorar_datajud ? "Desativar monitoramento DataJud" : "Ativar monitoramento DataJud"}
-            className={`p-2 rounded-lg border text-sm transition-colors ${processo.monitorar_datajud ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-700"}`}
-          >
-            {processo.monitorar_datajud ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          </button>
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando…" : "Sincronizar"}
-          </Button>
-          {movimentacoes.length > 0 && (
+          <div className="inline-flex items-stretch rounded-lg border border-gray-200 overflow-hidden bg-white shadow-sm">
             <button
-              onClick={handleLimparMovs}
-              title="Apagar todas as movimentações sincronizadas (para corrigir dados)"
-              className="text-xs font-medium text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-300 px-2 py-1.5 rounded-lg transition-colors"
+              onClick={toggleMonitorar}
+              title={processo.monitorar_datajud ? "Monitoramento ativo — clique para desativar" : "Ativar monitoramento automático"}
+              className={`flex items-center justify-center px-2.5 transition-colors border-r border-gray-200 ${processo.monitorar_datajud ? "bg-gray-900 text-white hover:bg-gray-800" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"}`}
             >
-              Limpar movs
+              {processo.monitorar_datajud ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
-          )}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando…" : "Sincronizar"}
+            </button>
+            {movimentacoes.length > 0 && (
+              <button
+                onClick={handleLimparMovs}
+                title="Apagar todas as movimentações sincronizadas"
+                className="flex items-center justify-center px-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors border-l border-gray-200"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           {syncMsg && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{syncMsg}</span>
           )}
