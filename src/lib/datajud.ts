@@ -95,6 +95,13 @@ export async function buscarNoDataJud(numero: string): Promise<DataJudResult> {
     throw new DataJudError("nao_encontrado", "Processo não encontrado no DataJud (pode ainda não estar indexado)");
   }
 
+  // Valida que o numeroProcesso retornado bate com o que pedimos
+  const numeroRetornado = (hit.numeroProcesso ?? "").replace(/\D/g, "");
+  const numeroPedido = numeroLimpo.replace(/\D/g, "");
+  if (numeroRetornado && numeroPedido && numeroRetornado !== numeroPedido) {
+    throw new DataJudError("nao_encontrado", "Processo não encontrado no DataJud (pode ainda não estar indexado)");
+  }
+
   return {
     movimentos: (hit.movimentos ?? []).map((m: DataJudMovimento) => ({
       codigo: m.codigo,

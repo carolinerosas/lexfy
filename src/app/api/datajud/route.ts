@@ -26,13 +26,13 @@ export async function POST(req: NextRequest) {
           bool: {
             should: [
               { term: { "numeroProcesso.keyword": numero } },
-              { match: { numeroProcesso: numero } },
-              { wildcard: { "numeroProcesso.keyword": `*${numero.replace(/\D/g, "").slice(0, 7)}*` } },
+              { term: { "numeroProcesso.keyword": numero.replace(/\D/g, "") } },
+              { match: { numeroProcesso: numero.replace(/\D/g, "") } },
             ],
             minimum_should_match: 1,
           },
         },
-        size: 3,
+        size: 1,
       }),
       signal: AbortSignal.timeout(15000),
     });

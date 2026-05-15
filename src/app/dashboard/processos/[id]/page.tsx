@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
-  RefreshCw, Bell, BellOff, Search,
+  RefreshCw, Bell, BellOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,6 @@ import {
   getAtendimentosByProcesso, createAtendimento, updateAtendimento, deleteAtendimento,
   sincronizarProcesso,
 } from "@/lib/store";
-import { buscarNoDataJud, parseCNJ } from "@/lib/datajud";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento } from "@/types";
 
@@ -77,8 +76,6 @@ export default function ProcessoDetailPage() {
   const [honCategoria, setHonCategoria] = useState<"cobranca" | "pagamento">("pagamento");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [buscandoDados, setBuscandoDados] = useState(false);
-  const [dadosMsg, setDadosMsg] = useState<string | null>(null);
 
   async function handleSync() {
     if (syncing) return;
@@ -93,48 +90,6 @@ export default function ProcessoDetailPage() {
       load();
     }
     setTimeout(() => setSyncMsg(null), 4000);
-  }
-
-  async function handleBuscarDados() {
-    if (!processo || buscandoDados) return;
-    setBuscandoDados(true);
-    setDadosMsg(null);
-    try {
-      const { tribunal: tribunalSlug } = parseCNJ(processo.numero);
-      const resultado = await buscarNoDataJud(processo.numero);
-      const updates: Partial<Processo> = {};
-      if (!processo.titulo || processo.titulo === processo.numero) {
-        if (resultado.classe) updates.titulo = resultado.classe;
-      }
-      if (!processo.tribunal && (resultado.tribunal || tribunalSlug)) {
-        updates.tribunal = resultado.tribunal || tribunalSlug?.toUpperCase();
-      }
-      if (!processo.vara && resultado.orgaoJulgador) {
-        updates.vara = resultado.orgaoJulgador;
-      }
-      if (!processo.data_distribuicao && resultado.dataAjuizamento) {
-        updates.data_distribuicao = resultado.dataAjuizamento.slice(0, 10);
-      }
-      if (!processo.descricao && resultado.assuntos?.length) {
-        updates.descricao = `Assuntos: ${resultado.assuntos.join(", ")}`;
-      }
-      if (!processo.monitorar_datajud) {
-        updates.monitorar_datajud = true;
-      }
-      if (Object.keys(updates).length > 0) {
-        await updateProcesso(id, updates);
-      }
-      // já aproveita e sincroniza as movimentações
-      await sincronizarProcesso(id);
-      setDadosMsg(`Dados atualizados · ${resultado.movimentos.length} movimentações no tribunal`);
-      load();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro desconhecido";
-      setDadosMsg(`Erro: ${msg}`);
-    } finally {
-      setBuscandoDados(false);
-      setTimeout(() => setDadosMsg(null), 5000);
-    }
   }
 
   async function toggleMonitorar() {
@@ -217,13 +172,6 @@ export default function ProcessoDetailPage() {
           >
             {processo.monitorar_datajud ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
           </button>
-          <Button variant="outline" size="sm" onClick={handleBuscarDados} disabled={buscandoDados}>
-            <Search className={`w-3.5 h-3.5 ${buscandoDados ? "animate-pulse" : ""}`} />
-            {buscandoDados ? "Buscando…" : "Buscar no tribunal"}
-          </Button>
-          {dadosMsg && (
-            <span className={`text-xs px-2 py-1 rounded ${dadosMsg.startsWith("Erro") ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>{dadosMsg}</span>
-          )}
           <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing}>
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Sincronizando…" : "Sincronizar"}
