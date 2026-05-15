@@ -48,6 +48,10 @@ export interface DataJudResult {
   classe?: string;
   tribunal?: string;
   dataAjuizamento?: string;
+  orgaoJulgador?: string;
+  grau?: string;
+  assuntos?: string[];
+  sistema?: string;
 }
 
 export type DataJudErro =
@@ -101,7 +105,11 @@ export async function buscarNoDataJud(numero: string): Promise<DataJudResult> {
         : [],
     })),
     classe: hit.classe?.nome,
-    tribunal: hit.tribunal,
+    tribunal: hit.tribunal?.toString(),
     dataAjuizamento: hit.dataAjuizamento,
+    orgaoJulgador: hit.orgaoJulgador?.nome,
+    grau: hit.grau,
+    assuntos: (hit.assuntos ?? []).map((a: { nome: string }) => a.nome),
+    sistema: hit.sistema?.nome,
   };
 }
