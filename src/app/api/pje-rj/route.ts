@@ -148,9 +148,9 @@ export async function POST(req: NextRequest) {
 
     debug.push({ step: "campos detectados", formId, fieldNumero, btnPesquisar });
 
-    // PASSO 2: POST com o número do processo
+    // PASSO 2: POST com o número do processo - submissão de form normal (sem AJAX)
+    // O PJe usa JSF; precisa fazer POST não-AJAX pra receber página completa em vez de fragmento
     const body = new URLSearchParams();
-    body.set("AJAXREQUEST", "_viewRoot");
     body.set(formId, formId);
     body.set(fieldNumero, numero);
     body.set(btnPesquisar, "Pesquisar");
@@ -163,12 +163,25 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/x-www-form-urlencoded",
         Cookie: cookies,
         Referer: SEARCH_URL,
+        Origin: BASE,
       },
       body: body.toString(),
       signal: AbortSignal.timeout(25000),
+      redirect: "follow",
     });
     const html2 = await r2.text();
-    debug.push({ step: "POST busca", status: r2.status, len: html2.length, hasDetalhe: html2.includes("DetalheProcesso") });
+    debug.push({
+      step: "POST busca",
+      status: r2.status,
+      len: html2.length,
+      hasDetalhe: html2.includes("DetalheProcesso"),
+      hasMovimento: /Movimento|movimenta/i.test(html2),
+      finalUrl: r2.url,
+    });
+
+    // Atualiza cookies com qualquer set-cookie da resposta
+    const newCookies = extractCookies(r2.headers.get("set-cookie"));
+    const allCookies = [cookies, newCookies].filter(Boolean).join("; ");
 
     // PASSO 3: tenta extrair movimentos direto, OU achar link p/ detalhe
     let movs = parseMovimentos(html2);
@@ -176,16 +189,17 @@ export async function POST(req: NextRequest) {
 
     if (movs.length === 0) {
       const detalheUrl = findDetalheUrl(html2);
-      debug.push({ step: "achou link detalhe", url: detalheUrl });
+      debug.push({ step: "achou link detalhe", url: detalheUrl, sample: html2.slice(0, 300) });
       if (detalheUrl) {
         const r3 = await fetch(detalheUrl, {
-          headers: { ...HEADERS, Cookie: cookies, Referer: SEARCH_URL },
+          headers: { ...HEADERS, Cookie: allCookies, Referer: r2.url },
           signal: AbortSignal.timeout(25000),
+          redirect: "follow",
         });
         const html3 = await r3.text();
-        debug.push({ step: "GET detalhe", status: r3.status, len: html3.length });
+        debug.push({ step: "GET detalhe", status: r3.status, len: html3.length, hasMovimento: /movimenta/i.test(html3) });
         movs = parseMovimentos(html3);
-        debug.push({ step: "parse detalhe", count: movs.length });
+        debug.push({ step: "parse detalhe", count: movs.length, sample: movs.length === 0 ? html3.slice(0, 500) : "" });
       }
     }
 
