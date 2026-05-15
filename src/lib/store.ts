@@ -168,6 +168,10 @@ export async function deleteMovimentacao(id: string): Promise<void> {
   await supabase.from("movimentacoes").delete().eq("id", id);
 }
 
+export async function deleteMovimentacoesByProcesso(processoId: string): Promise<void> {
+  await supabase.from("movimentacoes").delete().eq("processo_id", processoId);
+}
+
 // --- Honorários ---
 
 export async function getHonorarios(): Promise<Honorario[]> {

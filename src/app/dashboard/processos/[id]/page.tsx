@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
   getProcesso, updateProcesso, deleteProcesso,
-  getMovimentacoesByProcesso, createMovimentacao, deleteMovimentacao,
+  getMovimentacoesByProcesso, createMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
   getAudiencias, createAudiencia, updateAudiencia, deleteAudiencia,
@@ -94,6 +94,12 @@ export default function ProcessoDetailPage() {
 
   async function toggleMonitorar() {
     await updateProcesso(id, { monitorar_datajud: !processo?.monitorar_datajud });
+    load();
+  }
+
+  async function handleLimparMovs() {
+    if (!confirm("Apagar TODAS as movimentações deste processo? Use isso para limpar dados sincronizados incorretamente. Depois clique em Sincronizar de novo.")) return;
+    await deleteMovimentacoesByProcesso(id);
     load();
   }
 
@@ -176,6 +182,15 @@ export default function ProcessoDetailPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Sincronizando…" : "Sincronizar"}
           </Button>
+          {movimentacoes.length > 0 && (
+            <button
+              onClick={handleLimparMovs}
+              title="Apagar todas as movimentações sincronizadas (para corrigir dados)"
+              className="text-xs font-medium text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-300 px-2 py-1.5 rounded-lg transition-colors"
+            >
+              Limpar movs
+            </button>
+          )}
           {syncMsg && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{syncMsg}</span>
           )}

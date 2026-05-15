@@ -41,11 +41,36 @@ async function buscarNoDataJudComoFonte(
   });
 }
 
+async function buscarTJRJDireto(numero: string): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
+  try {
+    const res = await fetch("/api/tjrj", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const movs = (data.movimentos ?? []).map((m: { data: string; descricao: string }) => ({
+      ...m,
+      fonte: "TJRJ",
+    }));
+    return movs.length > 0 ? movs : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function buscarMovimentosSistema(
   tribunal: string,
   numero: string
 ): Promise<{ data: string; descricao: string; fonte: string }[]> {
   const sistema = getSistema(tribunal);
+
+  // TJRJ tem scraper próprio (portal www3.tjrj) — tenta primeiro
+  if (tribunal === "tjrj") {
+    const tjrj = await buscarTJRJDireto(numero);
+    if (tjrj) return tjrj;
+  }
 
   if (sistema === "pje") {
     try {
