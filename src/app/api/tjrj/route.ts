@@ -111,17 +111,15 @@ export async function POST(req: NextRequest) {
   console.log("[TJRJ] cookies obtidos:", cookies ? "sim" : "não");
 
   const urls = [
-    // API REST nova (precisa de cookies de sessão)
+    // API REST nova
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}`,
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}`,
-    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/movimentos`,
-    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}/movimentos`,
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/buscar?numeroProcesso=${encoded}`,
-    // Portal antigo HTML (sem CAPTCHA, mas pode estar fora do ar)
-    `http://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
-    `https://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
-    // Sistema SAJ
-    `https://www3.tjrj.jus.br/scp/consulta.do?selOrigem=PB&numProcesso=${encoded}`,
+    // Variações de endpoint pra movimentos
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/movimentacoes`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}/movimentacoes`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/andamentos`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/movimentos`,
   ];
 
   const todasMovs: TJRJMovimento[] = [];
@@ -156,7 +154,9 @@ export async function POST(req: NextRequest) {
         movs = parseTJRJHtml(body);
       }
 
-      debug.push({ url, status, count: movs.length, sample: movs[0]?.descricao?.slice(0, 60) });
+      // Captura o corpo cru pra debug quando count = 0 e status = 200
+      const sampleBody = (status === 200 && movs.length === 0) ? body.slice(0, 400) : (movs[0]?.descricao?.slice(0, 80) ?? "");
+      debug.push({ url, status, count: movs.length, sample: sampleBody });
 
       for (const m of movs) {
         const k = `${m.data}|${m.descricao}`;
