@@ -209,11 +209,10 @@ export default function ProcessoDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <InfoCard icon={<User className="w-4 h-4 text-blue-500" />} label="Cliente" value={processo.cliente_nome} />
         <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "—"} />
-        <InfoCard icon={<DollarSign className="w-4 h-4 text-amber-500" />} label="Valor da Causa" value={processo.valor_causa ? formatCurrency(processo.valor_causa) : "—"} />
       </div>
 
       {processo.descricao && (
