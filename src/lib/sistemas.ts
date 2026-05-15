@@ -41,6 +41,27 @@ async function buscarNoDataJudComoFonte(
   });
 }
 
+async function buscarPjeRJ(numero: string): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
+  try {
+    const res = await fetch("/api/pje-rj", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ numero }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.debug) console.log("[PJe-RJ debug]", JSON.stringify(data.debug, null, 2));
+    if (!res.ok) return null;
+    const movs = (data.movimentos ?? []).map((m: { data: string; descricao: string }) => ({
+      ...m,
+      fonte: "PJe-RJ",
+    }));
+    return movs.length > 0 ? movs : null;
+  } catch (err) {
+    console.log("[PJe-RJ fetch erro]", err);
+    return null;
+  }
+}
+
 async function buscarTJRJDireto(numero: string): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
   try {
     const res = await fetch("/api/tjrj", {
@@ -70,8 +91,10 @@ export async function buscarMovimentosSistema(
 ): Promise<{ data: string; descricao: string; fonte: string }[]> {
   const sistema = getSistema(tribunal);
 
-  // TJRJ tem scraper próprio (portal www3.tjrj) — tenta primeiro
+  // TJRJ: tenta PJe-RJ (consulta pública) primeiro, depois www3.tjrj
   if (tribunal === "tjrj") {
+    const pjerj = await buscarPjeRJ(numero);
+    if (pjerj) return pjerj;
     const tjrj = await buscarTJRJDireto(numero);
     if (tjrj) return tjrj;
   }
