@@ -42,13 +42,16 @@ async function buscarNoDataJudComoFonte(
 }
 
 async function buscarPjeRJ(numero: string): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
+  console.log("[PJe-RJ] chamando /api/pje-rj com", numero);
   try {
     const res = await fetch("/api/pje-rj", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero }),
     });
-    const data = await res.json().catch(() => ({}));
+    console.log("[PJe-RJ] status:", res.status);
+    const data = await res.json().catch((e) => { console.log("[PJe-RJ] json parse erro:", e); return {}; });
+    console.log("[PJe-RJ] resposta:", JSON.stringify(data).slice(0, 1000));
     if (data.debug) console.log("[PJe-RJ debug]", JSON.stringify(data.debug, null, 2));
     if (!res.ok) return null;
     const movs = (data.movimentos ?? []).map((m: { data: string; descricao: string }) => ({
