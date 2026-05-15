@@ -48,14 +48,18 @@ async function buscarTJRJDireto(numero: string): Promise<{ data: string; descric
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ numero }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (data.debug) {
+      console.log("[TJRJ debug]", JSON.stringify(data.debug, null, 2));
+    }
     if (!res.ok) return null;
-    const data = await res.json();
     const movs = (data.movimentos ?? []).map((m: { data: string; descricao: string }) => ({
       ...m,
       fonte: "TJRJ",
     }));
     return movs.length > 0 ? movs : null;
-  } catch {
+  } catch (err) {
+    console.log("[TJRJ fetch erro]", err);
     return null;
   }
 }
