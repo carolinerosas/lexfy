@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { createProcesso, createCliente, getClientes, sincronizarProcesso } from "@/lib/store";
-import { buscarNoDataJud, parseCNJ, DataJudError } from "@/lib/datajud";
+import { createProcesso, createCliente, getClientes } from "@/lib/store";
 import type { Cliente } from "@/types";
 
 const ufs = [
@@ -53,42 +51,12 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     status: "ativo" as const,
   });
   const [saving, setSaving] = useState(false);
-  const [buscando, setBuscando] = useState(false);
-  const [buscaMsg, setBuscaMsg] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
 
   useEffect(() => {
     if (open) {
       getClientes().then(setClientes);
-      setBuscaMsg(null);
     }
   }, [open]);
-
-  async function buscarNoTribunal() {
-    if (!form.numero.trim()) return;
-    setBuscando(true);
-    setBuscaMsg(null);
-    try {
-      const { tribunal: tribunalSlug } = parseCNJ(form.numero);
-      const resultado = await buscarNoDataJud(form.numero);
-      setForm((f) => ({
-        ...f,
-        titulo: f.titulo || resultado.classe || "",
-        tribunal: f.tribunal || resultado.tribunal || tribunalSlug?.toUpperCase() || "",
-        vara: f.vara || resultado.orgaoJulgador || "",
-        data_distribuicao: f.data_distribuicao || (resultado.dataAjuizamento ? resultado.dataAjuizamento.slice(0, 10) : ""),
-        descricao: f.descricao || (resultado.assuntos?.length ? `Assuntos: ${resultado.assuntos.join(", ")}` : ""),
-      }));
-      setBuscaMsg({
-        tipo: "ok",
-        texto: `Encontrado no DataJud · ${resultado.movimentos.length} movimentações`,
-      });
-    } catch (err) {
-      const msg = err instanceof DataJudError ? err.message : err instanceof Error ? err.message : "Erro desconhecido";
-      setBuscaMsg({ tipo: "erro", texto: msg });
-    } finally {
-      setBuscando(false);
-    }
-  }
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -128,8 +96,7 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
         }
       }
 
-      const { tribunal: tribunalSlug } = parseCNJ(form.numero);
-      const novoProcesso = await createProcesso({
+      await createProcesso({
         numero: form.numero,
         titulo: form.titulo,
         cliente_id: resolvedClienteId || undefined,
@@ -146,18 +113,7 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
         data_distribuicao: form.data_distribuicao || undefined,
         descricao: form.descricao || undefined,
         status: "ativo",
-        monitorar_datajud: !!tribunalSlug,
       });
-
-      // Se a busca no tribunal deu certo, já sincroniza movimentações
-      if (tribunalSlug && buscaMsg?.tipo === "ok") {
-        try {
-          await sincronizarProcesso(novoProcesso.id);
-        } catch {
-          // ignora erro de sync — processo já foi criado
-        }
-      }
-
       onCreated();
     } finally {
       setSaving(false);
@@ -168,29 +124,13 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     <Modal open={open} onClose={onClose} title="Novo Processo" size="lg">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Input
-              label="Número do Processo *"
-              placeholder="0000000-00.0000.0.00.0000"
-              value={form.numero}
-              onChange={(e) => set("numero", e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              onClick={buscarNoTribunal}
-              disabled={buscando || !form.numero.trim()}
-              className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 border border-gray-200 hover:border-gray-400 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {buscando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-              {buscando ? "Buscando no tribunal..." : "Buscar dados no tribunal"}
-            </button>
-            {buscaMsg && (
-              <p className={`mt-1.5 text-xs ${buscaMsg.tipo === "ok" ? "text-green-700" : "text-amber-700"}`}>
-                {buscaMsg.texto}
-              </p>
-            )}
-          </div>
+          <Input
+            label="Número do Processo *"
+            placeholder="0000000-00.0000.0.00.0000"
+            value={form.numero}
+            onChange={(e) => set("numero", e.target.value)}
+            required
+          />
           <Select
             label="Tipo"
             options={tipoOptions}
