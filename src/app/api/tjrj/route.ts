@@ -1,9 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "pt-BR,pt;q=0.9",
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Sec-Ch-Ua": '"Chromium";v="130", "Google Chrome";v="130", "Not_A Brand";v="24"',
+  "Sec-Ch-Ua-Mobile": "?0",
+  "Sec-Ch-Ua-Platform": '"Windows"',
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Upgrade-Insecure-Requests": "1",
+};
+
+const API_HEADERS = {
+  ...BROWSER_HEADERS,
+  Accept: "application/json, text/plain, */*",
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-origin",
 };
 
 export interface TJRJMovimento {
@@ -45,14 +61,40 @@ function parseTJRJHtml(html: string): TJRJMovimento[] {
   return movimentos;
 }
 
-async function fetchTJRJ(url: string): Promise<string> {
+// Session warming: visita a página principal pra obter cookies de sessão
+async function obterCookiesTJRJ(): Promise<string> {
+  try {
+    const res = await fetch("https://www3.tjrj.jus.br/consultaprocessual/", {
+      headers: BROWSER_HEADERS,
+      signal: AbortSignal.timeout(15000),
+      redirect: "follow",
+    });
+    const setCookies = res.headers.get("set-cookie") ?? "";
+    // Extrai os pares cookie=value
+    const cookies = setCookies
+      .split(/,(?=\s*\w+=)/)
+      .map((c) => c.split(";")[0].trim())
+      .filter(Boolean)
+      .join("; ");
+    return cookies;
+  } catch {
+    return "";
+  }
+}
+
+async function fetchTJRJ(url: string, cookies = ""): Promise<{ status: number; body: string }> {
+  const isApi = url.includes("/api/");
+  const headers: Record<string, string> = { ...(isApi ? API_HEADERS : BROWSER_HEADERS) };
+  if (cookies) headers["Cookie"] = cookies;
+  if (isApi) headers["Referer"] = "https://www3.tjrj.jus.br/consultaprocessual/";
+
   const res = await fetch(url, {
-    headers: HEADERS,
+    headers,
     signal: AbortSignal.timeout(20000),
     redirect: "follow",
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  const body = await res.text();
+  return { status: res.status, body };
 }
 
 export async function POST(req: NextRequest) {
@@ -63,26 +105,41 @@ export async function POST(req: NextRequest) {
 
   const encoded = encodeURIComponent(numero);
   const soDigitos = numero.replace(/\D/g, "");
+
+  // 1. Faz session warming pra obter cookies (contorna parte do CAPTCHA)
+  const cookies = await obterCookiesTJRJ();
+  console.log("[TJRJ] cookies obtidos:", cookies ? "sim" : "não");
+
   const urls = [
-    `http://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
+    // API REST nova (precisa de cookies de sessão)
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}`,
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}/movimentos`,
     `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${soDigitos}/movimentos`,
-    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}`,
+    `https://www3.tjrj.jus.br/consultaprocessual/api/processos/buscar?numeroProcesso=${encoded}`,
+    // Portal antigo HTML (sem CAPTCHA, mas pode estar fora do ar)
+    `http://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
+    `https://www4.tjrj.jus.br/consultaProcessoWebV2/consultaMov.do?v=2&tipo=consulta&numProcesso=${encoded}`,
+    // Sistema SAJ
+    `https://www3.tjrj.jus.br/scp/consulta.do?selOrigem=PB&numProcesso=${encoded}`,
   ];
 
   const todasMovs: TJRJMovimento[] = [];
   const seen = new Set<string>();
+  const debug: { url: string; status: number; count: number; sample?: string }[] = [];
 
   for (const url of urls) {
     try {
-      console.log("[TJRJ] tentando:", url);
-      const html = await fetchTJRJ(url);
+      const { status, body } = await fetchTJRJ(url, cookies);
       let movs: TJRJMovimento[] = [];
 
-      // Try JSON first (REST API)
+      // Try JSON first
       try {
-        const json = JSON.parse(html);
-        const arr = Array.isArray(json) ? json : (json.movimentos ?? json.data?.movimentos ?? []);
+        const json = JSON.parse(body);
+        // pode ser { movimentos: [...] }, { data: { movimentos: [...] } }, ou um array direto
+        const arr = Array.isArray(json)
+          ? json
+          : (json.movimentos ?? json.movimentacoes ?? json.data?.movimentos ?? json.data?.movimentacoes ?? json.processo?.movimentos ?? []);
         if (Array.isArray(arr) && arr.length > 0) {
           movs = arr.map((m: { dataHora?: string; data?: string; descricao?: string; nome?: string; texto?: string; complementosTabelados?: { descricao?: string }[] }) => {
             const dataRaw = m.dataHora ?? m.data ?? "";
@@ -95,11 +152,12 @@ export async function POST(req: NextRequest) {
           }).filter((m) => m.descricao);
         }
       } catch {
-        // not JSON, parse as HTML
-        movs = parseTJRJHtml(html);
+        // not JSON → tenta HTML
+        movs = parseTJRJHtml(body);
       }
 
-      console.log("[TJRJ]", movs.length, "movs de", url);
+      debug.push({ url, status, count: movs.length, sample: movs[0]?.descricao?.slice(0, 60) });
+
       for (const m of movs) {
         const k = `${m.data}|${m.descricao}`;
         if (!seen.has(k)) {
@@ -108,13 +166,15 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (err) {
-      console.log("[TJRJ] falhou:", url, err instanceof Error ? err.message : err);
+      debug.push({ url, status: 0, count: 0, sample: err instanceof Error ? err.message : "erro" });
     }
   }
 
+  console.log("[TJRJ] resumo:", JSON.stringify(debug, null, 2));
+
   if (todasMovs.length === 0) {
     return NextResponse.json(
-      { error: "Processo não encontrado no portal TJERJ. Verifique se o número está correto." },
+      { error: "Processo não encontrado no portal TJERJ.", debug },
       { status: 404 }
     );
   }
