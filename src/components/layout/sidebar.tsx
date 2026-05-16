@@ -15,6 +15,7 @@ import {
   UserRound,
   Settings,
   Search,
+  Mail,
 } from "lucide-react";
 import { JustioLogo } from "@/components/ui/justio-logo";
 import { getMovimentacoesNaoLidas, getPublicacoes } from "@/lib/store";
@@ -121,6 +122,18 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        <div className="pt-1 border-t border-white/5 mt-1">
+          <a
+            href="https://mail.zoho.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-white hover:bg-white/5 hover:text-white"
+          >
+            <Mail className="w-4 h-4 shrink-0 text-white" />
+            <span className="flex-1">E-mail</span>
+          </a>
+        </div>
       </nav>
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
