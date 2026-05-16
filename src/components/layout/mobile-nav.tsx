@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard, FolderOpen, UserRound, Clock, MoreHorizontal,
-  Calendar, DollarSign, Users, Newspaper, Settings, X,
+  Calendar, DollarSign, Users, Newspaper, Settings, X, Mail,
 } from "lucide-react";
 import { getMovimentacoesNaoLidas, getPublicacoes } from "@/lib/store";
 
@@ -23,6 +23,7 @@ const moreItems = [
   { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
   { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
   { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+  { href: "https://mail.zoho.com", label: "E-mail", icon: Mail, external: true },
 ];
 
 export function MobileNav() {
@@ -75,18 +76,15 @@ export function MobileNav() {
         <div className="px-3 pt-3 pb-2">
           <div className="w-8 h-1 bg-white/20 rounded-full mx-auto mb-4" />
           <div className="grid grid-cols-5 gap-1">
-            {moreItems.map(({ href, label, icon: Icon, badge }) => {
-              const active = pathname.startsWith(href);
+            {moreItems.map(({ href, label, icon: Icon, badge, external }) => {
+              const active = !external && pathname.startsWith(href);
               const count = getBadge(badge);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex flex-col items-center justify-center py-3 rounded-xl gap-1.5 text-[11px] font-medium transition-colors relative",
-                    active ? "bg-white/10 text-white" : "text-gray-400 hover:text-white"
-                  )}
-                >
+              const className = cn(
+                "flex flex-col items-center justify-center py-3 rounded-xl gap-1.5 text-[11px] font-medium transition-colors relative",
+                active ? "bg-white/10 text-white" : "text-gray-400 hover:text-white"
+              );
+              const content = (
+                <>
                   <div className="relative">
                     <Icon className="w-5 h-5" />
                     {count > 0 && (
@@ -96,6 +94,15 @@ export function MobileNav() {
                     )}
                   </div>
                   <span className="text-center leading-tight">{label}</span>
+                </>
+              );
+              return external ? (
+                <a key={href} href={href} target="_blank" rel="noopener noreferrer" className={className}>
+                  {content}
+                </a>
+              ) : (
+                <Link key={href} href={href} className={className}>
+                  {content}
                 </Link>
               );
             })}
