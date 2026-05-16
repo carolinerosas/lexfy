@@ -14,9 +14,9 @@ import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos } 
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo } from "@/types";
 
-const ULTIMA_BUSCA_KEY = "lexfy_ultima_busca_pub";
-const HASHES_KEY = "lexfy_pub_hashes";
-const PERFIL_KEY = "lexfy_perfil_advogado";
+const ULTIMA_BUSCA_KEY = "justio_ultima_busca_pub";
+const HASHES_KEY = "justio_pub_hashes";
+const PERFIL_KEY = "justio_perfil_advogado";
 
 const diarioOptions = [
   { value: "DOU", label: "Diário Oficial da União (DOU)" },

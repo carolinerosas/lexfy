@@ -76,7 +76,7 @@ export async function buscarNoDataJud(numero: string): Promise<DataJudResult> {
     throw new DataJudError("tribunal_nao_suportado", "Tribunal não suportado pelo DataJud");
   }
 
-  const apiKey = localStorage.getItem("lexfy_datajud_apikey") ?? "";
+  const apiKey = localStorage.getItem("justio_datajud_apikey") ?? localStorage.getItem("lexfy_datajud_apikey") ?? "";
 
   const res = await fetch("/api/datajud", {
     method: "POST",

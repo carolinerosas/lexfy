@@ -1,7 +1,7 @@
 {
-  "name": "lexfy-scraper",
+  "name": "justio-scraper",
   "version": "1.0.0",
-  "description": "Playwright-based tribunal scraper for Lexfy",
+  "description": "Playwright-based tribunal scraper for Justio",
   "main": "server.js",
   "type": "module",
   "scripts": {

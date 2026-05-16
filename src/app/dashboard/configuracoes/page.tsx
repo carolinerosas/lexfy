@@ -17,7 +17,7 @@ const DATA_KEYS = [
   "jur_publicacoes",
   "jur_atendimentos",
   "jur_clientes",
-  "lexfy_datajud_apikey",
+  "justio_datajud_apikey",
 ];
 
 function exportarDados() {
@@ -57,7 +57,7 @@ function importarDados(file: File): Promise<number> {
   });
 }
 
-const DATAJUD_KEY_STORAGE = "lexfy_datajud_apikey";
+const DATAJUD_KEY_STORAGE = "justio_datajud_apikey";
 
 export function getDatajudApiKey(): string {
   if (typeof window === "undefined") return "";
