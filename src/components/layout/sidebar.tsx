@@ -16,7 +16,7 @@ import {
   Settings,
   Search,
 } from "lucide-react";
-import { LexfyLogo } from "@/components/ui/lexfy-logo";
+import { JustioLogo } from "@/components/ui/justio-logo";
 import { getMovimentacoesNaoLidas, getPublicacoes } from "@/lib/store";
 import { useDatajudSync } from "@/hooks/useDatajudSync";
 import { SearchModal } from "@/components/ui/search-modal";
@@ -74,7 +74,7 @@ export function Sidebar() {
     <aside className="w-60 bg-[#0f0f0f] flex flex-col h-full border-r border-white/5">
       {/* Logo */}
       <div className="flex flex-col items-center justify-center py-8 border-b border-white/5">
-        <LexfyLogo size={80} dark={true} layout="row" />
+        <JustioLogo size={80} dark={true} layout="row" />
       </div>
 
       {/* Search */}

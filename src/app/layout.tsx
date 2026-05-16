@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lexfy — Legal Tech",
+  title: "Justio — Legal Tech",
   description: "Sistema de gestão jurídica para escritórios de advocacia",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Lexfy",
+    title: "Justio",
   },
   icons: {
     apple: "/icon.svg",

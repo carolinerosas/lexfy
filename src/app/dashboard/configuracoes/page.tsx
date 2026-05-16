@@ -30,7 +30,7 @@ function exportarDados() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `lexfy-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `justio-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -100,7 +100,7 @@ export default function ConfiguracoesPage() {
       setImportMsg(`${count} categorias restauradas com sucesso! Recarregue a página.`);
       setImportStatus("ok");
     } catch {
-      setImportMsg("Arquivo inválido. Use um backup gerado pelo Lexfy.");
+      setImportMsg("Arquivo inválido. Use um backup gerado pelo Justio.");
       setImportStatus("erro");
     }
     if (fileRef.current) fileRef.current.value = "";

@@ -8,7 +8,7 @@ const POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 function notifyBrowser(novas: number) {
   if (typeof window === "undefined") return;
   if (Notification.permission !== "granted") return;
-  new Notification("Lexfy — Novas movimentações", {
+  new Notification("Justio — Novas movimentações", {
     body: `${novas} nova${novas > 1 ? "s" : ""} movimentaç${novas > 1 ? "ões" : "ão"} detectada${novas > 1 ? "s" : ""} nos seus processos.`,
     icon: "/favicon.ico",
   });
