@@ -48,6 +48,143 @@ interface Perfil {
   oab_uf?: string;
 }
 
+type DjenAdvogado = {
+  advogado?: {
+    nome?: string;
+    numero_oab?: string;
+    uf_oab?: string;
+  };
+};
+
+type DjenComunicacao = {
+  id?: number;
+  hash?: string;
+  data_disponibilizacao?: string;
+  siglaTribunal?: string;
+  tipoComunicacao?: string;
+  nomeOrgao?: string;
+  texto?: string;
+  tipoDocumento?: string;
+  nomeClasse?: string;
+  numero_processo?: string;
+  numeroprocessocommascara?: string;
+  meiocompleto?: string;
+  destinatarioadvogados?: DjenAdvogado[];
+};
+
+type DjenResponse = {
+  count?: number;
+  items?: DjenComunicacao[];
+};
+
+const DIRECT_DJEN_SEARCH_DAYS = 45;
+const DIRECT_DJEN_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
+const DIRECT_DJEN_WEB_URL = "https://comunica.pje.jus.br/consulta";
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function formatDateISO(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(date.getFullYear());
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatDateBRFromISO(dateISO: string): string {
+  const [yyyy, mm, dd] = dateISO.split("-");
+  if (!yyyy || !mm || !dd) return dateISO;
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function simpleHash(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function mapDjenItem(item: DjenComunicacao): PubEncontrada {
+  const dataDisponibilizacao = item.data_disponibilizacao ?? "";
+  const processo = item.numeroprocessocommascara ?? item.numero_processo ?? "";
+  const orgao = item.nomeOrgao ?? item.siglaTribunal ?? "DJEN";
+  const tipo = item.tipoComunicacao ?? item.tipoDocumento ?? "Publicacao";
+  const classe = item.nomeClasse ? `Classe: ${item.nomeClasse}. ` : "";
+  const dataBR = dataDisponibilizacao ? `Disponibilizacao: ${formatDateBRFromISO(dataDisponibilizacao)}. ` : "";
+  const advogados = (item.destinatarioadvogados ?? [])
+    .map((a) => {
+      const adv = a.advogado;
+      if (!adv?.nome) return "";
+      const oab = adv.numero_oab && adv.uf_oab ? ` - OAB/${adv.uf_oab} ${adv.numero_oab}` : "";
+      return `${adv.nome}${oab}`;
+    })
+    .filter(Boolean);
+  const advogadosText = advogados.length ? `Advogado(s): ${advogados.join("; ")}. ` : "";
+  const teor = item.texto ? `Teor: ${item.texto.replace(/\s+/g, " ").trim()}` : "";
+  const hash = item.hash ?? String(item.id ?? simpleHash(`${dataDisponibilizacao}|${processo}|${teor}`));
+
+  return {
+    titulo: `${tipo}${processo ? ` - processo ${processo}` : ""}`,
+    conteudo: `${dataBR}${orgao}. ${classe}${advogadosText}${teor}`.trim(),
+    data_publicacao: dataDisponibilizacao || formatDateISO(new Date()),
+    diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
+    url: item.hash ? `${DIRECT_DJEN_WEB_URL}/comunicacao/${item.hash}/certidao` : undefined,
+    hash: `djen-${hash}`,
+  };
+}
+
+async function buscarDjenDireto(perfil: Perfil): Promise<PubEncontrada[]> {
+  const hoje = new Date();
+  const inicio = addDays(hoje, -(DIRECT_DJEN_SEARCH_DAYS - 1));
+  const numero = perfil.oab_numero?.replace(/\D/g, "");
+  const uf = (perfil.oab_uf ?? "RJ").trim().toUpperCase() || "RJ";
+  const filtros: URLSearchParams[] = [];
+
+  if (numero) {
+    filtros.push(new URLSearchParams({ numeroOab: numero, ufOab: uf }));
+  }
+
+  if (perfil.nome?.trim()) {
+    filtros.push(new URLSearchParams({ nomeAdvogado: perfil.nome.trim() }));
+  }
+
+  const porHash = new Map<string, PubEncontrada>();
+
+  for (const filtro of filtros) {
+    let pagina = 1;
+    let totalPaginas = 1;
+
+    do {
+      const params = new URLSearchParams({
+        pagina: String(pagina),
+        itensPorPagina: "100",
+        dataDisponibilizacaoInicio: formatDateISO(inicio),
+        dataDisponibilizacaoFim: formatDateISO(hoje),
+        ...Object.fromEntries(filtro.entries()),
+      });
+      const res = await fetch(`${DIRECT_DJEN_API_URL}/comunicacao?${params.toString()}`);
+      if (!res.ok) throw new Error(`DJEN/CNJ direto: HTTP ${res.status}`);
+
+      const data = (await res.json()) as DjenResponse;
+      const items = data.items ?? [];
+      totalPaginas = Math.max(1, Math.ceil((data.count ?? items.length) / 100));
+
+      for (const item of items) {
+        const pub = mapDjenItem(item);
+        if (!porHash.has(pub.hash)) porHash.set(pub.hash, pub);
+      }
+
+      pagina += 1;
+    } while (pagina <= totalPaginas && pagina <= 10);
+  }
+
+  return [...porHash.values()];
+}
+
 export default function PublicacoesPage() {
   const [publicacoes, setPublicacoes] = useState<Publicacao[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -119,6 +256,22 @@ export default function PublicacoesPage() {
       });
 
       const data = await res.json() as { resultados?: PubEncontrada[]; erros?: string[]; buscadoEm?: string };
+      let resultados = data.resultados ?? [];
+      let erros = data.erros ?? [];
+
+      if (!resultados.some((p) => p.hash?.startsWith("djen-")) && (perfil.oab_numero || perfil.nome)) {
+        try {
+          const diretas = await buscarDjenDireto(perfil);
+          const porHash = new Map(resultados.map((p) => [p.hash, p]));
+          for (const pub of diretas) {
+            if (!porHash.has(pub.hash)) porHash.set(pub.hash, pub);
+          }
+          resultados = [...porHash.values()];
+          if (diretas.length > 0) erros = erros.filter((e) => !e.startsWith("DJEN/CNJ:"));
+        } catch (err) {
+          erros = [...erros, err instanceof Error ? err.message : "DJEN/CNJ direto: erro desconhecido"];
+        }
+      }
 
       const agora = data.buscadoEm ?? new Date().toISOString();
       localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
@@ -131,7 +284,7 @@ export default function PublicacoesPage() {
         hashesSet = new Set();
       }
 
-      const novas = (data.resultados ?? []).filter((p) => !hashesSet.has(p.hash));
+      const novas = resultados.filter((p) => !hashesSet.has(p.hash));
 
       for (const p of novas) {
         await createPublicacao({
@@ -151,7 +304,6 @@ export default function PublicacoesPage() {
 
       load();
 
-      const erros = data.erros ?? [];
       if (novas.length > 0) {
         setStatusTipo("ok");
         setStatusMsg(`${novas.length} nova${novas.length > 1 ? "s" : ""} publicação${novas.length > 1 ? "ões" : ""} importada${novas.length > 1 ? "s" : ""}!`);
