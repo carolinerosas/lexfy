@@ -20,6 +20,7 @@ const PERFIL_KEY = "justio_perfil_advogado";
 
 const diarioOptions = [
   { value: "DOU", label: "Diário Oficial da União (DOU)" },
+  { value: "Diario de Justica Eletronico Nacional", label: "DJEN/CNJ" },
   { value: "DJE/TJERJ", label: "DJE/TJERJ — Rio de Janeiro" },
   { value: "TJSP", label: "DJE/TJSP — São Paulo" },
   { value: "TJMG", label: "DJE/TJMG — Minas Gerais" },
@@ -214,7 +215,7 @@ export default function PublicacoesPage() {
             <p className="text-amber-700">
               Acesse{" "}
               <Link href="/dashboard/configuracoes" className="underline font-medium">Configurações</Link>
-              {" "}e preencha seu nome e OAB para buscar publicações automaticamente no DOU e DJE-TJERJ.
+              {" "}e preencha seu nome e OAB para buscar publicações automaticamente no DOU, DJEN/CNJ e DJE-TJERJ.
             </p>
           </div>
         </div>
