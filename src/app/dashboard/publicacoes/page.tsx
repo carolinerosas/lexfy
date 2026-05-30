@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Settings } from "lucide-react";
+import { Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Settings, CalendarClock, FileText } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,32 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos } from "@/lib/store";
+import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
-import type { Publicacao, Processo } from "@/types";
+import type { Publicacao, Processo, PrazoTipo, Prioridade } from "@/types";
+
+const CNJ_REGEX = /\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/;
+
+function extractCNJ(text?: string): string | null {
+  if (!text) return null;
+  const m = CNJ_REGEX.exec(text);
+  return m ? m[0] : null;
+}
+
+function onlyDigits(value?: string): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function findProcessoIdByCNJ(processos: Processo[], ...texts: (string | undefined)[]): string | undefined {
+  for (const text of texts) {
+    const cnj = extractCNJ(text);
+    if (!cnj) continue;
+    const digits = onlyDigits(cnj);
+    const match = processos.find((p) => onlyDigits(p.numero) === digits);
+    if (match) return match.id;
+  }
+  return undefined;
+}
 
 const ULTIMA_BUSCA_KEY = "justio_ultima_busca_pub";
 const HASHES_KEY = "justio_pub_hashes";
@@ -94,12 +117,6 @@ function formatDateISO(date: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function formatDateBRFromISO(dateISO: string): string {
-  const [yyyy, mm, dd] = dateISO.split("-");
-  if (!yyyy || !mm || !dd) return dateISO;
-  return `${dd}/${mm}/${yyyy}`;
-}
-
 function simpleHash(value: string): string {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -113,8 +130,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
   const processo = item.numeroprocessocommascara ?? item.numero_processo ?? "";
   const orgao = item.nomeOrgao ?? item.siglaTribunal ?? "DJEN";
   const tipo = item.tipoComunicacao ?? item.tipoDocumento ?? "Publicacao";
-  const classe = item.nomeClasse ? `Classe: ${item.nomeClasse}. ` : "";
-  const dataBR = dataDisponibilizacao ? `Disponibilizacao: ${formatDateBRFromISO(dataDisponibilizacao)}. ` : "";
+  const classe = item.nomeClasse ?? "";
   const advogados = (item.destinatarioadvogados ?? [])
     .map((a) => {
       const adv = a.advogado;
@@ -123,13 +139,22 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
       return `${adv.nome}${oab}`;
     })
     .filter(Boolean);
-  const advogadosText = advogados.length ? `Advogado(s): ${advogados.join("; ")}. ` : "";
-  const teor = item.texto ? `Teor: ${item.texto.replace(/\s+/g, " ").trim()}` : "";
+
+  const teor = item.texto ? item.texto.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim() : "";
+
+  const metaParts = [
+    orgao,
+    classe ? `Classe: ${classe}` : "",
+    advogados.length ? `Adv.: ${advogados.join("; ")}` : "",
+  ].filter(Boolean);
+  const meta = metaParts.length ? `\n\n— ${metaParts.join(" · ")}` : "";
+
+  const conteudo = (teor || metaParts.join(" · ")) + (teor ? meta : "");
   const hash = item.hash ?? String(item.id ?? simpleHash(`${dataDisponibilizacao}|${processo}|${teor}`));
 
   return {
-    titulo: `${tipo}${processo ? ` - processo ${processo}` : ""}`,
-    conteudo: `${dataBR}${orgao}. ${classe}${advogadosText}${teor}`.trim(),
+    titulo: `${tipo}${processo ? ` · ${processo}` : ""}`,
+    conteudo: conteudo.trim(),
     data_publicacao: dataDisponibilizacao || formatDateISO(new Date()),
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
     url: item.hash ? `${DIRECT_DJEN_WEB_URL}/comunicacao/${item.hash}/certidao` : undefined,
@@ -195,12 +220,16 @@ export default function PublicacoesPage() {
   const [statusTipo, setStatusTipo] = useState<"ok" | "erro" | "info" | "">("");
   const [ultimaBusca, setUltimaBusca] = useState("");
   const [perfil, setPerfil] = useState<Perfil>({});
+  const [processos, setProcessos] = useState<Processo[]>([]);
+  const [selected, setSelected] = useState<Publicacao | null>(null);
+  const [prazoSeed, setPrazoSeed] = useState<Publicacao | null>(null);
   const autoSearched = useRef(false);
 
   const load = useCallback(async () => {
     try {
-      const todas = await getPublicacoes();
+      const [todas, procs] = await Promise.all([getPublicacoes(), getProcessos()]);
       setPublicacoes(todas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setProcessos(procs);
     } catch { /* silently fail */ }
 
     try {
@@ -287,7 +316,9 @@ export default function PublicacoesPage() {
       const novas = resultados.filter((p) => !hashesSet.has(p.hash));
 
       for (const p of novas) {
+        const processoId = findProcessoIdByCNJ(processos, p.titulo, p.conteudo);
         await createPublicacao({
+          processo_id: processoId,
           titulo: p.titulo,
           conteudo: p.conteudo,
           data_publicacao: p.data_publicacao,
@@ -436,35 +467,50 @@ export default function PublicacoesPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filtered.map((pub) => (
+          {filtered.map((pub) => {
+            const proc = processos.find((p) => p.id === pub.processo_id);
+            return (
             <Card key={pub.id} className={pub.lida ? "opacity-60" : ""}>
               <CardContent className="py-4 px-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setSelected(pub)}
+                    className="flex-1 min-w-0 text-left cursor-pointer"
+                  >
                     <div className="flex items-center gap-2 mb-1">
                       {!pub.lida && <span className="w-2 h-2 rounded-full bg-gray-900 shrink-0" />}
                       <p className="text-sm font-semibold text-gray-900 line-clamp-2">
                         {pub.titulo ?? "Publicação sem título"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-2 flex-wrap">
                       {pub.diario && <Badge variant="neutral">{pub.diario}</Badge>}
                       {pub.data_publicacao && <span>{formatDate(pub.data_publicacao)}</span>}
+                      {proc && (
+                        <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+                          <FileText className="w-3 h-3" /> {proc.cliente_nome}
+                        </span>
+                      )}
                     </div>
                     {pub.conteudo && (
-                      <p className="text-sm text-gray-600 line-clamp-3">{pub.conteudo}</p>
+                      <p className="text-sm text-gray-600 line-clamp-3 whitespace-pre-line">{pub.conteudo}</p>
                     )}
-                  </div>
-                  <div className="flex gap-2 shrink-0">
+                    <span className="text-xs text-gray-400 mt-1 inline-block">Ler publicação completa →</span>
+                  </button>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <Button variant="secondary" size="sm" onClick={() => setPrazoSeed(pub)}>
+                      <CalendarClock className="w-3.5 h-3.5" /> Prazo
+                    </Button>
                     {pub.url && (
                       <a href={pub.url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="w-3.5 h-3.5" />
+                        <Button variant="ghost" size="sm" className="w-full">
+                          <ExternalLink className="w-3.5 h-3.5" /> Certidão
                         </Button>
                       </a>
                     )}
                     {!pub.lida && (
-                      <Button variant="secondary" size="sm" onClick={async () => { await marcarPublicacaoLida(pub.id); load(); }}>
+                      <Button variant="ghost" size="sm" onClick={async () => { await marcarPublicacaoLida(pub.id); load(); }}>
                         <Eye className="w-3.5 h-3.5" /> Lida
                       </Button>
                     )}
@@ -472,7 +518,8 @@ export default function PublicacoesPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -481,7 +528,182 @@ export default function PublicacoesPage() {
         onClose={() => setShowModal(false)}
         onCreated={() => { load(); setShowModal(false); }}
       />
+
+      <DetalheModal
+        publicacao={selected}
+        processos={processos}
+        onClose={() => setSelected(null)}
+        onMarcarLida={async (id) => { await marcarPublicacaoLida(id); load(); setSelected(null); }}
+        onCriarPrazo={(pub) => { setSelected(null); setPrazoSeed(pub); }}
+      />
+
+      <PrazoModal
+        publicacao={prazoSeed}
+        processos={processos}
+        onClose={() => setPrazoSeed(null)}
+        onCreated={() => { setPrazoSeed(null); setStatusTipo("ok"); setStatusMsg("Prazo criado com sucesso!"); }}
+      />
     </div>
+  );
+}
+
+function DetalheModal({
+  publicacao,
+  processos,
+  onClose,
+  onMarcarLida,
+  onCriarPrazo,
+}: {
+  publicacao: Publicacao | null;
+  processos: Processo[];
+  onClose: () => void;
+  onMarcarLida: (id: string) => void;
+  onCriarPrazo: (pub: Publicacao) => void;
+}) {
+  if (!publicacao) return null;
+  const proc = processos.find((p) => p.id === publicacao.processo_id);
+
+  return (
+    <Modal open={!!publicacao} onClose={onClose} title="Publicação" size="lg">
+      <div className="space-y-4">
+        <div>
+          <p className="text-base font-semibold text-gray-900">{publicacao.titulo ?? "Publicação"}</p>
+          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1.5 flex-wrap">
+            {publicacao.diario && <Badge variant="neutral">{publicacao.diario}</Badge>}
+            {publicacao.data_publicacao && <span>{formatDate(publicacao.data_publicacao)}</span>}
+            {proc && (
+              <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
+                <FileText className="w-3 h-3" /> {proc.numero} — {proc.cliente_nome}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-gray-50 rounded-xl p-4 max-h-[50vh] overflow-y-auto">
+          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+            {publicacao.conteudo || "Sem teor disponível."}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          {publicacao.url && (
+            <a href={publicacao.url} target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" size="sm">
+                <ExternalLink className="w-4 h-4" /> Ver certidão
+              </Button>
+            </a>
+          )}
+          {!publicacao.lida && (
+            <Button variant="secondary" size="sm" onClick={() => onMarcarLida(publicacao.id)}>
+              <Eye className="w-4 h-4" /> Marcar como lida
+            </Button>
+          )}
+          <Button size="sm" onClick={() => onCriarPrazo(publicacao)}>
+            <CalendarClock className="w-4 h-4" /> Criar prazo
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const prazoTipoOptions: { value: PrazoTipo; label: string }[] = [
+  { value: "recurso", label: "Recurso" },
+  { value: "contestacao", label: "Contestação" },
+  { value: "peticao", label: "Petição" },
+  { value: "contrarrazoes", label: "Contrarrazões" },
+  { value: "outro", label: "Outro" },
+];
+
+const prioridadeOptions: { value: Prioridade; label: string }[] = [
+  { value: "alta", label: "Alta" },
+  { value: "media", label: "Média" },
+  { value: "baixa", label: "Baixa" },
+];
+
+function PrazoModal({
+  publicacao,
+  processos,
+  onClose,
+  onCreated,
+}: {
+  publicacao: Publicacao | null;
+  processos: Processo[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [processoId, setProcessoId] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [dataPrazo, setDataPrazo] = useState("");
+  const [tipo, setTipo] = useState<PrazoTipo>("outro");
+  const [prioridade, setPrioridade] = useState<Prioridade>("alta");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!publicacao) return;
+    const matchId = findProcessoIdByCNJ(processos, publicacao.titulo, publicacao.conteudo) ?? publicacao.processo_id ?? "";
+    setProcessoId(matchId);
+    setTitulo(publicacao.titulo ?? "Prazo da publicação");
+    setDataPrazo("");
+    setTipo("outro");
+    setPrioridade("alta");
+  }, [publicacao, processos]);
+
+  if (!publicacao) return null;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!processoId || !dataPrazo) return;
+    setSaving(true);
+    try {
+      await createPrazo({
+        processo_id: processoId,
+        titulo: titulo || "Prazo da publicação",
+        descricao: publicacao!.conteudo?.slice(0, 500),
+        data_prazo: dataPrazo,
+        concluido: false,
+        tipo,
+        prioridade,
+      });
+      onCreated();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={!!publicacao} onClose={onClose} title="Criar prazo da publicação" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <Select
+          label="Processo *"
+          options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
+          placeholder="Selecione o processo..."
+          value={processoId}
+          onChange={(e) => setProcessoId(e.target.value)}
+        />
+        {!processoId && (
+          <p className="text-xs text-amber-600 -mt-2">
+            Nenhum processo vinculado automaticamente. Selecione o processo para salvar o prazo.
+          </p>
+        )}
+        <Input label="Título do prazo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Data do prazo *" type="date" value={dataPrazo} onChange={(e) => setDataPrazo(e.target.value)} />
+          <Select label="Prioridade" options={prioridadeOptions} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)} />
+        </div>
+        <Select label="Tipo" options={prazoTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as PrazoTipo)} />
+        <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+          <p className="text-xs text-gray-500 mb-1 font-medium">Teor da publicação:</p>
+          <p className="text-xs text-gray-600 whitespace-pre-line">{publicacao.conteudo?.slice(0, 400)}</p>
+        </div>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={!processoId || !dataPrazo || saving}>
+            {saving ? "Salvando..." : "Salvar prazo"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

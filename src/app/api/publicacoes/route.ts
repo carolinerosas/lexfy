@@ -297,8 +297,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
   const processo = item.numeroprocessocommascara ?? item.numero_processo ?? "";
   const orgao = item.nomeOrgao ?? item.siglaTribunal ?? "DJEN";
   const tipo = item.tipoComunicacao ?? item.tipoDocumento ?? "Publicacao";
-  const classe = item.nomeClasse ? `Classe: ${item.nomeClasse}. ` : "";
-  const dataBR = dataDisponibilizacao ? `Disponibilizacao: ${formatDateBRFromISO(dataDisponibilizacao)}. ` : "";
+  const classe = item.nomeClasse ?? "";
   const advogados = (item.destinatarioadvogados ?? [])
     .map((a) => {
       const adv = a.advogado;
@@ -307,13 +306,23 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
       return `${adv.nome}${oab}`;
     })
     .filter(Boolean);
-  const advogadosText = advogados.length ? `Advogado(s): ${advogados.join("; ")}. ` : "";
-  const teor = item.texto ? `Teor: ${stripHtml(item.texto)}` : "";
+
+  const teor = item.texto ? stripHtml(item.texto) : "";
+
+  // Metadados compactos no rodapé (o teor vem primeiro para leitura)
+  const metaParts = [
+    orgao,
+    classe ? `Classe: ${classe}` : "",
+    advogados.length ? `Adv.: ${advogados.join("; ")}` : "",
+  ].filter(Boolean);
+  const meta = metaParts.length ? `\n\n— ${metaParts.join(" · ")}` : "";
+
+  const conteudo = (teor || metaParts.join(" · ")) + (teor ? meta : "");
   const hash = item.hash ?? String(item.id ?? simpleHash(`${dataDisponibilizacao}|${processo}|${teor}`));
 
   return {
-    titulo: `${tipo}${processo ? ` - processo ${processo}` : ""}`,
-    conteudo: `${dataBR}${orgao}. ${classe}${advogadosText}${teor}`.trim(),
+    titulo: `${tipo}${processo ? ` · ${processo}` : ""}`,
+    conteudo: conteudo.trim(),
     data_publicacao: dataDisponibilizacao || dataHoje().iso,
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
     url: item.hash ? `${COMUNICA_WEB_URL}/comunicacao/${item.hash}/certidao` : undefined,
