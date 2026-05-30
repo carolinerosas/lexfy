@@ -6,6 +6,33 @@ const API_KEY = process.env.API_KEY || "";
 
 const app = Fastify({ logger: true });
 
+// CORS — permite chamadas do justio.com.br e localhost
+const ALLOWED_ORIGINS = [
+  "https://www.justio.com.br",
+  "https://app.justio.com.br",
+  "http://localhost:3000",
+];
+
+app.addHook("onSend", (req, reply, payload, done) => {
+  const origin = req.headers.origin ?? "";
+  if (ALLOWED_ORIGINS.includes(origin) || !origin) {
+    reply.header("Access-Control-Allow-Origin", origin || "*");
+  }
+  reply.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key");
+  done();
+});
+
+app.options("*", async (req, reply) => {
+  const origin = req.headers.origin ?? "";
+  if (ALLOWED_ORIGINS.includes(origin) || !origin) {
+    reply.header("Access-Control-Allow-Origin", origin || "*");
+  }
+  reply.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key");
+  reply.code(204).send();
+});
+
 // Browser singleton — abre uma vez, reusa entre requests
 let browserPromise = null;
 async function getBrowser() {
@@ -147,7 +174,7 @@ async function extractMovimentos(page) {
 const start = async () => {
   try {
     await app.listen({ port: PORT, host: "0.0.0.0" });
-    console.log(`Lexfy Scraper rodando na porta ${PORT}`);
+    console.log(`Justio Scraper rodando na porta ${PORT}`);
   } catch (err) {
     app.log.error(err);
     process.exit(1);
