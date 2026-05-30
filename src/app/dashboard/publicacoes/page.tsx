@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Settings, CalendarClock, FileText } from "lucide-react";
+import { Newspaper, Plus, Eye, Search, ExternalLink, RefreshCw, CheckCircle2, AlertCircle, Settings, CalendarClock, FileText, FolderPlus } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo } from "@/lib/store";
+import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo, createProcesso, vincularPublicacoesAoProcesso } from "@/lib/store";
+import { parseCNJ } from "@/lib/datajud";
 import { formatDate } from "@/lib/utils";
-import type { Publicacao, Processo, PrazoTipo, Prioridade } from "@/types";
+import type { Publicacao, Processo, PrazoTipo, Prioridade, ProcessoTipo } from "@/types";
 
 const CNJ_REGEX = /\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/;
 
@@ -35,6 +36,90 @@ function findProcessoIdByCNJ(processos: Processo[], ...texts: (string | undefine
     if (match) return match.id;
   }
   return undefined;
+}
+
+// Formata os 20 dígitos do CNJ na máscara padrão
+function formatCNJ(value: string): string {
+  const d = onlyDigits(value);
+  if (d.length !== 20) return value;
+  return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
+}
+
+// Deriva UF a partir do código do tribunal estadual (tjrj -> RJ)
+function ufFromTribunal(tribunal: string | null): string {
+  if (tribunal && tribunal.startsWith("tj") && tribunal.length === 4) {
+    return tribunal.slice(2).toUpperCase();
+  }
+  return "";
+}
+
+const CLASSE_TIPO_MAP: { rx: RegExp; tipo: ProcessoTipo }[] = [
+  { rx: /(penal|pena|criminal|crime)/i, tipo: "criminal" },
+  { rx: /(trabalh|reclama)/i, tipo: "trabalhista" },
+  { rx: /(previdenc|benef[ií]cio|aposentad)/i, tipo: "previdenciario" },
+  { rx: /(tribut|fiscal|execu[çc][ãa]o fiscal)/i, tipo: "tributario" },
+];
+
+function tipoFromClasse(classe?: string): ProcessoTipo {
+  if (!classe) return "civel";
+  for (const { rx, tipo } of CLASSE_TIPO_MAP) {
+    if (rx.test(classe)) return tipo;
+  }
+  return "civel";
+}
+
+interface DadosProcessoDjen {
+  numero: string;
+  tribunal: string;
+  uf: string;
+  classe: string;
+  orgao: string;
+  tipo: ProcessoTipo;
+  polosA: string[];
+  polosP: string[];
+}
+
+// Busca dados do processo no DJEN/CNJ (pelo número) para preencher o cadastro
+async function buscarDadosProcessoDjen(numeroCNJ: string): Promise<DadosProcessoDjen> {
+  const digits = onlyDigits(numeroCNJ);
+  const numeroFmt = formatCNJ(numeroCNJ);
+  const { tribunal } = parseCNJ(numeroFmt);
+
+  const base: DadosProcessoDjen = {
+    numero: numeroFmt,
+    tribunal: tribunal ? tribunal.toUpperCase() : "",
+    uf: ufFromTribunal(tribunal),
+    classe: "",
+    orgao: "",
+    tipo: "civel",
+    polosA: [],
+    polosP: [],
+  };
+
+  try {
+    const params = new URLSearchParams({ numeroProcesso: digits, itensPorPagina: "5" });
+    const res = await fetch(`${DIRECT_DJEN_API_URL}/comunicacao?${params.toString()}`);
+    if (!res.ok) return base;
+    const data = (await res.json()) as DjenResponse;
+    const item = (data.items ?? [])[0];
+    if (!item) return base;
+
+    const destinatarios = item.destinatarios ?? [];
+    const polosA = destinatarios.filter((d) => d.polo === "A").map((d) => d.nome ?? "").filter(Boolean);
+    const polosP = destinatarios.filter((d) => d.polo === "P").map((d) => d.nome ?? "").filter(Boolean);
+
+    return {
+      ...base,
+      tribunal: item.siglaTribunal ?? base.tribunal,
+      classe: item.nomeClasse ?? "",
+      orgao: item.nomeOrgao ?? "",
+      tipo: tipoFromClasse(item.nomeClasse),
+      polosA,
+      polosP,
+    };
+  } catch {
+    return base;
+  }
 }
 
 const ULTIMA_BUSCA_KEY = "justio_ultima_busca_pub";
@@ -79,6 +164,11 @@ type DjenAdvogado = {
   };
 };
 
+type DjenDestinatario = {
+  polo?: string;
+  nome?: string;
+};
+
 type DjenComunicacao = {
   id?: number;
   hash?: string;
@@ -87,11 +177,13 @@ type DjenComunicacao = {
   tipoComunicacao?: string;
   nomeOrgao?: string;
   texto?: string;
+  link?: string;
   tipoDocumento?: string;
   nomeClasse?: string;
   numero_processo?: string;
   numeroprocessocommascara?: string;
   meiocompleto?: string;
+  destinatarios?: DjenDestinatario[];
   destinatarioadvogados?: DjenAdvogado[];
 };
 
@@ -102,7 +194,6 @@ type DjenResponse = {
 
 const DIRECT_DJEN_SEARCH_DAYS = 45;
 const DIRECT_DJEN_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
-const DIRECT_DJEN_WEB_URL = "https://comunica.pje.jus.br/consulta";
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -157,7 +248,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
     conteudo: conteudo.trim(),
     data_publicacao: dataDisponibilizacao || formatDateISO(new Date()),
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
-    url: item.hash ? `${DIRECT_DJEN_WEB_URL}/comunicacao/${item.hash}/certidao` : undefined,
+    url: item.link || undefined,
     hash: `djen-${hash}`,
   };
 }
@@ -223,6 +314,7 @@ export default function PublicacoesPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [selected, setSelected] = useState<Publicacao | null>(null);
   const [prazoSeed, setPrazoSeed] = useState<Publicacao | null>(null);
+  const [addProcSeed, setAddProcSeed] = useState<Publicacao | null>(null);
   const autoSearched = useRef(false);
 
   const load = useCallback(async () => {
@@ -468,7 +560,10 @@ export default function PublicacoesPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((pub) => {
-            const proc = processos.find((p) => p.id === pub.processo_id);
+            const proc = processos.find((p) => p.id === pub.processo_id)
+              ?? processos.find((p) => onlyDigits(p.numero) === onlyDigits(extractCNJ(pub.titulo) ?? extractCNJ(pub.conteudo) ?? ""));
+            const cnj = extractCNJ(pub.titulo) ?? extractCNJ(pub.conteudo);
+            const teorUrl = pub.url && !pub.url.includes("/certidao") ? pub.url : undefined;
             return (
             <Card key={pub.id} className={pub.lida ? "opacity-60" : ""}>
               <CardContent className="py-4 px-5">
@@ -502,10 +597,15 @@ export default function PublicacoesPage() {
                     <Button variant="secondary" size="sm" onClick={() => setPrazoSeed(pub)}>
                       <CalendarClock className="w-3.5 h-3.5" /> Prazo
                     </Button>
-                    {pub.url && (
-                      <a href={pub.url} target="_blank" rel="noopener noreferrer">
+                    {!proc && cnj && (
+                      <Button variant="secondary" size="sm" onClick={() => setAddProcSeed(pub)}>
+                        <FolderPlus className="w-3.5 h-3.5" /> Processo
+                      </Button>
+                    )}
+                    {teorUrl && (
+                      <a href={teorUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="sm" className="w-full">
-                          <ExternalLink className="w-3.5 h-3.5" /> Certidão
+                          <ExternalLink className="w-3.5 h-3.5" /> Inteiro teor
                         </Button>
                       </a>
                     )}
@@ -535,6 +635,7 @@ export default function PublicacoesPage() {
         onClose={() => setSelected(null)}
         onMarcarLida={async (id) => { await marcarPublicacaoLida(id); load(); setSelected(null); }}
         onCriarPrazo={(pub) => { setSelected(null); setPrazoSeed(pub); }}
+        onAdicionarProcesso={(pub) => { setSelected(null); setAddProcSeed(pub); }}
       />
 
       <PrazoModal
@@ -542,6 +643,12 @@ export default function PublicacoesPage() {
         processos={processos}
         onClose={() => setPrazoSeed(null)}
         onCreated={() => { setPrazoSeed(null); setStatusTipo("ok"); setStatusMsg("Prazo criado com sucesso!"); }}
+      />
+
+      <AdicionarProcessoModal
+        publicacao={addProcSeed}
+        onClose={() => setAddProcSeed(null)}
+        onCreated={(nome) => { setAddProcSeed(null); load(); setStatusTipo("ok"); setStatusMsg(`Processo de ${nome} adicionado!`); }}
       />
     </div>
   );
@@ -553,15 +660,19 @@ function DetalheModal({
   onClose,
   onMarcarLida,
   onCriarPrazo,
+  onAdicionarProcesso,
 }: {
   publicacao: Publicacao | null;
   processos: Processo[];
   onClose: () => void;
   onMarcarLida: (id: string) => void;
   onCriarPrazo: (pub: Publicacao) => void;
+  onAdicionarProcesso: (pub: Publicacao) => void;
 }) {
   if (!publicacao) return null;
-  const proc = processos.find((p) => p.id === publicacao.processo_id);
+  const cnj = extractCNJ(publicacao.titulo) ?? extractCNJ(publicacao.conteudo);
+  const proc = processos.find((p) => p.id === publicacao.processo_id)
+    ?? processos.find((p) => onlyDigits(p.numero) === onlyDigits(cnj ?? ""));
 
   return (
     <Modal open={!!publicacao} onClose={onClose} title="Publicação" size="lg">
@@ -571,11 +682,13 @@ function DetalheModal({
           <div className="flex items-center gap-2 text-xs text-gray-500 mt-1.5 flex-wrap">
             {publicacao.diario && <Badge variant="neutral">{publicacao.diario}</Badge>}
             {publicacao.data_publicacao && <span>{formatDate(publicacao.data_publicacao)}</span>}
-            {proc && (
+            {proc ? (
               <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
                 <FileText className="w-3 h-3" /> {proc.numero} — {proc.cliente_nome}
               </span>
-            )}
+            ) : cnj ? (
+              <span className="text-amber-600">Processo não cadastrado</span>
+            ) : null}
           </div>
         </div>
 
@@ -586,16 +699,21 @@ function DetalheModal({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 pt-1">
-          {publicacao.url && (
+          {publicacao.url && !publicacao.url.includes("/certidao") && (
             <a href={publicacao.url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="sm">
-                <ExternalLink className="w-4 h-4" /> Ver certidão
+                <ExternalLink className="w-4 h-4" /> Inteiro teor
               </Button>
             </a>
           )}
           {!publicacao.lida && (
-            <Button variant="secondary" size="sm" onClick={() => onMarcarLida(publicacao.id)}>
+            <Button variant="ghost" size="sm" onClick={() => onMarcarLida(publicacao.id)}>
               <Eye className="w-4 h-4" /> Marcar como lida
+            </Button>
+          )}
+          {!proc && cnj && (
+            <Button variant="secondary" size="sm" onClick={() => onAdicionarProcesso(publicacao)}>
+              <FolderPlus className="w-4 h-4" /> Adicionar processo
             </Button>
           )}
           <Button size="sm" onClick={() => onCriarPrazo(publicacao)}>
@@ -700,6 +818,133 @@ function PrazoModal({
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!processoId || !dataPrazo || saving}>
             {saving ? "Salvando..." : "Salvar prazo"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+const processoTipoOptions: { value: ProcessoTipo; label: string }[] = [
+  { value: "civel", label: "Cível" },
+  { value: "criminal", label: "Criminal" },
+  { value: "trabalhista", label: "Trabalhista" },
+  { value: "previdenciario", label: "Previdenciário" },
+  { value: "tributario", label: "Tributário" },
+  { value: "federal", label: "Federal" },
+  { value: "outro", label: "Outro" },
+];
+
+function AdicionarProcessoModal({
+  publicacao,
+  onClose,
+  onCreated,
+}: {
+  publicacao: Publicacao | null;
+  onClose: () => void;
+  onCreated: (clienteNome: string) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [numero, setNumero] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [tribunal, setTribunal] = useState("");
+  const [uf, setUf] = useState("");
+  const [comarca, setComarca] = useState("");
+  const [tipo, setTipo] = useState<ProcessoTipo>("civel");
+  const [clienteNome, setClienteNome] = useState("");
+  const [parteContraria, setParteContraria] = useState("");
+  const [partesInfo, setPartesInfo] = useState("");
+
+  useEffect(() => {
+    if (!publicacao) return;
+    const cnj = extractCNJ(publicacao.titulo) ?? extractCNJ(publicacao.conteudo);
+    if (!cnj) return;
+
+    setLoading(true);
+    setNumero(formatCNJ(cnj));
+    setTitulo("");
+    setTribunal("");
+    setUf("");
+    setComarca("");
+    setTipo("civel");
+    setClienteNome("");
+    setParteContraria("");
+    setPartesInfo("");
+
+    buscarDadosProcessoDjen(cnj)
+      .then((dados) => {
+        setNumero(dados.numero);
+        setTribunal(dados.tribunal);
+        setUf(dados.uf);
+        setComarca(dados.orgao);
+        setTipo(dados.tipo);
+        setTitulo(dados.classe || "Processo");
+        // Sugestão: polo ativo (autor) como cliente, polo passivo como parte contrária
+        setClienteNome(dados.polosA.join(", "));
+        setParteContraria(dados.polosP.join(", "));
+        if (dados.polosA.length || dados.polosP.length) {
+          setPartesInfo(
+            `Polo ativo: ${dados.polosA.join("; ") || "—"} · Polo passivo: ${dados.polosP.join("; ") || "—"}`
+          );
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [publicacao]);
+
+  if (!publicacao) return null;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!numero || !clienteNome.trim()) return;
+    setSaving(true);
+    try {
+      const novo = await createProcesso({
+        numero,
+        titulo: titulo || "Processo",
+        status: "ativo",
+        tribunal: tribunal || undefined,
+        comarca: comarca || undefined,
+        uf: uf || undefined,
+        tipo,
+        cliente_nome: clienteNome.trim(),
+        parte_contraria: parteContraria.trim() || undefined,
+        monitorar_datajud: true,
+      });
+      await vincularPublicacoesAoProcesso(novo.id, numero);
+      onCreated(clienteNome.trim());
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={!!publicacao} onClose={onClose} title="Adicionar processo ao Justio" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+            <RefreshCw className="w-4 h-4 animate-spin" /> Carregando dados do processo no DJEN/CNJ...
+          </div>
+        )}
+        <Input label="Número do processo *" value={numero} onChange={(e) => setNumero(e.target.value)} />
+        <Input label="Título / Classe" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+        <div className="grid grid-cols-2 gap-4">
+          <Input label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value)} />
+          <Select label="Tipo" options={processoTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as ProcessoTipo)} />
+        </div>
+        <Input label="Órgão / Comarca / Vara" value={comarca} onChange={(e) => setComarca(e.target.value)} />
+        {partesInfo && (
+          <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">{partesInfo}</p>
+        )}
+        <Input label="Cliente (parte que você representa) *" value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} placeholder="Confirme qual parte é seu cliente" />
+        <Input label="Parte contrária" value={parteContraria} onChange={(e) => setParteContraria(e.target.value)} />
+        <p className="text-xs text-gray-400">
+          Os dados foram preenchidos automaticamente pelo DJEN/CNJ. Confira o cliente e a parte contrária — em processos em segredo de justiça os nomes podem não aparecer.
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={!numero || !clienteNome.trim() || saving || loading}>
+            {saving ? "Salvando..." : "Adicionar processo"}
           </Button>
         </div>
       </form>

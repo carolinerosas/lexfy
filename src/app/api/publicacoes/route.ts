@@ -9,7 +9,6 @@ const HEADERS = {
 
 const PUBLICATION_SEARCH_DAYS = 45;
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
-const COMUNICA_WEB_URL = "https://comunica.pje.jus.br/consulta";
 
 export interface PubEncontrada {
   titulo: string;
@@ -43,6 +42,7 @@ type DjenComunicacao = {
   tipoComunicacao?: string;
   nomeOrgao?: string;
   texto?: string;
+  link?: string;
   tipoDocumento?: string;
   nomeClasse?: string;
   numero_processo?: string;
@@ -325,7 +325,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
     conteudo: conteudo.trim(),
     data_publicacao: dataDisponibilizacao || dataHoje().iso,
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
-    url: item.hash ? `${COMUNICA_WEB_URL}/comunicacao/${item.hash}/certidao` : undefined,
+    url: item.link || undefined,
     hash: `djen-${hash}`,
   };
 }

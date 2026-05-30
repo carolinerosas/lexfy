@@ -225,6 +225,21 @@ export async function marcarPublicacaoLida(id: string): Promise<void> {
   await supabase.from("publicacoes").update({ lida: true }).eq("id", id);
 }
 
+export async function updatePublicacao(id: string, input: Partial<Publicacao>): Promise<void> {
+  await supabase.from("publicacoes").update(input).eq("id", id);
+}
+
+export async function vincularPublicacoesAoProcesso(processoId: string, numeroCNJ: string): Promise<void> {
+  const digits = numeroCNJ.replace(/\D/g, "");
+  const todas = await getPublicacoes();
+  const alvo = todas.filter((p) => {
+    if (p.processo_id) return false;
+    const texto = `${p.titulo ?? ""} ${p.conteudo ?? ""}`.replace(/\D/g, "");
+    return texto.includes(digits);
+  });
+  await Promise.all(alvo.map((p) => updatePublicacao(p.id, { processo_id: processoId })));
+}
+
 // --- Atendimentos ---
 
 export async function getAtendimentos(): Promise<Atendimento[]> {
