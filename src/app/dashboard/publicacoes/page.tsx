@@ -159,7 +159,7 @@ export default function PublicacoesPage() {
         setStatusMsg(`Erros: ${erros.join(" | ")}`);
       } else {
         setStatusTipo("info");
-        setStatusMsg("Nenhuma publicação nova encontrada para hoje.");
+        setStatusMsg("Nenhuma publicação nova encontrada no período recente.");
       }
     } catch (err) {
       setStatusTipo("erro");

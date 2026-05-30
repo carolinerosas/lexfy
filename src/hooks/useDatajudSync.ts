@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { sincronizarTodos } from "@/lib/store";
 
 const POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const AUTO_SYNC_ENABLED = process.env.NEXT_PUBLIC_ENABLE_AUTO_SYNC === "true";
 
 function notifyBrowser(novas: number) {
   if (typeof window === "undefined") return;
@@ -40,6 +41,8 @@ export function useDatajudSync(onSync?: (novas: number) => void) {
   }, [onSync]);
 
   useEffect(() => {
+    if (!AUTO_SYNC_ENABLED) return;
+
     requestNotificationPermission();
     // First sync after 30s (let page settle), then every 10 min
     const initial = setTimeout(sync, 30_000);
