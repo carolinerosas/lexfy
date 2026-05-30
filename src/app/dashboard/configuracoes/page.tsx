@@ -155,7 +155,7 @@ export default function ConfiguracoesPage() {
             />
           </div>
           <div className="flex items-center gap-3">
-            <Button onClick={handleSavePerfil} disabled={!perfil.nome.trim()}>
+            <Button onClick={handleSavePerfil} disabled={!perfil.nome?.trim()}>
               Salvar perfil
             </Button>
             {perfilSaved && (

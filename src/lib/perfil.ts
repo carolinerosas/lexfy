@@ -16,7 +16,8 @@ export function getPerfilAdvogado(): PerfilAdvogado {
     localStorage.removeItem(PERFIL_KEY_OLD);
   }
   try {
-    return JSON.parse(localStorage.getItem(PERFIL_KEY) ?? "{}") as PerfilAdvogado;
+    const stored = JSON.parse(localStorage.getItem(PERFIL_KEY) ?? "{}") as Partial<PerfilAdvogado>;
+    return { nome: "", oab_numero: "", oab_uf: "RJ", ...stored };
   } catch {
     return { nome: "", oab_numero: "", oab_uf: "RJ" };
   }
