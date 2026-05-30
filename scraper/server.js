@@ -153,6 +153,43 @@ app.post("/pje-rj", async (req, reply) => {
   }
 });
 
+// Endpoint DJE-TJERJ — proxy HTTP (Vercel é bloqueado, Railway não)
+app.post("/dje-tjerj", async (req, reply) => {
+  if (!checkAuth(req, reply)) return;
+  const { oabNumero, date } = req.body ?? {};
+  if (!oabNumero) return reply.code(400).send({ error: "oabNumero obrigatorio" });
+
+  const d = date ? new Date(date) : new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(d.getFullYear());
+  const dataStr = `${dd}/${mm}/${yyyy}`;
+
+  const params = new URLSearchParams({
+    metodo: "pesquisar",
+    numOAB: oabNumero,
+    tipoOAB: "A",
+    dtInicio: dataStr,
+    dtFim: dataStr,
+    cadernos: "0",
+  });
+
+  try {
+    const res = await fetch(`https://dje.tjrj.jus.br/consultaAdvogadoAction.do?${params}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,*/*",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = await res.text();
+    return reply.send({ html, status: res.status });
+  } catch (err) {
+    return reply.code(502).send({ error: err instanceof Error ? err.message : "erro" });
+  }
+});
+
 async function extractMovimentos(page) {
   return page.evaluate(() => {
     const out = [];

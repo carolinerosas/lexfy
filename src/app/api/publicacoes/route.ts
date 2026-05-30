@@ -90,25 +90,44 @@ async function buscarDOU(nome: string): Promise<PubEncontrada[]> {
 
 // ─── DJE-TJERJ ──────────────────────────────────────────────────────────────
 async function buscarDJETJERJ(oabNumero: string): Promise<PubEncontrada[]> {
-  const { dd, mm, yyyy, iso } = dataHoje();
-  const dataStr = `${dd}/${mm}/${yyyy}`;
+  const { iso } = dataHoje();
 
-  const params = new URLSearchParams({
-    metodo: "pesquisar",
-    numOAB: oabNumero,
-    tipoOAB: "A",
-    dtInicio: dataStr,
-    dtFim: dataStr,
-    cadernos: "0",
-  });
+  // Tenta via Railway scraper (Vercel é bloqueado pelo dje.tjrj.jus.br)
+  const scraperUrl = process.env.NEXT_PUBLIC_SCRAPER_URL?.trim();
+  const scraperKey = process.env.NEXT_PUBLIC_SCRAPER_KEY?.trim();
+  let html = "";
 
-  const res = await fetch(`https://dje.tjrj.jus.br/consultaAdvogadoAction.do?${params}`, {
-    headers: HEADERS,
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (scraperUrl) {
+    const scraperRes = await fetch(`${scraperUrl}/dje-tjerj`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(scraperKey ? { Authorization: `Bearer ${scraperKey}` } : {}),
+      },
+      body: JSON.stringify({ oabNumero }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (scraperRes.ok) {
+      const data = await scraperRes.json() as { html?: string; status?: number };
+      html = data.html ?? "";
+    }
+  }
 
-  const html = await res.text();
+  // Fallback: tenta direto (pode falhar em produção)
+  if (!html) {
+    const { dd, mm, yyyy } = dataHoje();
+    const dataStr = `${dd}/${mm}/${yyyy}`;
+    const params = new URLSearchParams({
+      metodo: "pesquisar", numOAB: oabNumero, tipoOAB: "A",
+      dtInicio: dataStr, dtFim: dataStr, cadernos: "0",
+    });
+    const res = await fetch(`https://dje.tjrj.jus.br/consultaAdvogadoAction.do?${params}`, {
+      headers: HEADERS,
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    html = await res.text();
+  }
   const resultados: PubEncontrada[] = [];
 
   // Parseia linhas de tabela com publicações
