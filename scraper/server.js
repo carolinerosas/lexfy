@@ -153,7 +153,7 @@ app.post("/pje-rj", async (req, reply) => {
   }
 });
 
-// Endpoint DJE-TJERJ — proxy HTTP (Vercel é bloqueado, Railway não)
+// Endpoint DJE-TJERJ — Playwright (HTTP direto é bloqueado)
 app.post("/dje-tjerj", async (req, reply) => {
   if (!checkAuth(req, reply)) return;
   const { oabNumero, date } = req.body ?? {};
@@ -165,27 +165,21 @@ app.post("/dje-tjerj", async (req, reply) => {
   const yyyy = String(d.getFullYear());
   const dataStr = `${dd}/${mm}/${yyyy}`;
 
-  const params = new URLSearchParams({
-    metodo: "pesquisar",
-    numOAB: oabNumero,
-    tipoOAB: "A",
-    dtInicio: dataStr,
-    dtFim: dataStr,
-    cadernos: "0",
+  const browser = await getBrowser();
+  const ctx = await browser.newContext({
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    locale: "pt-BR",
   });
+  const page = await ctx.newPage();
 
   try {
-    const res = await fetch(`https://dje.tjrj.jus.br/consultaAdvogadoAction.do?${params}`, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,*/*",
-        "Accept-Language": "pt-BR,pt;q=0.9",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
-    const html = await res.text();
-    return reply.send({ html, status: res.status });
+    const url = `https://dje.tjrj.jus.br/consultaAdvogadoAction.do?metodo=pesquisar&numOAB=${oabNumero}&tipoOAB=A&dtInicio=${dataStr}&dtFim=${dataStr}&cadernos=0`;
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    const html = await page.content();
+    await ctx.close();
+    return reply.send({ html, status: 200 });
   } catch (err) {
+    await ctx.close().catch(() => null);
     return reply.code(502).send({ error: err instanceof Error ? err.message : "erro" });
   }
 });
