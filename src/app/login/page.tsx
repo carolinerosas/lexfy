@@ -6,6 +6,7 @@ import { Eye, EyeOff, Lock } from "lucide-react";
 import { JustioHexIcon } from "@/components/ui/justio-logo";
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -14,7 +15,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!password.trim()) return;
+    if (!username.trim() || !password.trim()) return;
 
     setLoading(true);
     setError("");
@@ -23,7 +24,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
       if (res.ok) {
@@ -79,13 +80,22 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => { setUsername(e.target.value); setError(""); }}
+              placeholder="Usuário"
+              autoFocus
+              autoComplete="username"
+              className="w-full bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all"
+            />
             <div className="relative">
               <input
                 type={show ? "text" : "password"}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 placeholder="Senha"
-                autoFocus
+                autoComplete="current-password"
                 className="w-full bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-600 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all"
               />
               <button
@@ -103,7 +113,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || !password.trim()}
+              disabled={loading || !username.trim() || !password.trim()}
               className="w-full bg-white text-gray-900 font-semibold rounded-xl py-3 text-sm transition-all hover:bg-gray-100 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? "Entrando..." : "Entrar"}

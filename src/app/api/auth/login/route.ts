@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { password } = (await req.json()) as { password?: string };
+  const { username, password } = (await req.json()) as { username?: string; password?: string };
 
+  const correctUsername = process.env.JUSTIO_USERNAME;
   const correctPassword = process.env.JUSTIO_PASSWORD;
   const secretToken = process.env.JUSTIO_SECRET_TOKEN;
 
-  if (!correctPassword || !secretToken) {
+  if (!correctUsername || !correctPassword || !secretToken) {
     return NextResponse.json({ error: "Configuração inválida" }, { status: 500 });
   }
 
-  if (!password || password !== correctPassword) {
-    return NextResponse.json({ error: "Senha incorreta" }, { status: 401 });
+  if (!username || !password || username !== correctUsername || password !== correctPassword) {
+    return NextResponse.json({ error: "Usuário ou senha incorretos" }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
