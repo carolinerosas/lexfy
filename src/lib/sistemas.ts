@@ -25,6 +25,30 @@ export function getSistema(tribunal: string): SistemaJudicial {
   return "datajud"; // STJ, STF, TRTs
 }
 
+async function buscarNoSyncLocal(
+  tribunal: string,
+  numero: string,
+  sistema: SistemaJudicial
+): Promise<{ data: string; descricao: string; fonte: string }[] | null> {
+  const { buscarMovimentosSyncLocal } = await import("./syncLocal");
+  const data = await buscarMovimentosSyncLocal({ tribunal, numero, sistema });
+  if (!data) return null;
+
+  if (data.status === "needs_interaction") {
+    throw new Error(data.message ?? "Abra o Justio Sync Local, conclua o login com certificado e tente novamente.");
+  }
+
+  if (data.status !== "ok" || !Array.isArray(data.movimentos) || data.movimentos.length === 0) {
+    return null;
+  }
+
+  return data.movimentos.map((m) => ({
+    data: m.data,
+    descricao: m.descricao,
+    fonte: m.fonte ?? `Sync Local/${tribunal.toUpperCase()}`,
+  }));
+}
+
 async function buscarNoDataJudComoFonte(
   tribunal: string,
   numero: string
@@ -116,6 +140,9 @@ export async function buscarMovimentosSistema(
   numero: string
 ): Promise<{ data: string; descricao: string; fonte: string }[]> {
   const sistema = getSistema(tribunal);
+
+  const syncLocal = await buscarNoSyncLocal(tribunal, numero, sistema);
+  if (syncLocal) return syncLocal;
 
   // TJRJ: tenta PJe-RJ (consulta pública) primeiro, depois www3.tjrj
   if (tribunal === "tjrj") {

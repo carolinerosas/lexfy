@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/sync-local/node_modules/
 /.pnp
 .pnp.*
 .yarn/*

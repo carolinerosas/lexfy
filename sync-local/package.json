@@ -1,0 +1,19 @@
+{
+  "name": "justio-sync-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agente local do Justio para sincronizacao assistida com tribunais e certificado A3.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install:browser": "playwright install chromium"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "playwright": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

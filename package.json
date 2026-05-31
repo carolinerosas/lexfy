@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:local": "npm --prefix sync-local start",
+    "sync:local:install": "npm install --prefix sync-local"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
