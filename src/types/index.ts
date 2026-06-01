@@ -162,3 +162,26 @@ export interface Publicacao {
   created_at: string;
   user_id: string;
 }
+
+export interface Anotacao {
+  id: string;
+  processo_id: string;
+  titulo?: string;
+  conteudo: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface Tarefa {
+  id: string;
+  processo_id: string;
+  titulo: string;
+  descricao?: string;
+  data_limite?: string;
+  concluida: boolean;
+  prioridade: Prioridade;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}

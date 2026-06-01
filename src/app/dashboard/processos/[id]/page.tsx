@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
-  RefreshCw, Bell, BellOff, Copy,
+  RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,10 +23,12 @@ import {
   getAudiencias, createAudiencia, updateAudiencia, deleteAudiencia,
   getHonorarios, createHonorario, updateHonorario, deleteHonorario,
   getAtendimentosByProcesso, createAtendimento, updateAtendimento, deleteAtendimento,
+  getAnotacoesByProcesso, createAnotacao, updateAnotacao, deleteAnotacao,
+  getTarefasByProcesso, createTarefa, updateTarefa, deleteTarefa,
   sincronizarProcesso,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
-import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento } from "@/types";
+import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade } from "@/types";
 
 const statusOptions = [
   { value: "ativo", label: "Ativo" },
@@ -58,7 +60,7 @@ const honorarioTipoOptions = [
   { value: "outro", label: "Outro" },
 ];
 
-type Tab = "movimentacoes" | "prazos" | "audiencias" | "honorarios" | "atendimentos";
+type Tab = "movimentacoes" | "anotacoes" | "tarefas" | "prazos" | "audiencias" | "honorarios" | "atendimentos";
 
 export default function ProcessoDetailPage() {
   const params = useParams();
@@ -72,6 +74,8 @@ export default function ProcessoDetailPage() {
   const [audiencias, setAudiencias] = useState<Audiencia[]>([]);
   const [honorarios, setHonorarios] = useState<Honorario[]>([]);
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [anotacoes, setAnotacoes] = useState<Anotacao[]>([]);
+  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
 
   const [honCategoria, setHonCategoria] = useState<"cobranca" | "pagamento">("pagamento");
   const [syncing, setSyncing] = useState(false);
@@ -117,6 +121,9 @@ export default function ProcessoDetailPage() {
   const [audModal, setAudModal] = useState(false);
   const [honModal, setHonModal] = useState(false);
   const [atenModal, setAtenModal] = useState(false);
+  const [anotacaoModal, setAnotacaoModal] = useState(false);
+  const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
+  const [tarefaModal, setTarefaModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
 
@@ -124,18 +131,22 @@ export default function ProcessoDetailPage() {
     const p = await getProcesso(id);
     if (!p) { router.push("/dashboard/processos"); return; }
     setProcesso(p);
-    const [movs, prazosAll, audienciasAll, honorariosAll, atendimentosData] = await Promise.all([
+    const [movs, prazosAll, audienciasAll, honorariosAll, atendimentosData, anotacoesData, tarefasData] = await Promise.all([
       getMovimentacoesByProcesso(id),
       getPrazos(),
       getAudiencias(),
       getHonorarios(),
       getAtendimentosByProcesso(id),
+      getAnotacoesByProcesso(id),
+      getTarefasByProcesso(id),
     ]);
     setMovimentacoes(movs);
     setPrazos(prazosAll.filter((pr) => pr.processo_id === id));
     setAudiencias(audienciasAll.filter((a) => a.processo_id === id));
     setHonorarios(honorariosAll.filter((h) => h.processo_id === id));
     setAtendimentos(atendimentosData);
+    setAnotacoes(anotacoesData);
+    setTarefas(tarefasData);
   }, [id, router]);
 
   useEffect(() => { load(); }, [load]);
@@ -155,6 +166,8 @@ export default function ProcessoDetailPage() {
 
   const tabs: { key: Tab; label: string; count: number; unread?: number }[] = [
     { key: "movimentacoes", label: "Movimentações", count: movimentacoes.length, unread: movNaoLidas },
+    { key: "anotacoes", label: "Anotações", count: anotacoes.length },
+    { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
     { key: "atendimentos", label: "Atendimentos", count: atendimentos.filter((a) => a.status === "agendado").length },
@@ -276,6 +289,22 @@ export default function ProcessoDetailPage() {
           naoLidas={movNaoLidas}
         />
       )}
+      {tab === "anotacoes" && (
+        <AnotacoesTab
+          anotacoes={anotacoes}
+          onAdd={() => { setEditingAnotacao(null); setAnotacaoModal(true); }}
+          onEdit={(anotacao) => { setEditingAnotacao(anotacao); setAnotacaoModal(true); }}
+          onDelete={async (aid) => { await deleteAnotacao(aid); load(); }}
+        />
+      )}
+      {tab === "tarefas" && (
+        <TarefasTab
+          tarefas={tarefas}
+          onAdd={() => setTarefaModal(true)}
+          onToggle={async (tid) => { const tarefa = tarefas.find((t) => t.id === tid); if (tarefa) await updateTarefa(tid, { concluida: !tarefa.concluida }); load(); }}
+          onDelete={async (tid) => { await deleteTarefa(tid); load(); }}
+        />
+      )}
       {tab === "prazos" && (
         <PrazosTab
           prazos={prazos}
@@ -313,6 +342,14 @@ export default function ProcessoDetailPage() {
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
       <NovoHonorarioModal open={honModal} onClose={() => setHonModal(false)} processoId={id} categoria={honCategoria} onCreated={() => { load(); setHonModal(false); }} />
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
+      <AnotacaoModal
+        open={anotacaoModal}
+        onClose={() => { setAnotacaoModal(false); setEditingAnotacao(null); }}
+        processoId={id}
+        anotacao={editingAnotacao}
+        onSaved={() => { load(); setAnotacaoModal(false); setEditingAnotacao(null); }}
+      />
+      <NovaTarefaModal open={tarefaModal} onClose={() => setTarefaModal(false)} processoId={id} onCreated={() => { load(); setTarefaModal(false); }} />
       <EditarProcessoModal open={editModal} onClose={() => setEditModal(false)} processo={processo} onSaved={() => { load(); setEditModal(false); }} />
 
       <Modal open={deleteModal} onClose={() => setDeleteModal(false)} title="Excluir Processo" size="sm">
@@ -548,6 +585,120 @@ function HonorariosTab({ honorarios, onAdd, onDelete }: {
 
 function EmptyTab({ text }: { text: string }) {
   return <div className="text-center py-12 text-gray-400 text-sm">{text}</div>;
+}
+
+function AnotacoesTab({
+  anotacoes, onAdd, onEdit, onDelete,
+}: {
+  anotacoes: Anotacao[];
+  onAdd: () => void;
+  onEdit: (anotacao: Anotacao) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onAdd}><Plus className="w-3.5 h-3.5" /> Nova anotação</Button>
+      </div>
+      {anotacoes.length === 0 ? <EmptyTab text="Nenhuma anotação registrada" /> : (
+        <div className="grid gap-3 md:grid-cols-2">
+          {anotacoes.map((a) => (
+            <Card key={a.id}>
+              <CardContent className="py-4 px-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <StickyNote className="w-4 h-4 text-gray-400" />
+                      <p className="text-sm font-semibold text-gray-900 truncate">{a.titulo || "Anotação"}</p>
+                    </div>
+                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{a.conteudo}</p>
+                    <p className="text-xs text-gray-400 mt-3">Atualizada em {formatDateTime(a.updated_at)}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => onEdit(a)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar anotação">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => onDelete(a.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Excluir anotação">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TarefasTab({
+  tarefas, onAdd, onToggle, onDelete,
+}: {
+  tarefas: Tarefa[];
+  onAdd: () => void;
+  onToggle: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const prioridadeLabel: Record<Prioridade, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
+  const prioridadeClass: Record<Prioridade, string> = {
+    alta: "bg-red-50 text-red-600",
+    media: "bg-amber-50 text-amber-700",
+    baixa: "bg-gray-100 text-gray-500",
+  };
+  const sorted = [...tarefas].sort((a, b) => (
+    Number(a.concluida) - Number(b.concluida) ||
+    (a.data_limite ?? "9999-12-31").localeCompare(b.data_limite ?? "9999-12-31") ||
+    new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+  ));
+
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onAdd}><Plus className="w-3.5 h-3.5" /> Nova tarefa</Button>
+      </div>
+      {tarefas.length === 0 ? <EmptyTab text="Nenhuma tarefa cadastrada" /> : (
+        <div className="space-y-2">
+          {sorted.map((t) => {
+            const days = t.data_limite ? daysUntil(t.data_limite) : null;
+            return (
+              <Card key={t.id} className={t.concluida ? "opacity-60" : ""}>
+                <CardContent className="py-3 px-5">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onToggle(t.id)}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${t.concluida ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
+                    >
+                      {t.concluida && <CheckCircle className="w-3 h-3 text-white" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <ListTodo className="w-4 h-4 text-gray-400 shrink-0" />
+                        <p className={`text-sm font-medium truncate ${t.concluida ? "line-through text-gray-400" : "text-gray-900"}`}>{t.titulo}</p>
+                      </div>
+                      {t.descricao && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{t.descricao}</p>}
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${prioridadeClass[t.prioridade]}`}>{prioridadeLabel[t.prioridade]}</span>
+                        {t.data_limite && <span className="text-xs text-gray-400">{formatDate(t.data_limite)}</span>}
+                      </div>
+                    </div>
+                    {!t.concluida && days !== null && (
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${prazoColor(days)}`}>
+                        {days < 0 ? `${Math.abs(days)}d atrasada` : days === 0 ? "Hoje" : `${days}d`}
+                      </span>
+                    )}
+                    <button onClick={() => onDelete(t.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AtendimentosTab({
@@ -789,6 +940,106 @@ function NovoAtendimentoModal({ open, onClose, processoId, clienteNome, onCreate
         </div>
         <Textarea label="Anotações / Pauta" placeholder="Assuntos a tratar..." rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} />
         <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Agendar</Button></div>
+      </form>
+    </Modal>
+  );
+}
+
+function AnotacaoModal({
+  open, onClose, processoId, anotacao, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  anotacao: Anotacao | null;
+  onSaved: () => void;
+}) {
+  const [titulo, setTitulo] = useState("");
+  const [conteudo, setConteudo] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitulo(anotacao?.titulo ?? "");
+    setConteudo(anotacao?.conteudo ?? "");
+  }, [open, anotacao]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!conteudo.trim()) return;
+
+    if (anotacao) {
+      await updateAnotacao(anotacao.id, {
+        titulo: titulo.trim() || undefined,
+        conteudo: conteudo.trim(),
+      });
+    } else {
+      await createAnotacao({
+        processo_id: processoId,
+        titulo: titulo.trim() || undefined,
+        conteudo: conteudo.trim(),
+      });
+    }
+    setTitulo("");
+    setConteudo("");
+    onSaved();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={anotacao ? "Editar anotação" : "Nova anotação"} size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Título" placeholder="Ex: Estratégia, conversa com cliente..." value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+        <Textarea label="Anotação *" placeholder="Escreva a anotação do processo..." rows={6} value={conteudo} onChange={(e) => setConteudo(e.target.value)} required />
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{anotacao ? "Salvar alterações" : "Salvar anotação"}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function NovaTarefaModal({ open, onClose, processoId, onCreated }: { open: boolean; onClose: () => void; processoId: string; onCreated: () => void }) {
+  const [titulo, setTitulo] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [dataLimite, setDataLimite] = useState("");
+  const [prioridade, setPrioridade] = useState<Prioridade>("media");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!titulo.trim()) return;
+    await createTarefa({
+      processo_id: processoId,
+      titulo: titulo.trim(),
+      descricao: descricao.trim() || undefined,
+      data_limite: dataLimite || undefined,
+      prioridade,
+      concluida: false,
+    });
+    setTitulo("");
+    setDescricao("");
+    setDataLimite("");
+    setPrioridade("media");
+    onCreated();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Nova tarefa" size="sm">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Tarefa *" placeholder="Ex: Conferir intimação, ligar para cliente..." value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <Textarea label="Descrição" placeholder="Detalhes, próximos passos, documentos..." rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Data limite" type="date" value={dataLimite} onChange={(e) => setDataLimite(e.target.value)} />
+          <Select
+            label="Prioridade"
+            options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]}
+            value={prioridade}
+            onChange={(e) => setPrioridade(e.target.value as Prioridade)}
+          />
+        </div>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">Criar tarefa</Button>
+        </div>
       </form>
     </Modal>
   );

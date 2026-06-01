@@ -8,6 +8,8 @@ import type {
   Honorario,
   Atendimento,
   Publicacao,
+  Anotacao,
+  Tarefa,
 } from "@/types";
 
 const USER_ID = "lexfy_shared";
@@ -18,6 +20,51 @@ function generateId(): string {
 
 function now(): string {
   return new Date().toISOString();
+}
+
+type LocalTable = "anotacoes" | "tarefas";
+
+function isMissingTable(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "PGRST205";
+}
+
+function localKey(table: LocalTable): string {
+  return `justio_${table}`;
+}
+
+function getLocalRows<T>(table: LocalTable): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    return JSON.parse(window.localStorage.getItem(localKey(table)) ?? "[]") as T[];
+  } catch {
+    return [];
+  }
+}
+
+function setLocalRows<T>(table: LocalTable, rows: T[]): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(localKey(table), JSON.stringify(rows));
+}
+
+function localInsert<T extends { id: string }>(table: LocalTable, row: T): T {
+  const rows = getLocalRows<T>(table);
+  setLocalRows(table, [row, ...rows]);
+  return row;
+}
+
+function localUpdate<T extends { id: string; updated_at?: string }>(table: LocalTable, id: string, input: Partial<T>): void {
+  const rows = getLocalRows<T>(table).map((row) => (
+    row.id === id ? { ...row, ...input, updated_at: now() } : row
+  ));
+  setLocalRows(table, rows);
+}
+
+function localDelete(table: LocalTable, id: string): void {
+  setLocalRows(table, getLocalRows<{ id: string }>(table).filter((row) => row.id !== id));
+}
+
+function localDeleteByProcesso(table: LocalTable, processoId: string): void {
+  setLocalRows(table, getLocalRows<{ processo_id: string }>(table).filter((row) => row.processo_id !== processoId));
 }
 
 // --- Processos ---
@@ -58,7 +105,11 @@ export async function deleteProcesso(id: string): Promise<void> {
     supabase.from("movimentacoes").delete().eq("processo_id", id),
     supabase.from("honorarios").delete().eq("processo_id", id),
     supabase.from("atendimentos").delete().eq("processo_id", id),
+    supabase.from("anotacoes").delete().eq("processo_id", id),
+    supabase.from("tarefas").delete().eq("processo_id", id),
   ]);
+  localDeleteByProcesso("anotacoes", id);
+  localDeleteByProcesso("tarefas", id);
   await supabase.from("processos").delete().eq("id", id);
 }
 
@@ -278,6 +329,114 @@ export async function updateAtendimento(id: string, input: Partial<Atendimento>)
 
 export async function deleteAtendimento(id: string): Promise<void> {
   await supabase.from("atendimentos").delete().eq("id", id);
+}
+
+// --- Anotações ---
+
+export async function getAnotacoesByProcesso(processoId: string): Promise<Anotacao[]> {
+  const { data, error } = await supabase
+    .from("anotacoes")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<Anotacao>("anotacoes")
+        .filter((a) => a.processo_id === processoId)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    }
+    throw new Error(error.message);
+  }
+  return (data ?? []) as Anotacao[];
+}
+
+export async function createAnotacao(
+  input: Omit<Anotacao, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<Anotacao> {
+  const nova = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("anotacoes").insert(nova).select().single();
+  if (error) {
+    if (isMissingTable(error)) return localInsert("anotacoes", nova);
+    throw new Error(error.message);
+  }
+  return data as Anotacao;
+}
+
+export async function updateAnotacao(id: string, input: Partial<Anotacao>): Promise<void> {
+  const { error } = await supabase.from("anotacoes").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate<Anotacao>("anotacoes", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteAnotacao(id: string): Promise<void> {
+  const { error } = await supabase.from("anotacoes").delete().eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("anotacoes", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+// --- Tarefas ---
+
+export async function getTarefasByProcesso(processoId: string): Promise<Tarefa[]> {
+  const { data, error } = await supabase
+    .from("tarefas")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("data_limite", { ascending: true, nullsFirst: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<Tarefa>("tarefas")
+        .filter((t) => t.processo_id === processoId)
+        .sort((a, b) => Number(a.concluida) - Number(b.concluida) || (a.data_limite ?? "").localeCompare(b.data_limite ?? ""));
+    }
+    throw new Error(error.message);
+  }
+  return (data ?? []) as Tarefa[];
+}
+
+export async function createTarefa(
+  input: Omit<Tarefa, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<Tarefa> {
+  const nova = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("tarefas").insert(nova).select().single();
+  if (error) {
+    if (isMissingTable(error)) return localInsert("tarefas", nova);
+    throw new Error(error.message);
+  }
+  return data as Tarefa;
+}
+
+export async function updateTarefa(id: string, input: Partial<Tarefa>): Promise<void> {
+  const { error } = await supabase.from("tarefas").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate<Tarefa>("tarefas", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteTarefa(id: string): Promise<void> {
+  const { error } = await supabase.from("tarefas").delete().eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("tarefas", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
 }
 
 // --- Clientes ---
