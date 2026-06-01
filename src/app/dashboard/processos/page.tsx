@@ -241,7 +241,7 @@ export default function ProcessosPage() {
       )}
 
       <div className="flex flex-wrap gap-3 mb-6">
-        <div className="flex-1 min-w-48 max-w-sm">
+        <div className="flex-1 min-w-full md:min-w-48 md:max-w-sm">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -253,8 +253,8 @@ export default function ProcessosPage() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
+        <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+          <Filter className="w-4 h-4 text-gray-400 shrink-0" />
           {(["ativo", "todos", "suspenso", "arquivado", "encerrado"] as const).map((s) => (
             <button
               key={s}
@@ -287,8 +287,83 @@ export default function ProcessosPage() {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-sm">
+        <>
+          <div className="space-y-3 md:hidden">
+            {filtered.map((p) => (
+              <Card key={p.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className="break-all font-mono text-[12px] font-semibold leading-snug text-gray-900">{p.numero}</p>
+                      <button
+                        type="button"
+                        title="Copiar numero do processo"
+                        onClick={() => copyNumero(p)}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      >
+                        {copiedId === p.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold leading-snug text-gray-800">{p.titulo}</p>
+                  </div>
+                  <Badge variant={statusVariant[p.status]}>{statusLabel[p.status]}</Badge>
+                </div>
+
+                <div className="mt-3 space-y-1.5 text-xs text-gray-500">
+                  <p className="break-words">
+                    <span className="font-medium text-gray-700">Cliente:</span> {p.cliente_nome}
+                  </p>
+                  {p.parte_contraria && (
+                    <p className="break-words">
+                      <span className="font-medium text-gray-700">Parte contraria:</span> {p.parte_contraria}
+                    </p>
+                  )}
+                  <p>
+                    <span className="font-medium text-gray-700">Tribunal:</span> {p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-700">Tipo:</span> {p.tipo ? tipoLabel[p.tipo] : "—"}
+                  </p>
+                  {p.data_distribuicao && (
+                    <p>
+                      <span className="font-medium text-gray-700">Distribuicao:</span> {formatDate(p.data_distribuicao)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <Link
+                    href={`/dashboard/processos/${p.id}`}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    Detalhes
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => arquivarProcesso(p)}
+                    disabled={p.status === "arquivado" || busyProcessoId === p.id}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <Archive className="w-3.5 h-3.5" />
+                    Arquivar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => excluirProcesso(p)}
+                    disabled={busyProcessoId === p.id}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-red-100 px-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Excluir
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <Card className="hidden overflow-hidden md:block">
+          <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
                 <th className="text-left px-6 py-3">Número / Título</th>
@@ -371,6 +446,7 @@ export default function ProcessosPage() {
             </tbody>
           </table>
         </Card>
+        </>
       )}
 
       <NovoProcessoModal

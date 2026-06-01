@@ -47,14 +47,14 @@ export default function ClientesPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
           <p className="text-gray-500 text-sm mt-1">
             {cadastrados} cadastrado{cadastrados !== 1 ? "s" : ""} · {clientes.length} no total
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {naoCadastrados > 0 && (
             <Button variant="secondary" onClick={handleImportar}>
               Importar {naoCadastrados} dos processos
@@ -85,7 +85,61 @@ export default function ClientesPage() {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
+        <>
+        <div className="space-y-3 md:hidden">
+          {filtered.map((c) => (
+            <Card key={c.id ?? c.nome} className="p-4">
+              <div className="flex items-start gap-3">
+                <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-gray-900" : "bg-gray-300"}`}>
+                  {c.nome.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="break-words text-sm font-semibold leading-snug text-gray-900">{c.nome}</p>
+                    {!c.cadastrado && (
+                      <span className="text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                        nao cadastrado
+                      </span>
+                    )}
+                  </div>
+                  {c.ultimoContato && (
+                    <p className="mt-1 text-xs text-gray-400">Ultimo contato: {formatDate(c.ultimoContato)}</p>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    <span className="font-medium text-gray-700">Processos:</span> {c.totalProcessos}
+                    {c.processosAtivos > 0 && (
+                      <span className="ml-1 text-green-600 font-medium">({c.processosAtivos} ativo{c.processosAtivos !== 1 ? "s" : ""})</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                {c.id ? (
+                  <Link
+                    href={`/dashboard/clientes/${c.id}`}
+                    className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+                  >
+                    Ver cliente
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setPreNome(c.nome);
+                      setShowModal(true);
+                    }}
+                    className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    + Cadastrar cliente
+                  </button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <Card className="hidden overflow-hidden md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
@@ -145,6 +199,7 @@ export default function ClientesPage() {
             </tbody>
           </table>
         </Card>
+        </>
       )}
 
       <NovoClienteModal
