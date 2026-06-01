@@ -54,7 +54,7 @@ export function TopBar() {
           </a>
 
           <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-700 text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21181d] text-xs font-bold text-white">
               CR
             </div>
             <div className="hidden min-w-0 leading-tight lg:block">

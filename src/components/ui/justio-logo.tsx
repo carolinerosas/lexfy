@@ -5,8 +5,8 @@ interface JustioHexIconProps {
 }
 
 export function JustioHexIcon({ size = 36, dark = true }: JustioHexIconProps) {
-  const fill = dark ? "#ffffff" : "#0f0f0f";
-  const gap = dark ? "#0f0f0f" : "#ffffff";
+  const fill = dark ? "#ffffff" : "#21181d";
+  const gap = dark ? "#21181d" : "#ffffff";
 
   return (
     <svg

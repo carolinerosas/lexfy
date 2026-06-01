@@ -199,7 +199,7 @@ export default function DashboardPage() {
           )}
           {stats.movimentacoesNaoLidas > 0 && (
             <Link href="/dashboard/processos">
-              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-slate-700 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800">
+              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
                 <Activity className="h-4 w-4" />
                 {stats.movimentacoesNaoLidas} movimentaç{stats.movimentacoesNaoLidas > 1 ? "ões" : "ão"} nova{stats.movimentacoesNaoLidas > 1 ? "s" : ""}
               </div>
@@ -207,7 +207,7 @@ export default function DashboardPage() {
           )}
           {stats.publicacoesNaoLidas > 0 && (
             <Link href="/dashboard/publicacoes">
-              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-slate-700 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-slate-800">
+              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
                 <Bell className="h-4 w-4" />
                 {stats.publicacoesNaoLidas} publicaç{stats.publicacoesNaoLidas > 1 ? "ões" : "ão"} não {stats.publicacoesNaoLidas > 1 ? "lidas" : "lida"}
               </div>
@@ -269,7 +269,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={dateKey(day)}
-                    className={`flex min-h-[180px] flex-col p-3 ${isToday ? "bg-slate-800" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}
+                    className={`flex min-h-[180px] flex-col p-3 ${isToday ? "bg-[#21181d]" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}
                   >
                     <div className="mb-2.5">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">

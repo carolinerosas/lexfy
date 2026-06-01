@@ -25,7 +25,11 @@ const ufs = [
 
 const tipoOptions = [
   { value: "civel", label: "Cível" },
+  { value: "familia", label: "Família" },
   { value: "criminal", label: "Criminal" },
+  { value: "execucao_penal", label: "Execução penal" },
+  { value: "inquerito_policial", label: "Inquérito policial" },
+  { value: "bo_pm", label: "BO PM" },
   { value: "trabalhista", label: "Trabalhista" },
   { value: "previdenciario", label: "Previdenciário" },
   { value: "tributario", label: "Tributário" },
@@ -51,7 +55,11 @@ function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): Proce
     ...(data.assuntos ?? []),
   ].filter(Boolean).join(" "));
 
-  if (/(penal|criminal|crime|pena|juri|trafico)/.test(texto)) return "criminal";
+  if (/(execucao penal|seep|seeu|pena privativa|pena restritiva)/.test(texto)) return "execucao_penal";
+  if (/(inquerito policial|inquérito policial)/.test(texto)) return "inquerito_policial";
+  if (/(boletim de ocorrencia|boletim de ocorrência)/.test(texto)) return "bo_pm";
+  if (/(familia|família|alimentos|guarda|divorcio|divórcio|uniao estavel|união estável)/.test(texto)) return "familia";
+  if (/(penal|criminal|crime|pena|juri|júri|trafico|tráfico)/.test(texto)) return "criminal";
   if (/(trabalh|reclamacao trabalhista|trt)/.test(texto)) return "trabalhista";
   if (/(previdenc|beneficio|aposentad|inss)/.test(texto)) return "previdenciario";
   if (/(tribut|fiscal|execucao fiscal)/.test(texto)) return "tributario";

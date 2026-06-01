@@ -76,14 +76,14 @@ export function MobileNav() {
     <>
       {moreOpen && (
         <div
-          className="fixed inset-0 z-30 bg-slate-950/55 backdrop-blur-sm"
+          className="fixed inset-0 z-30 bg-[#171216]/60 backdrop-blur-sm"
           onClick={() => setMoreOpen(false)}
         />
       )}
 
       <div
         className={cn(
-          "fixed left-0 right-0 z-40 rounded-t-2xl border-t border-white/10 bg-slate-800 transition-transform duration-300",
+          "fixed left-0 right-0 z-40 rounded-t-2xl border-t border-white/10 bg-[#21181d] transition-transform duration-300",
           moreOpen ? "translate-y-0" : "translate-y-full"
         )}
         style={{ bottom: "57px" }}
@@ -106,7 +106,7 @@ export function MobileNav() {
                   <div className="relative">
                     <Icon className="h-5 w-5" />
                     {count > 0 && (
-                      <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-slate-900">
+                      <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-[#21181d]">
                         {count > 99 ? "99+" : count}
                       </span>
                     )}
@@ -120,7 +120,7 @@ export function MobileNav() {
       </div>
 
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch border-t border-white/10 bg-slate-800"
+        className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch border-t border-white/10 bg-[#21181d]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {mainItems.map(({ href, label, icon: Icon, badge }) => {
@@ -140,7 +140,7 @@ export function MobileNav() {
               <div className="relative">
                 <Icon className="h-5 w-5" />
                 {count > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-slate-900">
+                  <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-[#21181d]">
                     {count > 99 ? "99+" : count}
                   </span>
                 )}
@@ -162,7 +162,7 @@ export function MobileNav() {
           <div className="relative">
             {moreOpen ? <X className="h-5 w-5" /> : <MoreHorizontal className="h-5 w-5" />}
             {!moreOpen && totalMoreBadge > 0 && (
-              <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-slate-900">
+              <span className="absolute -right-1.5 -top-1.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-white px-0.5 text-[8px] font-black text-[#21181d]">
                 {totalMoreBadge > 99 ? "99+" : totalMoreBadge}
               </span>
             )}

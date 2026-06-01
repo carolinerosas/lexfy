@@ -1,11 +1,24 @@
 export type ProcessoStatus = "ativo" | "suspenso" | "arquivado" | "encerrado";
 export type ProcessoTipo =
   | "civel"
+  | "familia"
   | "criminal"
+  | "execucao_penal"
+  | "inquerito_policial"
+  | "bo_pm"
   | "trabalhista"
   | "previdenciario"
   | "tributario"
   | "federal"
+  | "outro";
+export type ProcessoResultadoTipo =
+  | "sentenca_favoravel"
+  | "exito"
+  | "sentenca_desfavoravel"
+  | "pronuncia"
+  | "impronuncia"
+  | "pena"
+  | "acordo"
   | "outro";
 export type PrazoTipo =
   | "recurso"
@@ -69,6 +82,10 @@ export interface Processo {
   parte_contraria?: string;
   valor_causa?: number;
   data_distribuicao?: string;
+  resultado_tipo?: ProcessoResultadoTipo;
+  resultado_descricao?: string;
+  pena?: string;
+  processo_principal_id?: string;
   monitorar_datajud?: boolean;
   ultimo_sync?: string;
   created_at: string;

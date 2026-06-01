@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Check, Circle, FolderOpen, ListTodo, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Circle, Edit2, FolderOpen, ListTodo, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export default function TarefasPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("pendentes");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTarefa, setEditingTarefa] = useState<TarefaComProcesso | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
@@ -63,20 +64,49 @@ export default function TarefasPage() {
     });
   }, [tarefas, query, filter]);
 
-  async function handleCreate(e: React.FormEvent) {
+  function openCreate() {
+    setEditingTarefa(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  }
+
+  function openEdit(tarefa: TarefaComProcesso) {
+    setEditingTarefa(tarefa);
+    setForm({
+      processo_id: tarefa.processo_id,
+      titulo: tarefa.titulo,
+      descricao: tarefa.descricao ?? "",
+      data_limite: tarefa.data_limite ?? "",
+      prioridade: tarefa.prioridade,
+    });
+    setModalOpen(true);
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.processo_id || !form.titulo.trim()) return;
     setSaving(true);
     try {
-      await createTarefa({
-        processo_id: form.processo_id,
-        titulo: form.titulo.trim(),
-        descricao: form.descricao.trim() || undefined,
-        data_limite: form.data_limite || undefined,
-        prioridade: form.prioridade,
-        concluida: false,
-      });
+      if (editingTarefa) {
+        await updateTarefa(editingTarefa.id, {
+          processo_id: form.processo_id,
+          titulo: form.titulo.trim(),
+          descricao: form.descricao.trim() || undefined,
+          data_limite: form.data_limite || undefined,
+          prioridade: form.prioridade,
+        });
+      } else {
+        await createTarefa({
+          processo_id: form.processo_id,
+          titulo: form.titulo.trim(),
+          descricao: form.descricao.trim() || undefined,
+          data_limite: form.data_limite || undefined,
+          prioridade: form.prioridade,
+          concluida: false,
+        });
+      }
       setForm(emptyForm);
+      setEditingTarefa(null);
       setModalOpen(false);
       await load();
     } finally {
@@ -106,7 +136,7 @@ export default function TarefasPage() {
             {pendingCount} tarefa{pendingCount === 1 ? "" : "s"} pendente{pendingCount === 1 ? "" : "s"} vinculada{pendingCount === 1 ? "" : "s"} aos processos
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nova tarefa
         </Button>
@@ -153,14 +183,14 @@ export default function TarefasPage() {
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">
-              {filtered.map((tarefa) => <TarefaRow key={tarefa.id} tarefa={tarefa} onToggle={handleToggle} onDelete={handleDelete} />)}
+              {filtered.map((tarefa) => <TarefaRow key={tarefa.id} tarefa={tarefa} onToggle={handleToggle} onEdit={openEdit} onDelete={handleDelete} />)}
             </ul>
           )}
         </CardContent>
       </Card>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nova tarefa" size="md">
-        <form onSubmit={handleCreate} className="space-y-4">
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingTarefa(null); }} title={editingTarefa ? "Editar tarefa" : "Nova tarefa"} size="md">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <Select
             label="Processo"
             placeholder="Selecione um processo"
@@ -204,11 +234,11 @@ export default function TarefasPage() {
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => { setModalOpen(false); setEditingTarefa(null); }}>
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
-              Salvar tarefa
+              {editingTarefa ? "Salvar alterações" : "Salvar tarefa"}
             </Button>
           </div>
         </form>
@@ -217,7 +247,12 @@ export default function TarefasPage() {
   );
 }
 
-function TarefaRow({ tarefa, onToggle, onDelete }: { tarefa: TarefaComProcesso; onToggle: (tarefa: Tarefa) => void; onDelete: (tarefa: Tarefa) => void }) {
+function TarefaRow({ tarefa, onToggle, onEdit, onDelete }: {
+  tarefa: TarefaComProcesso;
+  onToggle: (tarefa: Tarefa) => void;
+  onEdit: (tarefa: TarefaComProcesso) => void;
+  onDelete: (tarefa: Tarefa) => void;
+}) {
   const days = tarefa.data_limite ? daysUntil(tarefa.data_limite) : undefined;
   const prazoClass = days === undefined ? "bg-gray-100 text-gray-500" : prazoColor(days);
 
@@ -267,7 +302,10 @@ function TarefaRow({ tarefa, onToggle, onDelete }: { tarefa: TarefaComProcesso; 
           </span>
           {tarefa.data_limite && <p className="mt-1 text-xs text-gray-400">{formatDate(tarefa.data_limite)}</p>}
         </div>
-        <Button variant="ghost" size="sm" onClick={() => onDelete(tarefa)} className="text-red-600 hover:bg-red-50 hover:text-red-700">
+        <Button variant="ghost" size="sm" onClick={() => onEdit(tarefa)} title="Editar tarefa">
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => onDelete(tarefa)} className="text-red-600 hover:bg-red-50 hover:text-red-700" title="Excluir tarefa">
           <Trash2 className="h-4 w-4" />
         </Button>
       </div>

@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Users, ChevronRight, Search, Plus } from "lucide-react";
+import { Users, ChevronRight, Search, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesSummary, createCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
+import { getClientesSummary, createCliente, deleteCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -31,6 +31,13 @@ export default function ClientesPage() {
     if (count > 0) {
       load();
     }
+  }
+
+  async function handleDeleteCliente(cliente: Summary) {
+    if (!cliente.id) return;
+    if (!window.confirm(`Excluir o cliente "${cliente.nome}"? Os processos vinculados continuam cadastrados.`)) return;
+    await deleteCliente(cliente.id);
+    await load();
   }
 
   const load = useCallback(async () => {
@@ -116,13 +123,23 @@ export default function ClientesPage() {
 
               <div className="mt-4">
                 {c.id ? (
-                  <Link
-                    href={`/dashboard/clientes/${c.id}`}
-                    className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
-                  >
-                    Ver cliente
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Link
+                      href={`/dashboard/clientes/${c.id}`}
+                      className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#21181d] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#2b2027]"
+                    >
+                      Ver cliente
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCliente(c)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+                      title="Excluir cliente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => {
@@ -179,9 +196,19 @@ export default function ClientesPage() {
                     </td>
                     <td className="px-4 py-4">
                       {c.id ? (
-                        <Link href={`/dashboard/clientes/${c.id}`} className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                          <ChevronRight className="w-4 h-4" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCliente(c)}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                            title="Excluir cliente"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <Link href={`/dashboard/clientes/${c.id}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700" title="Ver cliente">
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </div>
                       ) : (
                         <button
                           onClick={() => {

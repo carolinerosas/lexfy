@@ -55,6 +55,10 @@ function ufFromTribunal(tribunal: string | null): string {
 }
 
 const CLASSE_TIPO_MAP: { rx: RegExp; tipo: ProcessoTipo }[] = [
+  { rx: /(execu[çc][ãa]o penal|seeu)/i, tipo: "execucao_penal" },
+  { rx: /(inqu[ée]rito policial)/i, tipo: "inquerito_policial" },
+  { rx: /(boletim de ocorr[êe]ncia|bo pm)/i, tipo: "bo_pm" },
+  { rx: /(fam[íi]lia|alimentos|guarda|div[óo]rcio)/i, tipo: "familia" },
   { rx: /(penal|pena|criminal|crime)/i, tipo: "criminal" },
   { rx: /(trabalh|reclama)/i, tipo: "trabalhista" },
   { rx: /(previdenc|benef[ií]cio|aposentad)/i, tipo: "previdenciario" },
@@ -828,7 +832,11 @@ function PrazoModal({
 
 const processoTipoOptions: { value: ProcessoTipo; label: string }[] = [
   { value: "civel", label: "Cível" },
+  { value: "familia", label: "Família" },
   { value: "criminal", label: "Criminal" },
+  { value: "execucao_penal", label: "Execução penal" },
+  { value: "inquerito_policial", label: "Inquérito policial" },
+  { value: "bo_pm", label: "BO PM" },
   { value: "trabalhista", label: "Trabalhista" },
   { value: "previdenciario", label: "Previdenciário" },
   { value: "tributario", label: "Tributário" },

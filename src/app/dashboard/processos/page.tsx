@@ -43,7 +43,11 @@ const statusPriority: Record<ProcessoStatus, number> = {
 
 const tipoLabel: Record<ProcessoTipo, string> = {
   civel: "Cível",
+  familia: "Família",
   criminal: "Criminal",
+  execucao_penal: "Execução penal",
+  inquerito_policial: "Inquérito policial",
+  bo_pm: "BO PM",
   trabalhista: "Trabalhista",
   previdenciario: "Previdenciário",
   tributario: "Tributário",
@@ -61,7 +65,19 @@ function numeroKey(numero: string): string {
 }
 
 function toProcessoTipo(value?: string): ProcessoTipo {
-  const tipos: ProcessoTipo[] = ["civel", "criminal", "trabalhista", "previdenciario", "tributario", "federal", "outro"];
+  const tipos: ProcessoTipo[] = [
+    "civel",
+    "familia",
+    "criminal",
+    "execucao_penal",
+    "inquerito_policial",
+    "bo_pm",
+    "trabalhista",
+    "previdenciario",
+    "tributario",
+    "federal",
+    "outro",
+  ];
   return tipos.includes(value as ProcessoTipo) ? (value as ProcessoTipo) : "outro";
 }
 
@@ -321,6 +337,11 @@ export default function ProcessosPage() {
                   <p>
                     <span className="font-medium text-gray-700">Tribunal:</span> {p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}
                   </p>
+                  {p.comarca && (
+                    <p>
+                      <span className="font-medium text-gray-700">Comarca:</span> {p.comarca}
+                    </p>
+                  )}
                   <p>
                     <span className="font-medium text-gray-700">Tipo:</span> {p.tipo ? tipoLabel[p.tipo] : "—"}
                   </p>
@@ -399,7 +420,8 @@ export default function ProcessosPage() {
                     )}
                   </td>
                   <td className="px-4 py-4 hidden md:table-cell text-gray-600">
-                    {p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}
+                    <p>{p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}</p>
+                    {p.comarca && <p className="mt-0.5 max-w-36 truncate text-xs text-gray-400">{p.comarca}</p>}
                   </td>
                   <td className="px-4 py-4 hidden lg:table-cell text-gray-600">
                     {p.tipo ? tipoLabel[p.tipo] : "—"}

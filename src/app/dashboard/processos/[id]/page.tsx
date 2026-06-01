@@ -16,8 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import {
-  getProcesso, updateProcesso, deleteProcesso,
-  getMovimentacoesByProcesso, createMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
+  getProcesso, getProcessos, updateProcesso, deleteProcesso,
+  getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
   getAudiencias, createAudiencia, updateAudiencia, deleteAudiencia,
@@ -28,7 +28,7 @@ import {
   sincronizarProcesso,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
-import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade } from "@/types";
+import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade, ProcessoTipo, ProcessoResultadoTipo } from "@/types";
 
 const statusOptions = [
   { value: "ativo", label: "Ativo" },
@@ -60,7 +60,34 @@ const honorarioTipoOptions = [
   { value: "outro", label: "Outro" },
 ];
 
-type Tab = "movimentacoes" | "anotacoes" | "tarefas" | "prazos" | "audiencias" | "honorarios" | "atendimentos";
+const processoTipoOptions: { value: ProcessoTipo; label: string }[] = [
+  { value: "civel", label: "Cível" },
+  { value: "familia", label: "Direito de família" },
+  { value: "criminal", label: "Criminal" },
+  { value: "execucao_penal", label: "Execução penal" },
+  { value: "inquerito_policial", label: "Inquérito policial" },
+  { value: "bo_pm", label: "Boletim de Ocorrência PM" },
+  { value: "trabalhista", label: "Trabalhista" },
+  { value: "previdenciario", label: "Previdenciário" },
+  { value: "tributario", label: "Tributário" },
+  { value: "federal", label: "Federal" },
+  { value: "outro", label: "Outro" },
+];
+
+const processoTipoLabels = Object.fromEntries(processoTipoOptions.map((item) => [item.value, item.label])) as Record<ProcessoTipo, string>;
+
+const resultadoTipoOptions: { value: ProcessoResultadoTipo; label: string }[] = [
+  { value: "sentenca_favoravel", label: "Sentença favorável" },
+  { value: "exito", label: "Êxito" },
+  { value: "sentenca_desfavoravel", label: "Sentença desfavorável" },
+  { value: "pronuncia", label: "Pronúncia" },
+  { value: "impronuncia", label: "Impronúncia" },
+  { value: "pena", label: "Pena" },
+  { value: "acordo", label: "Acordo" },
+  { value: "outro", label: "Outro" },
+];
+
+type Tab = "movimentacoes" | "resultado" | "anotacoes" | "tarefas" | "prazos" | "audiencias" | "honorarios" | "atendimentos";
 
 export default function ProcessoDetailPage() {
   const params = useParams();
@@ -117,6 +144,7 @@ export default function ProcessoDetailPage() {
   }
 
   const [movModal, setMovModal] = useState(false);
+  const [editingMovimentacao, setEditingMovimentacao] = useState<Movimentacao | null>(null);
   const [prazoModal, setPrazoModal] = useState(false);
   const [audModal, setAudModal] = useState(false);
   const [honModal, setHonModal] = useState(false);
@@ -124,6 +152,7 @@ export default function ProcessoDetailPage() {
   const [anotacaoModal, setAnotacaoModal] = useState(false);
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
   const [tarefaModal, setTarefaModal] = useState(false);
+  const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [editModal, setEditModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
 
@@ -164,9 +193,12 @@ export default function ProcessoDetailPage() {
 
   const movNaoLidas = movimentacoes.filter((m) => !m.lida).length;
 
-  const tabs: { key: Tab; label: string; count: number; unread?: number }[] = [
+  const hasResultado = Boolean(processo.resultado_tipo || processo.resultado_descricao || processo.pena);
+
+  const tabs: { key: Tab; label: string; count: number; unread?: number; showCount?: boolean }[] = [
     { key: "movimentacoes", label: "Movimentações", count: movimentacoes.length, unread: movNaoLidas },
-    { key: "anotacoes", label: "Anotações", count: anotacoes.length },
+    { key: "resultado", label: "Resultado", count: hasResultado ? 1 : 0, showCount: false },
+    { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
@@ -197,7 +229,7 @@ export default function ProcessoDetailPage() {
                 </button>
               </div>
               <Badge variant={statusVariantMap[processo.status]}>{processo.status}</Badge>
-              {processo.tipo && <Badge variant="neutral">{processo.tipo}</Badge>}
+              {processo.tipo && <Badge variant="neutral">{processoTipoLabels[processo.tipo] ?? processo.tipo}</Badge>}
             </div>
             <h1 className="text-xl font-bold text-gray-900">{processo.titulo}</h1>
           </div>
@@ -241,10 +273,11 @@ export default function ProcessoDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <InfoCard icon={<User className="w-4 h-4 text-blue-500" />} label="Cliente" value={processo.cliente_nome} />
         <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "—"} />
+        <InfoCard icon={<MapPin className="w-4 h-4 text-rose-500" />} label="Comarca" value={processo.comarca ?? "—"} />
       </div>
 
       {processo.descricao && (
@@ -268,7 +301,7 @@ export default function ProcessoDetailPage() {
             }`}
           >
             {t.label}
-            {t.count > 0 && (
+            {t.showCount !== false && t.count > 0 && (
               <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-gray-100 text-gray-700" : "bg-gray-200 text-gray-600"}`}>
                 {t.count}
               </span>
@@ -283,11 +316,15 @@ export default function ProcessoDetailPage() {
       {tab === "movimentacoes" && (
         <MovimentacoesTab
           movimentacoes={movimentacoes}
-          onAdd={() => setMovModal(true)}
+          onAdd={() => { setEditingMovimentacao(null); setMovModal(true); }}
+          onEdit={(movimentacao) => { setEditingMovimentacao(movimentacao); setMovModal(true); }}
           onDelete={async (mid) => { await deleteMovimentacao(mid); load(); }}
           onMarcarLidas={async () => { await marcarTodasMovimentacoesLidas(id); load(); }}
           naoLidas={movNaoLidas}
         />
+      )}
+      {tab === "resultado" && (
+        <ResultadoTab processo={processo} onSaved={load} />
       )}
       {tab === "anotacoes" && (
         <AnotacoesTab
@@ -300,7 +337,8 @@ export default function ProcessoDetailPage() {
       {tab === "tarefas" && (
         <TarefasTab
           tarefas={tarefas}
-          onAdd={() => setTarefaModal(true)}
+          onAdd={() => { setEditingTarefa(null); setTarefaModal(true); }}
+          onEdit={(tarefa) => { setEditingTarefa(tarefa); setTarefaModal(true); }}
           onToggle={async (tid) => { const tarefa = tarefas.find((t) => t.id === tid); if (tarefa) await updateTarefa(tid, { concluida: !tarefa.concluida }); load(); }}
           onDelete={async (tid) => { await deleteTarefa(tid); load(); }}
         />
@@ -337,7 +375,13 @@ export default function ProcessoDetailPage() {
         />
       )}
 
-      <NovaMovimentacaoModal open={movModal} onClose={() => setMovModal(false)} processoId={id} onCreated={() => { load(); setMovModal(false); }} />
+      <MovimentacaoModal
+        open={movModal}
+        onClose={() => { setMovModal(false); setEditingMovimentacao(null); }}
+        processoId={id}
+        movimentacao={editingMovimentacao}
+        onSaved={() => { load(); setMovModal(false); setEditingMovimentacao(null); }}
+      />
       <NovoPrazoModal open={prazoModal} onClose={() => setPrazoModal(false)} processoId={id} onCreated={() => { load(); setPrazoModal(false); }} />
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
       <NovoHonorarioModal open={honModal} onClose={() => setHonModal(false)} processoId={id} categoria={honCategoria} onCreated={() => { load(); setHonModal(false); }} />
@@ -349,7 +393,13 @@ export default function ProcessoDetailPage() {
         anotacao={editingAnotacao}
         onSaved={() => { load(); setAnotacaoModal(false); setEditingAnotacao(null); }}
       />
-      <NovaTarefaModal open={tarefaModal} onClose={() => setTarefaModal(false)} processoId={id} onCreated={() => { load(); setTarefaModal(false); }} />
+      <TarefaModal
+        open={tarefaModal}
+        onClose={() => { setTarefaModal(false); setEditingTarefa(null); }}
+        processoId={id}
+        tarefa={editingTarefa}
+        onSaved={() => { load(); setTarefaModal(false); setEditingTarefa(null); }}
+      />
       <EditarProcessoModal open={editModal} onClose={() => setEditModal(false)} processo={processo} onSaved={() => { load(); setEditModal(false); }} />
 
       <Modal open={deleteModal} onClose={() => setDeleteModal(false)} title="Excluir Processo" size="sm">
@@ -374,9 +424,79 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function MovimentacoesTab({ movimentacoes, onAdd, onDelete, onMarcarLidas, naoLidas }: {
+function ResultadoTab({ processo, onSaved }: { processo: Processo; onSaved: () => void }) {
+  const [resultadoTipo, setResultadoTipo] = useState<ProcessoResultadoTipo | "">(processo.resultado_tipo ?? "");
+  const [descricao, setDescricao] = useState(processo.resultado_descricao ?? "");
+  const [pena, setPena] = useState(processo.pena ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setResultadoTipo(processo.resultado_tipo ?? "");
+    setDescricao(processo.resultado_descricao ?? "");
+    setPena(processo.pena ?? "");
+  }, [processo]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateProcesso(processo.id, {
+        resultado_tipo: resultadoTipo || undefined,
+        resultado_descricao: descricao.trim() || undefined,
+        pena: pena.trim() || undefined,
+      });
+      onSaved();
+    } catch (error) {
+      alert(`Não consegui salvar o resultado. Se você ainda não rodou o SQL supabase-processos-resultados.sql, rode primeiro.\n\nDetalhe: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Resultado do processo</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Select
+              label="Classificação do resultado"
+              placeholder="Selecione..."
+              value={resultadoTipo}
+              onChange={(e) => setResultadoTipo(e.target.value as ProcessoResultadoTipo | "")}
+              options={resultadoTipoOptions}
+            />
+            <Input
+              label="Pena / condição criminal"
+              placeholder="Ex: 2 anos em regime aberto, sursis..."
+              value={pena}
+              onChange={(e) => setPena(e.target.value)}
+            />
+          </div>
+          <Textarea
+            label="Descrição resumida"
+            placeholder="Resumo objetivo do resultado, pontos importantes e próximos passos..."
+            rows={5}
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Salvando..." : "Salvar resultado"}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MovimentacoesTab({ movimentacoes, onAdd, onEdit, onDelete, onMarcarLidas, naoLidas }: {
   movimentacoes: Movimentacao[];
   onAdd: () => void;
+  onEdit: (movimentacao: Movimentacao) => void;
   onDelete: (id: string) => void;
   onMarcarLidas: () => void;
   naoLidas: number;
@@ -407,7 +527,10 @@ function MovimentacoesTab({ movimentacoes, onAdd, onDelete, onMarcarLidas, naoLi
                       {m.fonte ? ` · via ${m.fonte}` : ""}
                     </p>
                   </div>
-                  <button onClick={() => onDelete(m.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => onEdit(m)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar movimentação"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => onDelete(m.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Excluir movimentação"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -633,10 +756,11 @@ function AnotacoesTab({
 }
 
 function TarefasTab({
-  tarefas, onAdd, onToggle, onDelete,
+  tarefas, onAdd, onEdit, onToggle, onDelete,
 }: {
   tarefas: Tarefa[];
   onAdd: () => void;
+  onEdit: (tarefa: Tarefa) => void;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -687,9 +811,14 @@ function TarefasTab({
                         {days < 0 ? `${Math.abs(days)}d atrasada` : days === 0 ? "Hoje" : `${days}d`}
                       </span>
                     )}
-                    <button onClick={() => onDelete(t.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button onClick={() => onEdit(t)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar tarefa">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onDelete(t.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Excluir tarefa">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -765,25 +894,44 @@ function AtendimentosTab({
   );
 }
 
-function NovaMovimentacaoModal({ open, onClose, processoId, onCreated }: { open: boolean; onClose: () => void; processoId: string; onCreated: () => void }) {
+function MovimentacaoModal({
+  open, onClose, processoId, movimentacao, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  movimentacao: Movimentacao | null;
+  onSaved: () => void;
+}) {
   const [descricao, setDescricao] = useState("");
   const [data, setData] = useState(new Date().toISOString().split("T")[0]);
   const [tipo, setTipo] = useState("");
 
+  useEffect(() => {
+    if (!open) return;
+    setDescricao(movimentacao?.descricao ?? "");
+    setData(movimentacao?.data_movimentacao?.slice(0, 10) ?? new Date().toISOString().split("T")[0]);
+    setTipo(movimentacao?.tipo ?? "");
+  }, [open, movimentacao]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao) return;
-    await createMovimentacao({ processo_id: processoId, descricao, data_movimentacao: data, tipo: tipo || undefined, fonte: "manual", lida: true });
+    if (movimentacao) {
+      await updateMovimentacao(movimentacao.id, { descricao, data_movimentacao: data, tipo: tipo || undefined });
+    } else {
+      await createMovimentacao({ processo_id: processoId, descricao, data_movimentacao: data, tipo: tipo || undefined, fonte: "manual", lida: true });
+    }
     setDescricao(""); setTipo("");
-    onCreated();
+    onSaved();
   }
   return (
-    <Modal open={open} onClose={onClose} title="Nova Movimentação" size="sm">
+    <Modal open={open} onClose={onClose} title={movimentacao ? "Editar movimentação" : "Nova movimentação"} size="sm">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Data" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
         <Input label="Tipo (opcional)" placeholder="Despacho, Sentença, Acórdão..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
         <Textarea label="Descrição *" placeholder="Descreva a movimentação..." value={descricao} onChange={(e) => setDescricao(e.target.value)} required />
-        <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">{movimentacao ? "Salvar alterações" : "Salvar"}</Button></div>
       </form>
     </Modal>
   );
@@ -998,32 +1146,57 @@ function AnotacaoModal({
   );
 }
 
-function NovaTarefaModal({ open, onClose, processoId, onCreated }: { open: boolean; onClose: () => void; processoId: string; onCreated: () => void }) {
+function TarefaModal({
+  open, onClose, processoId, tarefa, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  tarefa: Tarefa | null;
+  onSaved: () => void;
+}) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [dataLimite, setDataLimite] = useState("");
   const [prioridade, setPrioridade] = useState<Prioridade>("media");
 
+  useEffect(() => {
+    if (!open) return;
+    setTitulo(tarefa?.titulo ?? "");
+    setDescricao(tarefa?.descricao ?? "");
+    setDataLimite(tarefa?.data_limite ?? "");
+    setPrioridade(tarefa?.prioridade ?? "media");
+  }, [open, tarefa]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!titulo.trim()) return;
-    await createTarefa({
-      processo_id: processoId,
-      titulo: titulo.trim(),
-      descricao: descricao.trim() || undefined,
-      data_limite: dataLimite || undefined,
-      prioridade,
-      concluida: false,
-    });
+    if (tarefa) {
+      await updateTarefa(tarefa.id, {
+        titulo: titulo.trim(),
+        descricao: descricao.trim() || undefined,
+        data_limite: dataLimite || undefined,
+        prioridade,
+      });
+    } else {
+      await createTarefa({
+        processo_id: processoId,
+        titulo: titulo.trim(),
+        descricao: descricao.trim() || undefined,
+        data_limite: dataLimite || undefined,
+        prioridade,
+        concluida: false,
+      });
+    }
     setTitulo("");
     setDescricao("");
     setDataLimite("");
     setPrioridade("media");
-    onCreated();
+    onSaved();
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Nova tarefa" size="sm">
+    <Modal open={open} onClose={onClose} title={tarefa ? "Editar tarefa" : "Nova tarefa"} size="sm">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Tarefa *" placeholder="Ex: Conferir intimação, ligar para cliente..." value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <Textarea label="Descrição" placeholder="Detalhes, próximos passos, documentos..." rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
@@ -1038,7 +1211,7 @@ function NovaTarefaModal({ open, onClose, processoId, onCreated }: { open: boole
         </div>
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit">Criar tarefa</Button>
+          <Button type="submit">{tarefa ? "Salvar alterações" : "Criar tarefa"}</Button>
         </div>
       </form>
     </Modal>
@@ -1047,21 +1220,40 @@ function NovaTarefaModal({ open, onClose, processoId, onCreated }: { open: boole
 
 function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boolean; onClose: () => void; processo: Processo; onSaved: () => void }) {
   const [form, setForm] = useState({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
+  const [processosRelacionaveis, setProcessosRelacionaveis] = useState<Processo[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
+    getProcessos().then((lista) => {
+      setProcessosRelacionaveis(
+        lista.filter((p) => p.id !== processo.id && (p.tipo === "criminal" || p.tipo === "execucao_penal"))
+      );
+    });
+  }, [open, processo]);
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
+  const permiteIntegracao = form.tipo === "inquerito_policial" || form.tipo === "bo_pm";
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    await updateProcesso(processo.id, {
-      titulo: form.titulo, cliente_nome: form.cliente_nome,
-      parte_contraria: form.parte_contraria || undefined,
-      tribunal: form.tribunal || undefined, vara: form.vara || undefined,
-      comarca: form.comarca || undefined, uf: form.uf || undefined,
-      status: form.status as any, fase: form.fase || undefined,
-      valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
-      descricao: form.descricao || undefined,
-    });
-    onSaved();
+    try {
+      await updateProcesso(processo.id, {
+        titulo: form.titulo, cliente_nome: form.cliente_nome,
+        parte_contraria: form.parte_contraria || undefined,
+        tribunal: form.tribunal || undefined, vara: form.vara || undefined,
+        comarca: form.comarca || undefined, uf: form.uf || undefined,
+        tipo: (form.tipo as ProcessoTipo) || undefined,
+        processo_principal_id: permiteIntegracao ? form.processo_principal_id || undefined : undefined,
+        status: form.status as any, fase: form.fase || undefined,
+        valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
+        descricao: form.descricao || undefined,
+      });
+      onSaved();
+    } catch (error) {
+      alert(`Não consegui salvar o processo. Se você escolheu uma classificação nova ou integrou a um processo criminal, rode primeiro o SQL supabase-processos-resultados.sql.\n\nDetalhe: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+    }
   }
 
   return (
@@ -1072,10 +1264,27 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
           <Input label="Cliente *" value={form.cliente_nome} onChange={(e) => set("cliente_nome", e.target.value)} required />
           <Input label="Parte Contrária" value={form.parte_contraria ?? ""} onChange={(e) => set("parte_contraria", e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Select label="Classificação" options={processoTipoOptions} value={form.tipo ?? "outro"} onChange={(e) => set("tipo", e.target.value)} />
+          <Select label="Status" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />
+        </div>
+        {permiteIntegracao && (
+          <Select
+            label="Integrar a processo criminal principal"
+            placeholder="Selecione um processo criminal..."
+            value={form.processo_principal_id ?? ""}
+            onChange={(e) => set("processo_principal_id", e.target.value)}
+            options={processosRelacionaveis.map((p) => ({
+              value: p.id,
+              label: `${p.numero} · ${p.cliente_nome}`,
+            }))}
+          />
+        )}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Input label="Tribunal" value={form.tribunal ?? ""} onChange={(e) => set("tribunal", e.target.value)} />
           <Input label="Vara" value={form.vara ?? ""} onChange={(e) => set("vara", e.target.value)} />
-          <Select label="Status" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />
+          <Input label="Comarca" value={form.comarca ?? ""} onChange={(e) => set("comarca", e.target.value)} />
+          <Input label="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
         </div>
         <Textarea label="Descrição" value={form.descricao ?? ""} onChange={(e) => set("descricao", e.target.value)} />
         <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>

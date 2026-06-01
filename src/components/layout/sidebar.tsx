@@ -64,7 +64,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex h-full w-60 flex-col border-r border-white/10 bg-slate-800">
+    <aside className="flex h-full w-60 flex-col border-r border-white/10 bg-[#21181d]">
       <Link
         href="/dashboard"
         aria-label="Ir para o Painel"
@@ -84,16 +84,16 @@ export function Sidebar() {
               href={href}
               className={cn(
                 "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-                active ? "bg-white text-slate-900" : "text-slate-100 hover:bg-white/10 hover:text-white"
+                active ? "bg-white text-[#21181d]" : "text-slate-100 hover:bg-white/10 hover:text-white"
               )}
             >
-              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-slate-900" : "text-slate-100")} />
+              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[#21181d]" : "text-slate-100")} />
               <span className="flex-1">{label}</span>
               {count > 0 && (
                 <span
                   className={cn(
                     "min-w-[18px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold",
-                    active ? "bg-slate-800 text-white" : "bg-white/15 text-white"
+                    active ? "bg-[#21181d] text-white" : "bg-white/15 text-white"
                   )}
                 >
                   {count > 99 ? "99+" : count}

@@ -95,7 +95,8 @@ export async function createProcesso(
 }
 
 export async function updateProcesso(id: string, input: Partial<Processo>): Promise<void> {
-  await supabase.from("processos").update({ ...input, updated_at: now() }).eq("id", id);
+  const { error } = await supabase.from("processos").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function deleteProcesso(id: string): Promise<void> {
@@ -197,6 +198,11 @@ export async function createMovimentacao(
   const nova = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
   const { data } = await supabase.from("movimentacoes").insert(nova).select().single();
   return data as Movimentacao;
+}
+
+export async function updateMovimentacao(id: string, input: Partial<Movimentacao>): Promise<void> {
+  const { error } = await supabase.from("movimentacoes").update(input).eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function marcarMovimentacaoLida(id: string): Promise<void> {
@@ -511,7 +517,14 @@ export async function updateCliente(id: string, input: Partial<Cliente>): Promis
 }
 
 export async function deleteCliente(id: string): Promise<void> {
-  await supabase.from("clientes").delete().eq("id", id);
+  const { error: unlinkError } = await supabase
+    .from("processos")
+    .update({ cliente_id: null })
+    .eq("cliente_id", id);
+  if (unlinkError) throw new Error(unlinkError.message);
+
+  const { error } = await supabase.from("clientes").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function importarClientesExistentes(): Promise<number> {
