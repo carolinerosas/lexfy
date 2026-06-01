@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo, createProcesso, vincularPublicacoesAoProcesso } from "@/lib/store";
 import { parseCNJ } from "@/lib/datajud";
-import { getPerfilAdvogado } from "@/lib/perfil";
+import { getPerfilAdvogado, loadPerfilAdvogado } from "@/lib/perfil";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo, PrazoTipo, Prioridade, ProcessoTipo } from "@/types";
 
@@ -332,6 +332,11 @@ export default function PublicacoesPage() {
     load();
 
     setPerfil(getPerfilAdvogado());
+    loadPerfilAdvogado()
+      .then((perfilCloud) => setPerfil(perfilCloud))
+      .catch(() => {
+        /* perfil local ja foi carregado */
+      });
   }, [load]);
 
   useEffect(() => {

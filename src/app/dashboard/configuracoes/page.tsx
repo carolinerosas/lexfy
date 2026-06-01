@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { getPerfilAdvogado, setPerfilAdvogado, type PerfilAdvogado } from "@/lib/perfil";
+import { getPerfilAdvogado, loadPerfilAdvogado, savePerfilAdvogadoCloud, type PerfilAdvogado } from "@/lib/perfil";
 import { getSyncLocalKey, getSyncLocalUrl, setSyncLocalKey, setSyncLocalUrl, testarSyncLocal } from "@/lib/syncLocal";
 
 const DATA_KEYS = [
@@ -82,6 +82,8 @@ export default function ConfiguracoesPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [perfil, setPerfil] = useState<PerfilAdvogado>({ nome: "", oab_numero: "", oab_uf: "RJ" });
   const [perfilSaved, setPerfilSaved] = useState(false);
+  const [perfilSynced, setPerfilSynced] = useState(true);
+  const [perfilSaveMsg, setPerfilSaveMsg] = useState("");
   const [syncLocalUrl, setSyncLocalUrlState] = useState("http://127.0.0.1:4477");
   const [syncLocalKey, setSyncLocalKeyState] = useState("");
   const [syncLocalSaved, setSyncLocalSaved] = useState(false);
@@ -91,12 +93,22 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     setApiKey(getDatajudApiKey());
     setPerfil(getPerfilAdvogado());
+    loadPerfilAdvogado()
+      .then((perfilCloud) => setPerfil(perfilCloud))
+      .catch(() => {
+        /* perfil local ja foi carregado */
+      });
     setSyncLocalUrlState(getSyncLocalUrl());
     setSyncLocalKeyState(getSyncLocalKey());
   }, []);
 
-  function handleSavePerfil() {
-    setPerfilAdvogado(perfil);
+  async function handleSavePerfil() {
+    const result = await savePerfilAdvogadoCloud(perfil);
+    setPerfil(result.perfil);
+    setPerfilSynced(result.synced);
+    setPerfilSaveMsg(result.synced
+      ? "Salvo em nuvem e neste navegador"
+      : `${result.error ?? "Nao consegui salvar em nuvem."} Salvo neste navegador.`);
     setPerfilSaved(true);
     setTimeout(() => setPerfilSaved(false), 3000);
   }
@@ -183,8 +195,8 @@ export default function ConfiguracoesPage() {
               Salvar perfil
             </Button>
             {perfilSaved && (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-                <CheckCircle2 className="w-4 h-4" /> Salvo com sucesso
+              <span className={`flex items-center gap-1.5 text-sm font-medium ${perfilSynced ? "text-green-600" : "text-amber-700"}`}>
+                <CheckCircle2 className="w-4 h-4" /> {perfilSaveMsg || "Salvo com sucesso"}
               </span>
             )}
           </div>
