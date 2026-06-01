@@ -77,7 +77,7 @@ export async function buscarMovimentosSyncLocal(input: {
       method: "POST",
       headers: headers(),
       body: JSON.stringify(input),
-      signal: AbortSignal.timeout(3500),
+      signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) return null;
     return (await res.json()) as SyncLocalProcessoResponse;

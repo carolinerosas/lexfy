@@ -138,7 +138,7 @@ async function openAssistedLogin(url, sistema, numero) {
     sistema,
     numero,
     url: page.url(),
-    message: "Login assistido necessario. Conclua o acesso com certificado na janela do Chrome aberta pelo Justio Sync Local e tente sincronizar novamente.",
+    message: "Abri o portal do tribunal no Chrome. Conclua o login com certificado na janela aberta pelo Justio Sync Local e clique em Sincronizar novamente.",
   };
 }
 
@@ -269,7 +269,7 @@ async function syncProcesso({ numero, sistema, tribunal }) {
   if (sys === "eproc" || trib === "trf2") {
     return openAssistedLogin("https://eproc.trf2.jus.br/eproc/", "eproc", numero);
   }
-  if (sys === "seeu") {
+  if (sys === "seeu" || trib === "seeu") {
     return openAssistedLogin("https://seeu.pje.jus.br/seeu/", "seeu", numero);
   }
   if (sys === "esaj" || trib === "tjsp") {

@@ -530,7 +530,13 @@ export async function sincronizarProcesso(processoId: string): Promise<SyncResul
   if (!processo) return { novas: 0, erro: "Processo não encontrado" };
 
   const { parseCNJ } = await import("./datajud");
-  const { tribunal } = parseCNJ(processo.numero);
+  const parsed = parseCNJ(processo.numero);
+  const tribunalInformado = (processo.tribunal ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const tribunal =
+    tribunalInformado.includes("seeu") ? "seeu" :
+    tribunalInformado.includes("esaj") || tribunalInformado.includes("tjsp") ? "tjsp" :
+    tribunalInformado.includes("dcp") || tribunalInformado.includes("tjerj") ? "tjrj" :
+    parsed.tribunal;
   if (!tribunal) return { novas: 0, erro: "Número CNJ inválido ou tribunal não reconhecido" };
 
   const { buscarMovimentosSistema } = await import("./sistemas");

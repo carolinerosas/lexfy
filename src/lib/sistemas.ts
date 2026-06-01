@@ -1,13 +1,13 @@
 // Maps tribunal DataJud slug to the primary system used for public consultation
 
-export type SistemaJudicial = "datajud" | "pje" | "eproc";
+export type SistemaJudicial = "datajud" | "pje" | "eproc" | "seeu" | "esaj";
 
 // TJs that primarily use PJe for new cases (sigla = DataJud slug = PJe subdomain)
 const PJE_TJS = new Set([
   "tjac", "tjal", "tjap", "tjam", "tjba", "tjce", "tjdft",
   "tjgo", "tjma", "tjmg", "tjms", "tjmt", "tjpa", "tjpb",
   "tjpe", "tjpi", "tjpr", "tjrj", "tjrn", "tjro", "tjrr",
-  "tjrs", "tjsc", "tjse", "tjsp", "tjto",
+  "tjrs", "tjsc", "tjse", "tjto",
 ]);
 
 // TRFs that use EPROC (TRF3 uses PJe, others use EPROC)
@@ -16,8 +16,11 @@ const PJE_TRFS = new Set(["trf3"]);
 
 // State courts using EPROC
 const EPROC_TJS = new Set(["tjes"]);
+const ESAJ_TJS = new Set(["tjsp"]);
 
 export function getSistema(tribunal: string): SistemaJudicial {
+  if (tribunal === "seeu") return "seeu";
+  if (ESAJ_TJS.has(tribunal)) return "esaj";
   if (EPROC_TJS.has(tribunal)) return "eproc";
   if (PJE_TJS.has(tribunal)) return "pje";
   if (EPROC_TRFS.has(tribunal)) return "eproc";

@@ -84,12 +84,13 @@ export default function ProcessoDetailPage() {
     const { novas, erro } = await sincronizarProcesso(id);
     setSyncing(false);
     if (erro) {
-      setSyncMsg(`Erro: ${erro}`);
+      const acaoNecessaria = /abri o portal|login assistido|certificado/i.test(erro);
+      setSyncMsg(acaoNecessaria ? erro : `Erro: ${erro}`);
     } else {
       setSyncMsg(novas > 0 ? `${novas} nova${novas > 1 ? "s" : ""} movimentaç${novas > 1 ? "ões" : "ão"}` : "Sem novidades");
       load();
     }
-    setTimeout(() => setSyncMsg(null), 4000);
+    setTimeout(() => setSyncMsg(null), 10000);
   }
 
   async function toggleMonitorar() {
