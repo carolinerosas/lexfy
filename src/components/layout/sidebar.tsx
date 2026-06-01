@@ -5,56 +5,47 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  FolderOpen,
-  Clock,
   Calendar,
+  Clock,
   DollarSign,
+  FolderOpen,
+  LayoutDashboard,
+  ListTodo,
   Newspaper,
-  Users,
   UserRound,
-  Settings,
-  Search,
-  Mail,
+  Users,
 } from "lucide-react";
 import { JustioLogo } from "@/components/ui/justio-logo";
-import { getMovimentacoesNaoLidas, getPublicacoes } from "@/lib/store";
+import { getMovimentacoesNaoLidas, getPublicacoes, getTarefas } from "@/lib/store";
 import { useDatajudSync } from "@/hooks/useDatajudSync";
-import { SearchModal } from "@/components/ui/search-modal";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { href: "/dashboard/processos", label: "Processos", icon: FolderOpen, badge: "movimentacoes" },
+  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo, badge: "tarefas" },
   { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
   { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
   { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
   { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
   { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
   { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
-  { href: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const [movNaoLidas, setMovNaoLidas] = useState(0);
   const [pubNaoLidas, setPubNaoLidas] = useState(0);
-  const [searchOpen, setSearchOpen] = useState(false);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const [tarefasPendentes, setTarefasPendentes] = useState(0);
 
   async function refreshBadges() {
-    const [mov, pubs] = await Promise.all([getMovimentacoesNaoLidas(), getPublicacoes()]);
+    const [mov, pubs, tarefas] = await Promise.all([
+      getMovimentacoesNaoLidas(),
+      getPublicacoes(),
+      getTarefas(),
+    ]);
     setMovNaoLidas(mov);
     setPubNaoLidas(pubs.filter((p) => !p.lida).length);
+    setTarefasPendentes(tarefas.filter((t) => !t.concluida).length);
   }
 
   useEffect(() => {
@@ -68,86 +59,50 @@ export function Sidebar() {
   function getBadge(key?: string): number {
     if (key === "movimentacoes") return movNaoLidas;
     if (key === "publicacoes") return pubNaoLidas;
+    if (key === "tarefas") return tarefasPendentes;
     return 0;
   }
 
   return (
-    <aside className="w-60 bg-[#0f0f0f] flex flex-col h-full border-r border-white/5">
-      {/* Logo */}
-      <div className="flex flex-col items-center justify-center py-8 border-b border-white/5">
+    <aside className="flex h-full w-60 flex-col border-r border-white/10 bg-slate-800">
+      <Link
+        href="/dashboard"
+        aria-label="Ir para o Painel"
+        className="flex flex-col items-center justify-center border-b border-white/10 py-8 transition-colors hover:bg-white/5"
+      >
         <JustioLogo size={80} dark={true} layout="row" />
-      </div>
+      </Link>
 
-      {/* Search */}
-      <div className="px-3 pt-3 pb-1">
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white hover:text-white text-sm"
-        >
-          <Search className="w-3.5 h-3.5 shrink-0" />
-          <span className="flex-1 text-left text-xs">Buscar…</span>
-          <kbd className="text-[9px] bg-white/10 text-gray-500 px-1.5 py-0.5 rounded font-mono">Ctrl K</kbd>
-        </button>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map(({ href, label, icon: Icon, badge }) => {
-          const active =
-            href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(href);
+          const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
           const count = getBadge(badge);
+
           return (
             <Link
               key={href}
               href={href}
               className={cn(
-                "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                active
-                  ? "bg-white text-gray-900"
-                  : "text-white hover:bg-white/5 hover:text-white"
+                "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                active ? "bg-white text-slate-900" : "text-slate-100 hover:bg-white/10 hover:text-white"
               )}
             >
-              <Icon className={cn("w-4 h-4 shrink-0", active ? "text-gray-900" : "text-white")} />
+              <Icon className={cn("h-4 w-4 shrink-0", active ? "text-slate-900" : "text-slate-100")} />
               <span className="flex-1">{label}</span>
               {count > 0 && (
-                <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center",
-                  active ? "bg-gray-900 text-white" : "bg-white/10 text-white"
-                )}>
+                <span
+                  className={cn(
+                    "min-w-[18px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold",
+                    active ? "bg-slate-800 text-white" : "bg-white/15 text-white"
+                  )}
+                >
                   {count > 99 ? "99+" : count}
                 </span>
               )}
             </Link>
           );
         })}
-
-        <div className="pt-1 border-t border-white/5 mt-1">
-          <a
-            href="https://mail.zoho.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-white hover:bg-white/5 hover:text-white"
-          >
-            <Mail className="w-4 h-4 shrink-0 text-white" />
-            <span className="flex-1">E-mail</span>
-          </a>
-        </div>
       </nav>
-
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
-
-      {/* Footer */}
-      <div className="px-4 py-4 border-t border-white/5 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-          <span className="text-white text-xs font-bold">CR</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-white text-xs font-semibold truncate leading-tight">Caroline Rosas Advocacia</p>
-          <p className="text-gray-500 text-[10px] mt-0.5">OAB/RJ</p>
-        </div>
-      </div>
     </aside>
   );
 }

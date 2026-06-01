@@ -387,6 +387,45 @@ export async function deleteAnotacao(id: string): Promise<void> {
 
 // --- Tarefas ---
 
+function sortTarefas(a: Tarefa, b: Tarefa): number {
+  return Number(a.concluida) - Number(b.concluida)
+    || (a.data_limite ?? "9999-12-31").localeCompare(b.data_limite ?? "9999-12-31")
+    || new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+}
+
+export async function getTarefas(): Promise<Tarefa[]> {
+  const { data, error } = await supabase
+    .from("tarefas")
+    .select("*")
+    .order("concluida", { ascending: true })
+    .order("data_limite", { ascending: true, nullsFirst: false })
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) return getLocalRows<Tarefa>("tarefas").sort(sortTarefas);
+    throw new Error(error.message);
+  }
+  return ((data ?? []) as Tarefa[]).sort(sortTarefas);
+}
+
+export async function getTarefasWithProcesso(): Promise<(Tarefa & { processo?: Pick<Processo, "id" | "numero" | "titulo" | "cliente_nome"> })[]> {
+  const [tarefas, processos] = await Promise.all([getTarefas(), getProcessos()]);
+  const processosById = new Map(processos.map((p) => [p.id, p]));
+
+  return tarefas.map((tarefa) => {
+    const processo = processosById.get(tarefa.processo_id);
+    return {
+      ...tarefa,
+      processo: processo ? {
+        id: processo.id,
+        numero: processo.numero,
+        titulo: processo.titulo,
+        cliente_nome: processo.cliente_nome,
+      } : undefined,
+    };
+  });
+}
+
 export async function getTarefasByProcesso(processoId: string): Promise<Tarefa[]> {
   const { data, error } = await supabase
     .from("tarefas")
@@ -402,7 +441,7 @@ export async function getTarefasByProcesso(processoId: string): Promise<Tarefa[]
     }
     throw new Error(error.message);
   }
-  return (data ?? []) as Tarefa[];
+  return ((data ?? []) as Tarefa[]).sort(sortTarefas);
 }
 
 export async function createTarefa(
@@ -613,6 +652,9 @@ export interface DashboardStats {
   prazosProximos: number;
   prazosVencidos: number;
   audienciasProximas: number;
+  tarefasPendentes: number;
+  tarefasProximas: number;
+  tarefasVencidas: number;
   atendimentosProximos: number;
   honorariosPendentes: number;
   honorariosRecebidosMes: number;
@@ -621,10 +663,11 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [processos, prazos, audiencias, atendimentos, honorarios, publicacoes, movNaoLidas] = await Promise.all([
+  const [processos, prazos, audiencias, tarefas, atendimentos, honorarios, publicacoes, movNaoLidas] = await Promise.all([
     getProcessos(),
     getPrazos(),
     getAudiencias(),
+    getTarefas(),
     getAtendimentos(),
     getHonorarios(),
     getPublicacoes(),
@@ -649,6 +692,14 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     return d >= hoje && d <= em7dias;
   }).length;
 
+  const tarefasAtivas = tarefas.filter((t) => !t.concluida);
+  const tarefasVencidas = tarefasAtivas.filter((t) => t.data_limite && new Date(t.data_limite) < hoje).length;
+  const tarefasProximas = tarefasAtivas.filter((t) => {
+    if (!t.data_limite) return false;
+    const d = new Date(t.data_limite);
+    return d >= hoje && d <= em7dias;
+  }).length;
+
   const atendimentosProximos = atendimentos.filter((a) => {
     if (a.status !== "agendado") return false;
     const d = new Date(a.data_hora);
@@ -669,6 +720,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     prazosProximos,
     prazosVencidos,
     audienciasProximas,
+    tarefasPendentes: tarefasAtivas.length,
+    tarefasProximas,
+    tarefasVencidas,
     atendimentosProximos,
     honorariosPendentes: Math.max(0, totalCobrado - totalPago),
     honorariosRecebidosMes,
