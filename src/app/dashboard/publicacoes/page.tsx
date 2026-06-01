@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo, createProcesso, vincularPublicacoesAoProcesso } from "@/lib/store";
 import { parseCNJ } from "@/lib/datajud";
+import { getPerfilAdvogado } from "@/lib/perfil";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo, PrazoTipo, Prioridade, ProcessoTipo } from "@/types";
 
@@ -124,8 +125,6 @@ async function buscarDadosProcessoDjen(numeroCNJ: string): Promise<DadosProcesso
 
 const ULTIMA_BUSCA_KEY = "justio_ultima_busca_pub";
 const HASHES_KEY = "justio_pub_hashes";
-const PERFIL_KEY = "justio_perfil_advogado";
-
 const diarioOptions = [
   { value: "DOU", label: "Diário Oficial da União (DOU)" },
   { value: "Diario de Justica Eletronico Nacional", label: "DJEN/CNJ" },
@@ -332,10 +331,7 @@ export default function PublicacoesPage() {
   useEffect(() => {
     load();
 
-    try {
-      const raw = localStorage.getItem(PERFIL_KEY);
-      if (raw) setPerfil(JSON.parse(raw) as Perfil);
-    } catch { /* silently fail */ }
+    setPerfil(getPerfilAdvogado());
   }, [load]);
 
   useEffect(() => {
