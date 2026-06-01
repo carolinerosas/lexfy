@@ -26,6 +26,26 @@ export interface SyncLocalProcessoEncontrado {
   total_publicacoes?: number;
 }
 
+export interface SyncLocalTribunalProcesso {
+  numero: string;
+  titulo?: string;
+  cliente_nome?: string;
+  parte_contraria?: string;
+  tribunal?: string;
+  uf?: string;
+  sistema?: string;
+  classe?: string;
+  orgao?: string;
+  vara?: string;
+  comarca?: string;
+  fase?: string;
+  tipo?: string;
+  data_distribuicao?: string;
+  url?: string;
+  origem?: string;
+  personagens?: { tipo?: string; nome?: string }[];
+}
+
 export function getSyncLocalUrl(): string {
   if (typeof window === "undefined") return process.env.NEXT_PUBLIC_SYNC_LOCAL_URL || DEFAULT_SYNC_LOCAL_URL;
   return localStorage.getItem(SYNC_LOCAL_URL_KEY) || process.env.NEXT_PUBLIC_SYNC_LOCAL_URL || DEFAULT_SYNC_LOCAL_URL;
@@ -101,6 +121,30 @@ export async function descobrirProcessosDjenSyncLocal(input: {
   });
   if (!res.ok) {
     throw new Error(`Sync Local HTTP ${res.status}`);
+  }
+  const data = await res.json().catch(() => ({}));
+  return Array.isArray(data.processos) ? data.processos : [];
+}
+
+export async function descobrirProcessosTribunaisSyncLocal(input: {
+  nome?: string;
+  oabNumero?: string;
+  oabUF?: string;
+  tribunal?: "tjrj" | string;
+  anoInicial?: number;
+  anoFinal?: number;
+}): Promise<SyncLocalTribunalProcesso[]> {
+  const url = getSyncLocalUrl().replace(/\/$/, "");
+  const tribunal = input.tribunal || "tjrj";
+  const res = await fetch(`${url}/tribunais/${tribunal}/processos`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify(input),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.message || `Sync Local HTTP ${res.status}`);
   }
   const data = await res.json().catch(() => ({}));
   return Array.isArray(data.processos) ? data.processos : [];

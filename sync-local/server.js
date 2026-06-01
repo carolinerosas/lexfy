@@ -82,6 +82,85 @@ function maskCNJ(numero) {
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16)}`;
 }
 
+function onlyDigits(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+function cleanText(value) {
+  if (value == null) return "";
+  return stripTags(String(value)).replace(/\s+/g, " ").trim();
+}
+
+function inferTipoProcesso(raw) {
+  const texto = `${raw.classe || ""} ${raw.descServ || ""} ${raw.nomeOrgao || ""} ${raw.descrFase || ""}`.toLowerCase();
+  if (/criminal|crime|penal|viol[êe]ncia|execu[cç][aã]o da pena|juizado especial criminal/.test(texto)) return "criminal";
+  if (/trabalh/.test(texto)) return "trabalhista";
+  if (/previdenci/.test(texto)) return "previdenciario";
+  if (/tribut|fiscal/.test(texto)) return "tributario";
+  if (/federal/.test(texto)) return "federal";
+  if (/fam[íi]lia|c[íi]vel|civil|fazenda|sucess[õo]es|inf[aâ]ncia|juventude/.test(texto)) return "civel";
+  return "outro";
+}
+
+function inferSistemaTjrj(raw) {
+  const url = String(raw.urlExterna || raw.urlProcessoExterno || "").toLowerCase();
+  const texto = `${raw.classe || ""} ${url}`.toLowerCase();
+  if (texto.includes("pje")) return "pje";
+  if (texto.includes("eproc")) return "eproc";
+  if (texto.includes("seeu")) return "seeu";
+  if (texto.includes("projudi")) return "projudi";
+  if (url.includes("ejud")) return "dcp";
+  return "dcp";
+}
+
+function personagensTjrj(raw) {
+  const personagens = Array.isArray(raw.personagensResumido) ? raw.personagensResumido : [];
+  return personagens
+    .map((p) => ({ tipo: cleanText(p.tipo), nome: cleanText(p.nome || p.nomeSocial) }))
+    .filter((p) => p.nome);
+}
+
+function looksPublicParty(nome) {
+  return /MINISTERIO PUBLICO|MINIST[ÉE]RIO P[ÚU]BLICO|ESTADO DO RIO|MUNICIPIO|MUNIC[ÍI]PIO|FAZENDA|INSTITUTO NACIONAL|INSS|UNI[ÃA]O FEDERAL|DEFENSORIA P[ÚU]BLICA/i.test(nome || "");
+}
+
+function pickPartesTjrj(raw) {
+  const personagens = personagensTjrj(raw);
+  const primeiraPessoaPrivada = personagens.find((p) => !looksPublicParty(p.nome));
+  const cliente = primeiraPessoaPrivada?.nome || personagens[0]?.nome || "";
+  const parteContraria = personagens.find((p) => p.nome && p.nome !== cliente)?.nome || "";
+  return { cliente, parteContraria, personagens };
+}
+
+function mapTjrjProcesso(raw, origem) {
+  const numero = cleanText(raw.codCnj || raw.codigoCnj || raw.numeroProcesso || raw.codProc);
+  if (!numero || onlyDigits(numero).length < 12) return null;
+
+  const partes = pickPartesTjrj(raw);
+  const vara = cleanText(raw.descServ || raw.nomeOrgao || raw.serventia);
+  const comarca = cleanText(raw.nomeComarca || raw.comarca);
+
+  return {
+    numero: maskCNJ(numero),
+    titulo: cleanText(raw.classe || raw.assunto || "Processo TJRJ"),
+    cliente_nome: partes.cliente || "A conferir",
+    parte_contraria: partes.parteContraria || undefined,
+    tribunal: "TJRJ",
+    uf: "RJ",
+    sistema: inferSistemaTjrj(raw),
+    classe: cleanText(raw.classe),
+    orgao: cleanText(raw.nomeOrgao || raw.descServ),
+    vara,
+    comarca,
+    fase: cleanText(raw.descrFase || raw.fase),
+    tipo: inferTipoProcesso(raw),
+    data_distribuicao: cleanText(raw.dataDistribuicao || raw.dtDistribuicao) || undefined,
+    url: raw.urlExterna || raw.urlProcessoExterno || undefined,
+    origem: origem?.label || origem?.origem || undefined,
+    personagens: partes.personagens,
+  };
+}
+
 function parseTjrjMovimentosHtml(html) {
   const movimentos = [];
   const rows = html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
@@ -179,6 +258,118 @@ async function buscarDjen({ nome, oabNumero, oabUF = "RJ", dias = 45 }) {
   }
 
   return [...porHash.values()];
+}
+
+const TJRJ_API_BASE = "https://www3.tjrj.jus.br/consultaprocessual/api";
+const TJRJ_HEADERS = {
+  Accept: "application/json, text/plain, */*",
+  "Content-Type": "application/json",
+  Origin: "https://www3.tjrj.jus.br",
+  Referer: "https://www3.tjrj.jus.br/consultaprocessual/",
+  "User-Agent": "Mozilla/5.0",
+};
+
+async function postTjrjApi(endpoint, body) {
+  const res = await fetch(`${TJRJ_API_BASE}/${endpoint}`, {
+    method: "POST",
+    headers: TJRJ_HEADERS,
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    if (res.status === 412) return [];
+    throw new Error(`TJRJ ${endpoint} HTTP ${res.status}: ${text.slice(0, 240)}`);
+  }
+  if (!text.trim()) return [];
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`TJRJ ${endpoint} retornou resposta invalida`);
+  }
+}
+
+async function buscarAdvogadosTjrjPorNome(nome) {
+  const nomeLimpo = cleanText(nome);
+  if (!nomeLimpo) return [];
+  const anoFinal = new Date().getFullYear();
+  const body = {
+    aba: "nomeAdvogado",
+    nome: nomeLimpo,
+    anoInicial: 2000,
+    anoFinal,
+    isPortal: "S",
+    tipoConsulta: "publica",
+    radio: "10",
+    validarSecao: false,
+    totalProcessoPesquisa: 300,
+  };
+  const data = await postTjrjApi("processos/por-nome-advogado", body);
+  if (!Array.isArray(data)) return [];
+  return data.map((item) => {
+    const numeroOab = cleanText(item.numeroOab);
+    const match = numeroOab.match(/^([A-Z]{2})(\d+)/i);
+    return {
+      nome: cleanText(item.nomeAdv),
+      uf: match?.[1]?.toUpperCase() || "RJ",
+      numero: match?.[2] || onlyDigits(numeroOab),
+    };
+  }).filter((item) => item.numero);
+}
+
+async function descobrirProcessosTjrjPorOab({ nome, oabNumero, oabUF = "RJ", anoInicial = 2000, anoFinal }) {
+  const anoFim = Number(anoFinal || new Date().getFullYear());
+  const anoIni = Math.min(Number(anoInicial || 2000), anoFim);
+  const advogados = new Map();
+  const numeroInformado = onlyDigits(oabNumero);
+  const ufInformada = cleanText(oabUF || "RJ").toUpperCase() || "RJ";
+
+  if (numeroInformado) advogados.set(`${ufInformada}:${numeroInformado}`, { uf: ufInformada, numero: numeroInformado });
+
+  for (const advogado of await buscarAdvogadosTjrjPorNome(nome)) {
+    advogados.set(`${advogado.uf}:${advogado.numero}`, advogado);
+  }
+
+  if (advogados.size === 0) {
+    throw new Error("Informe OAB ou nome do advogado para pesquisar no TJRJ.");
+  }
+
+  const origens = [
+    { origem: "1", comarca: "TODAS", label: "1a Instancia" },
+    { origem: "2", label: "2a Instancia" },
+    { origem: "5", label: "Conselho Recursal" },
+    { origem: "7", label: "Juizados Especiais" },
+  ];
+  const processos = new Map();
+
+  for (const advogado of advogados.values()) {
+    for (const origem of origens) {
+      const body = {
+        aba: "oab",
+        oab: advogado.numero,
+        secao: advogado.uf,
+        origem: origem.origem,
+        ...(origem.comarca ? { comarca: origem.comarca } : {}),
+        anoInicial: anoIni,
+        anoFinal: anoFim,
+        somenteProcessoAtivo: "N",
+        isPortal: "S",
+        tipoConsulta: "publica",
+        radio: "10",
+        validarSecao: false,
+        totalProcessoPesquisa: 300,
+      };
+      const data = await postTjrjApi("processos/por-oab", body);
+      if (!Array.isArray(data)) continue;
+      for (const raw of data) {
+        const processo = mapTjrjProcesso(raw, origem);
+        if (!processo) continue;
+        const key = onlyDigits(processo.numero) || processo.numero;
+        if (!processos.has(key)) processos.set(key, processo);
+      }
+    }
+  }
+
+  return [...processos.values()];
 }
 
 function mapDjenPublicacao(item) {
@@ -332,6 +523,20 @@ app.post("/djen/processos", async (req, reply) => {
     }
   }
   return { processos: [...processos.values()], count: processos.size };
+});
+
+app.post("/tribunais/tjrj/processos", async (req, reply) => {
+  if (!checkAuth(req, reply)) return;
+  try {
+    const processos = await descobrirProcessosTjrjPorOab(req.body ?? {});
+    return { processos, count: processos.length, fonte: "TJRJ/Consulta Processual" };
+  } catch (err) {
+    req.log.error(err);
+    return reply.code(502).send({
+      error: "tjrj_unavailable",
+      message: err instanceof Error ? err.message : "Nao foi possivel consultar o TJRJ.",
+    });
+  }
 });
 
 app.post("/sync/processo", async (req, reply) => {

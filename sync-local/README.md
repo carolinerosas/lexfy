@@ -44,13 +44,16 @@ automacao web.
 ## Endpoints principais
 
 - `GET /health`: verifica se o agente esta rodando.
-- `POST /djen/processos`: descobre processos publicados no DJEN por OAB/nome.
 - `POST /djen/publicacoes`: busca publicacoes do DJEN por OAB/nome.
+- `POST /tribunais/tjrj/processos`: descobre processos diretamente na Consulta
+  Processual do TJRJ por OAB/nome.
 - `POST /sync/processo`: tenta sincronizar movimentacoes de um processo.
 
 ## Estado atual dos conectores
 
-- DJEN/CNJ: funcional para publicacoes e descoberta de processos.
+- DJEN/CNJ: funcional para publicacoes.
+- TJRJ Consulta Processual: funcional para descobrir processos por OAB/nome nas
+  origens publicas de 1a instancia, 2a instancia, Conselho Recursal e Juizados.
 - DCP/TJRJ publico: tentativa automatica para processos nao PJe.
 - PJe, eproc, SEEU e eSAJ: abre o portal certo para login assistido e retorna
   `needs_interaction` quando precisa da sua acao/certificado. A extracao

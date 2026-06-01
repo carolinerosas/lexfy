@@ -2,14 +2,20 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Filter, FolderOpen, Plus, Search } from "lucide-react";
+import { AlertCircle, CheckCircle2, CloudDownload, Filter, FolderOpen, Loader2, Plus, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getProcessos } from "@/lib/store";
+import { createProcesso, getProcessos } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import type { Processo, ProcessoStatus, ProcessoTipo } from "@/types";
 import { NovoProcessoModal } from "./novo-processo-modal";
+import { getPerfilAdvogado } from "@/lib/perfil";
+import {
+  descobrirProcessosTribunaisSyncLocal,
+  testarSyncLocal,
+  type SyncLocalTribunalProcesso,
+} from "@/lib/syncLocal";
 
 const statusLabel: Record<ProcessoStatus, string> = {
   ativo: "Ativo",
@@ -35,17 +41,115 @@ const tipoLabel: Record<ProcessoTipo, string> = {
   outro: "Outro",
 };
 
+type ImportState = {
+  type: "success" | "error" | "info";
+  message: string;
+};
+
+function numeroKey(numero: string): string {
+  return numero.replace(/\D/g, "");
+}
+
+function toProcessoTipo(value?: string): ProcessoTipo {
+  const tipos: ProcessoTipo[] = ["civel", "criminal", "trabalhista", "previdenciario", "tributario", "federal", "outro"];
+  return tipos.includes(value as ProcessoTipo) ? (value as ProcessoTipo) : "outro";
+}
+
+function toIsoDate(value?: string): string | undefined {
+  if (!value) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!match) return undefined;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+function processoFromTribunal(item: SyncLocalTribunalProcesso): Omit<Processo, "id" | "created_at" | "updated_at" | "user_id"> {
+  const titulo = item.titulo || item.classe || "Processo TJRJ";
+  return {
+    numero: item.numero,
+    titulo,
+    descricao: item.url ? `Importado do ${item.origem || "TJRJ"}: ${item.url}` : `Importado do ${item.origem || "TJRJ"}`,
+    status: "ativo",
+    tribunal: item.tribunal || "TJRJ",
+    vara: item.vara || item.orgao,
+    comarca: item.comarca,
+    uf: item.uf || "RJ",
+    tipo: toProcessoTipo(item.tipo),
+    fase: item.fase,
+    cliente_nome: item.cliente_nome || "A conferir",
+    parte_contraria: item.parte_contraria,
+    data_distribuicao: toIsoDate(item.data_distribuicao),
+    monitorar_datajud: true,
+    ultimo_sync: new Date().toISOString(),
+  };
+}
+
 export default function ProcessosPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [showModal, setShowModal] = useState(false);
+  const [importando, setImportando] = useState(false);
+  const [importState, setImportState] = useState<ImportState | null>(null);
 
   const load = useCallback(async () => {
     setProcessos(await getProcessos());
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const importarDoTjrj = useCallback(async () => {
+    setImportando(true);
+    setImportState(null);
+    try {
+      const perfil = getPerfilAdvogado();
+      if (!perfil.oab_numero && !perfil.nome) {
+        throw new Error("Preencha seu nome e OAB em Configuracoes antes de buscar no TJRJ.");
+      }
+
+      const health = await testarSyncLocal();
+      if (!health.ok) {
+        throw new Error("O Justio Sync Local nao respondeu. Deixe o comando npm run sync:local aberto e tente de novo.");
+      }
+
+      const encontrados = await descobrirProcessosTribunaisSyncLocal({
+        tribunal: "tjrj",
+        nome: perfil.nome,
+        oabNumero: perfil.oab_numero,
+        oabUF: perfil.oab_uf || "RJ",
+        anoInicial: 2000,
+        anoFinal: new Date().getFullYear(),
+      });
+
+      const existentes = new Set(processos.map((p) => numeroKey(p.numero)).filter(Boolean));
+      const novos = encontrados.filter((p) => {
+        const key = numeroKey(p.numero);
+        return key && !existentes.has(key);
+      });
+
+      for (const processo of novos) {
+        await createProcesso(processoFromTribunal(processo));
+      }
+
+      await load();
+
+      if (novos.length > 0) {
+        const repetidos = encontrados.length - novos.length;
+        setImportState({
+          type: "success",
+          message: `${novos.length} processo${novos.length === 1 ? "" : "s"} importado${novos.length === 1 ? "" : "s"} do TJRJ. ${repetidos} ja existia${repetidos === 1 ? "" : "m"} no Justio.`,
+        });
+      } else if (encontrados.length > 0) {
+        setImportState({ type: "info", message: `Encontrei ${encontrados.length} processo${encontrados.length === 1 ? "" : "s"} no TJRJ, mas todos ja estavam cadastrados.` });
+      } else {
+        setImportState({ type: "info", message: "Nao encontrei processos no TJRJ para esse nome/OAB no periodo pesquisado." });
+      }
+    } catch (err) {
+      setImportState({ type: "error", message: err instanceof Error ? err.message : "Nao consegui buscar processos no TJRJ." });
+    } finally {
+      setImportando(false);
+    }
+  }, [load, processos]);
 
   const filtered = processos.filter((p) => {
     const matchSearch =
@@ -65,10 +169,29 @@ export default function ProcessosPage() {
           <h1 className="text-2xl font-bold text-gray-900">Processos</h1>
           <p className="text-gray-500 text-sm mt-1">{processos.length} processo{processos.length !== 1 ? "s" : ""} cadastrado{processos.length !== 1 ? "s" : ""}</p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4" /> Novo Processo
-        </Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button variant="secondary" onClick={importarDoTjrj} disabled={importando}>
+            {importando ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudDownload className="w-4 h-4" />}
+            {importando ? "Buscando..." : "Buscar no TJRJ"}
+          </Button>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus className="w-4 h-4" /> Novo Processo
+          </Button>
+        </div>
       </div>
+
+      {importState && (
+        <div className={`mb-6 flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
+          importState.type === "success"
+            ? "bg-green-50 text-green-700"
+            : importState.type === "error"
+              ? "bg-red-50 text-red-600"
+              : "bg-blue-50 text-blue-700"
+        }`}>
+          {importState.type === "success" ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertCircle className="w-5 h-5 shrink-0" />}
+          <span>{importState.message}</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3 mb-6">
         <div className="flex-1 min-w-48 max-w-sm">
