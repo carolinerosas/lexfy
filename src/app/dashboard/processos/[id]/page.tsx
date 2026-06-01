@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
-  RefreshCw, Bell, BellOff,
+  RefreshCw, Bell, BellOff, Copy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,7 @@ export default function ProcessoDetailPage() {
   const [honCategoria, setHonCategoria] = useState<"cobranca" | "pagamento">("pagamento");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [copiedNumero, setCopiedNumero] = useState(false);
 
   async function handleSync() {
     if (syncing) return;
@@ -102,6 +103,13 @@ export default function ProcessoDetailPage() {
     if (!confirm("Apagar TODAS as movimentações deste processo? Use isso para limpar dados sincronizados incorretamente. Depois clique em Sincronizar de novo.")) return;
     await deleteMovimentacoesByProcesso(id);
     load();
+  }
+
+  async function handleCopyNumero() {
+    if (!processo?.numero) return;
+    await navigator.clipboard.writeText(processo.numero);
+    setCopiedNumero(true);
+    setTimeout(() => setCopiedNumero(false), 1400);
   }
 
   const [movModal, setMovModal] = useState(false);
@@ -164,7 +172,17 @@ export default function ProcessoDetailPage() {
           </Link>
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <code className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{processo.numero}</code>
+              <div className="flex items-center gap-2">
+                <code className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{processo.numero}</code>
+                <button
+                  type="button"
+                  title="Copiar número do processo"
+                  onClick={handleCopyNumero}
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                >
+                  {copiedNumero ? <CheckCircle className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              </div>
               <Badge variant={statusVariantMap[processo.status]}>{processo.status}</Badge>
               {processo.tipo && <Badge variant="neutral">{processo.tipo}</Badge>}
             </div>

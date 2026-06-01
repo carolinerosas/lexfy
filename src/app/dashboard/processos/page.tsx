@@ -2,11 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, CloudDownload, Filter, FolderOpen, Loader2, Plus, Search } from "lucide-react";
+import {
+  AlertCircle, Archive, CheckCircle2, CloudDownload, Copy,
+  Eye, Filter, FolderOpen, Loader2, Plus, Search, Trash2,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createProcesso, getProcessos } from "@/lib/store";
+import { createProcesso, deleteProcesso, getProcessos, updateProcesso } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import type { Processo, ProcessoStatus, ProcessoTipo } from "@/types";
 import { NovoProcessoModal } from "./novo-processo-modal";
@@ -29,6 +32,13 @@ const statusVariant: Record<ProcessoStatus, "default" | "warning" | "neutral" | 
   suspenso: "warning",
   arquivado: "neutral",
   encerrado: "neutral",
+};
+
+const statusPriority: Record<ProcessoStatus, number> = {
+  ativo: 0,
+  suspenso: 1,
+  arquivado: 2,
+  encerrado: 3,
 };
 
 const tipoLabel: Record<ProcessoTipo, string> = {
@@ -87,10 +97,12 @@ function processoFromTribunal(item: SyncLocalTribunalProcesso): Omit<Processo, "
 export default function ProcessosPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [statusFilter, setStatusFilter] = useState<string>("ativo");
   const [showModal, setShowModal] = useState(false);
   const [importando, setImportando] = useState(false);
   const [importState, setImportState] = useState<ImportState | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [busyProcessoId, setBusyProcessoId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setProcessos(await getProcessos());
@@ -151,16 +163,51 @@ export default function ProcessosPage() {
     }
   }, [load, processos]);
 
-  const filtered = processos.filter((p) => {
-    const matchSearch =
-      !search ||
-      p.numero.toLowerCase().includes(search.toLowerCase()) ||
-      p.titulo.toLowerCase().includes(search.toLowerCase()) ||
-      p.cliente_nome.toLowerCase().includes(search.toLowerCase()) ||
-      (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "todos" || p.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const copyNumero = useCallback(async (processo: Processo) => {
+    await navigator.clipboard.writeText(processo.numero);
+    setCopiedId(processo.id);
+    setTimeout(() => setCopiedId((current) => current === processo.id ? null : current), 1400);
+  }, []);
+
+  const arquivarProcesso = useCallback(async (processo: Processo) => {
+    if (processo.status === "arquivado") return;
+    setBusyProcessoId(processo.id);
+    try {
+      await updateProcesso(processo.id, { status: "arquivado" });
+      await load();
+    } finally {
+      setBusyProcessoId(null);
+    }
+  }, [load]);
+
+  const excluirProcesso = useCallback(async (processo: Processo) => {
+    const ok = window.confirm(`Excluir o processo ${processo.numero}? Esta acao nao pode ser desfeita.`);
+    if (!ok) return;
+    setBusyProcessoId(processo.id);
+    try {
+      await deleteProcesso(processo.id);
+      await load();
+    } finally {
+      setBusyProcessoId(null);
+    }
+  }, [load]);
+
+  const filtered = processos
+    .filter((p) => {
+      const matchSearch =
+        !search ||
+        p.numero.toLowerCase().includes(search.toLowerCase()) ||
+        p.titulo.toLowerCase().includes(search.toLowerCase()) ||
+        p.cliente_nome.toLowerCase().includes(search.toLowerCase()) ||
+        (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchStatus = statusFilter === "todos" || p.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      const byStatus = statusPriority[a.status] - statusPriority[b.status];
+      if (byStatus !== 0) return byStatus;
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
@@ -208,7 +255,7 @@ export default function ProcessosPage() {
         </div>
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400" />
-          {(["todos", "ativo", "suspenso", "arquivado", "encerrado"] as const).map((s) => (
+          {(["ativo", "todos", "suspenso", "arquivado", "encerrado"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
@@ -240,8 +287,8 @@ export default function ProcessosPage() {
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <table className="w-full text-sm">
+        <Card className="overflow-x-auto">
+          <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
                 <th className="text-left px-6 py-3">Número / Título</th>
@@ -250,14 +297,24 @@ export default function ProcessosPage() {
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Tipo</th>
                 <th className="text-left px-4 py-3">Status</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">Distribuição</th>
-                <th className="px-4 py-3" />
+                <th className="px-6 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => (
                 <tr key={p.id} className="hover:bg-gray-50/60 transition-colors group">
                   <td className="px-6 py-4">
-                    <p className="font-medium text-gray-900 font-mono text-xs">{p.numero}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-900 font-mono text-xs">{p.numero}</p>
+                      <button
+                        type="button"
+                        title="Copiar número do processo"
+                        onClick={() => copyNumero(p)}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      >
+                        {copiedId === p.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                     <p className="text-gray-600 mt-0.5 line-clamp-1">{p.titulo}</p>
                   </td>
                   <td className="px-4 py-4">
@@ -278,13 +335,36 @@ export default function ProcessosPage() {
                   <td className="px-4 py-4 hidden xl:table-cell text-gray-500">
                     {p.data_distribuicao ? formatDate(p.data_distribuicao) : "—"}
                   </td>
-                  <td className="px-4 py-4 text-right">
-                    <Link
-                      href={`/dashboard/processos/${p.id}`}
-                      className="text-gray-500 hover:text-gray-900 font-medium text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      Ver detalhes →
-                    </Link>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <Link
+                        href={`/dashboard/processos/${p.id}`}
+                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Detalhes
+                      </Link>
+                      {p.status !== "arquivado" && (
+                        <button
+                          type="button"
+                          title="Arquivar processo"
+                          onClick={() => arquivarProcesso(p)}
+                          disabled={busyProcessoId === p.id}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        title="Excluir processo"
+                        onClick={() => excluirProcesso(p)}
+                        disabled={busyProcessoId === p.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
