@@ -1,13 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { createProcesso, createCliente, getClientes } from "@/lib/store";
-import type { Cliente } from "@/types";
+import {
+  buscarNoDataJud,
+  DataJudError,
+  formatarCNJ,
+  parseCNJ,
+  ufFromTribunalDataJud,
+  type DataJudResult,
+} from "@/lib/datajud";
+import type { Cliente, ProcessoTipo } from "@/types";
 
 const ufs = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -23,6 +32,43 @@ const tipoOptions = [
   { value: "federal", label: "Federal" },
   { value: "outro", label: "Outro" },
 ];
+
+type LookupStatus = "idle" | "loading" | "ok" | "erro";
+
+function textoBusca(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): ProcessoTipo {
+  const texto = textoBusca([
+    data.classe,
+    data.sistema,
+    data.grau,
+    tribunal,
+    ...(data.assuntos ?? []),
+  ].filter(Boolean).join(" "));
+
+  if (/(penal|criminal|crime|pena|juri|trafico)/.test(texto)) return "criminal";
+  if (/(trabalh|reclamacao trabalhista|trt)/.test(texto)) return "trabalhista";
+  if (/(previdenc|beneficio|aposentad|inss)/.test(texto)) return "previdenciario";
+  if (/(tribut|fiscal|execucao fiscal)/.test(texto)) return "tributario";
+  if ((tribunal ?? "").startsWith("trf")) return "federal";
+  return "civel";
+}
+
+function descricaoDataJud(data: DataJudResult): string {
+  const linhas = [
+    data.classe ? `Classe: ${data.classe}` : "",
+    data.assuntos?.length ? `Assuntos: ${data.assuntos.slice(0, 5).join("; ")}` : "",
+    data.sistema ? `Sistema: ${data.sistema}` : "",
+    data.grau ? `Grau: ${data.grau}` : "",
+  ].filter(Boolean);
+
+  return linhas.join("\n");
+}
 
 interface Props {
   open: boolean;
@@ -51,12 +97,88 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     status: "ativo" as const,
   });
   const [saving, setSaving] = useState(false);
+  const [dataJudStatus, setDataJudStatus] = useState<LookupStatus>("idle");
+  const [dataJudMessage, setDataJudMessage] = useState("");
+  const [numeroConsultado, setNumeroConsultado] = useState("");
 
   useEffect(() => {
     if (open) {
       getClientes().then(setClientes);
+    } else {
+      setDataJudStatus("idle");
+      setDataJudMessage("");
+      setNumeroConsultado("");
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const numeroFormatado = formatarCNJ(form.numero);
+    const digits = form.numero.replace(/\D/g, "");
+
+    if (!numeroFormatado) {
+      if (digits.length < 20) {
+        setDataJudStatus("idle");
+        setDataJudMessage("");
+      } else {
+        setDataJudStatus("erro");
+        setDataJudMessage("Formato CNJ invalido. Use 0000000-00.0000.0.00.0000.");
+      }
+      return;
+    }
+
+    if (numeroFormatado === numeroConsultado) return;
+
+    let cancelado = false;
+    const timer = window.setTimeout(async () => {
+      setDataJudStatus("loading");
+      setDataJudMessage("Buscando dados publicos no DataJud...");
+
+      try {
+        const data = await buscarNoDataJud(numeroFormatado);
+        if (cancelado) return;
+
+        const { tribunal } = parseCNJ(numeroFormatado);
+        const tribunalLabel = tribunal?.toUpperCase() ?? "";
+        const titulo = data.classe || data.assuntos?.[0] || "Processo judicial";
+        const descricao = descricaoDataJud(data);
+
+        setForm((f) => ({
+          ...f,
+          numero: numeroFormatado,
+          titulo: f.titulo.trim() ? f.titulo : titulo,
+          tribunal: f.tribunal.trim() ? f.tribunal : tribunalLabel,
+          vara: f.vara.trim() ? f.vara : data.orgaoJulgador ?? "",
+          uf: f.uf || ufFromTribunalDataJud(tribunal),
+          tipo: f.tipo || inferirTipoDataJud(data, tribunal),
+          fase: f.fase.trim() ? f.fase : data.sistema ?? data.grau ?? "",
+          data_distribuicao: f.data_distribuicao || data.dataAjuizamento?.slice(0, 10) || "",
+          descricao: f.descricao.trim() ? f.descricao : descricao,
+        }));
+
+        setNumeroConsultado(numeroFormatado);
+        setDataJudStatus("ok");
+        setDataJudMessage(
+          "Capa encontrada. Confira cliente, parte contraria e valor, porque o DataJud publico nem sempre informa esses dados."
+        );
+      } catch (error) {
+        if (cancelado) return;
+        setNumeroConsultado(numeroFormatado);
+        setDataJudStatus("erro");
+        setDataJudMessage(
+          error instanceof DataJudError
+            ? error.message
+            : "Nao consegui consultar o DataJud agora. Voce ainda pode preencher manualmente."
+        );
+      }
+    }, 600);
+
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timer);
+    };
+  }, [open, form.numero, numeroConsultado]);
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -139,6 +261,23 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
             onChange={(e) => set("tipo", e.target.value)}
           />
         </div>
+
+        {dataJudStatus !== "idle" && (
+          <div
+            className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${
+              dataJudStatus === "ok"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : dataJudStatus === "erro"
+                  ? "border-amber-200 bg-amber-50 text-amber-800"
+                  : "border-gray-200 bg-gray-50 text-gray-600"
+            }`}
+          >
+            {dataJudStatus === "loading" && <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />}
+            {dataJudStatus === "ok" && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />}
+            {dataJudStatus === "erro" && <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+            <span>{dataJudMessage}</span>
+          </div>
+        )}
 
         <Input
           label="Título / Assunto *"

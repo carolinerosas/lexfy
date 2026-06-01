@@ -5,10 +5,10 @@ const TRIBUNAL_MAP: Record<string, string> = {
   // Segment 8 — Estadual
   "8.01": "tjac", "8.02": "tjal", "8.03": "tjap", "8.04": "tjam",
   "8.05": "tjba", "8.06": "tjce", "8.07": "tjdft","8.08": "tjes",
-  "8.09": "tjgo", "8.10": "tjma", "8.11": "tjmg", "8.12": "tjms",
-  "8.13": "tjmt", "8.14": "tjpa", "8.15": "tjpb", "8.16": "tjpe",
-  "8.17": "tjpi", "8.18": "tjpr", "8.19": "tjrj", "8.20": "tjrn",
-  "8.21": "tjro", "8.22": "tjrr", "8.23": "tjrs", "8.24": "tjsc",
+  "8.09": "tjgo", "8.10": "tjma", "8.11": "tjmt", "8.12": "tjms",
+  "8.13": "tjmg", "8.14": "tjpa", "8.15": "tjpb", "8.16": "tjpr",
+  "8.17": "tjpe", "8.18": "tjpi", "8.19": "tjrj", "8.20": "tjrn",
+  "8.21": "tjrs", "8.22": "tjro", "8.23": "tjrr", "8.24": "tjsc",
   "8.25": "tjse", "8.26": "tjsp", "8.27": "tjto",
   // Segment 4 — Federal (TRF)
   "4.01": "trf1", "4.02": "trf2", "4.03": "trf3",
@@ -26,13 +26,44 @@ const TRIBUNAL_MAP: Record<string, string> = {
   "1.00": "stf",
 };
 
+export function formatarCNJ(numero: string): string | null {
+  const digits = numero.replace(/\D/g, "");
+  if (digits.length !== 20) return null;
+
+  return [
+    digits.slice(0, 7),
+    "-",
+    digits.slice(7, 9),
+    ".",
+    digits.slice(9, 13),
+    ".",
+    digits.slice(13, 14),
+    ".",
+    digits.slice(14, 16),
+    ".",
+    digits.slice(16, 20),
+  ].join("");
+}
+
+export function normalizarCNJ(numero: string): string {
+  return formatarCNJ(numero) ?? numero.replace(/\s/g, "");
+}
+
 export function parseCNJ(numero: string): { tribunal: string | null; numeroLimpo: string } {
-  const limpo = numero.replace(/\s/g, "");
+  const limpo = normalizarCNJ(numero);
   const match = limpo.match(/^(\d{7})-(\d{2})\.(\d{4})\.(\d)\.(\d{2})\.(\d{4})$/);
   if (!match) return { tribunal: null, numeroLimpo: limpo };
   const [, , , , segment, tt] = match;
   const key = `${segment}.${tt}`;
   return { tribunal: TRIBUNAL_MAP[key] ?? null, numeroLimpo: limpo };
+}
+
+export function ufFromTribunalDataJud(tribunal: string | null | undefined): string {
+  if (!tribunal) return "";
+  const slug = tribunal.toLowerCase();
+  if (slug === "tjdft") return "DF";
+  if (slug.startsWith("tj") && slug.length === 4) return slug.slice(2).toUpperCase();
+  return "";
 }
 
 export interface DataJudMovimento {
