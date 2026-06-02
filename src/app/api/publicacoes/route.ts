@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
+import type { Processo, Publicacao } from "@/types";
 
 const HEADERS = {
   "User-Agent":
@@ -9,6 +11,8 @@ const HEADERS = {
 
 const PUBLICATION_SEARCH_DAYS = 45;
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
+const USER_ID = "lexfy_shared";
+const SYNC_STATUS_ID = "daily_publicacoes";
 
 export interface PubEncontrada {
   titulo: string;
@@ -57,6 +61,69 @@ type DjenResponse = {
   count?: number;
   items?: DjenComunicacao[];
 };
+
+type PerfilAdvogadoDb = {
+  nome?: string | null;
+  oab_numero?: string | null;
+  oab_uf?: string | null;
+};
+
+type PublicacoesSyncStatus = {
+  id: string;
+  last_run_at?: string | null;
+  last_success_at?: string | null;
+  last_found?: number | null;
+  last_imported?: number | null;
+  last_errors?: string[] | null;
+  updated_at?: string | null;
+};
+
+const CNJ_REGEX = /\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/;
+
+function isMissingTable(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && (
+    (error as { code?: string }).code === "PGRST205" ||
+    (error as { code?: string }).code === "42P01"
+  );
+}
+
+function generateId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `pub_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function onlyDigits(value?: string): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function extractCNJ(text?: string): string | null {
+  if (!text) return null;
+  const m = CNJ_REGEX.exec(text);
+  return m ? m[0] : null;
+}
+
+function findProcessoIdByCNJ(processos: Pick<Processo, "id" | "numero">[], ...texts: (string | undefined)[]): string | undefined {
+  for (const text of texts) {
+    const cnj = extractCNJ(text);
+    if (!cnj) continue;
+    const digits = onlyDigits(cnj);
+    const match = processos.find((p) => onlyDigits(p.numero) === digits);
+    if (match) return match.id;
+  }
+  return undefined;
+}
+
+function publicacaoKey(pub: Pick<Publicacao, "titulo" | "conteudo" | "data_publicacao" | "diario" | "url"> | PubEncontrada): string {
+  return simpleHash([
+    pub.diario ?? "",
+    pub.data_publicacao ?? "",
+    pub.titulo ?? "",
+    (pub.conteudo ?? "").slice(0, 1000),
+    pub.url ?? "",
+  ].join("|"));
+}
 
 function decodeHtml(text: string): string {
   return text
@@ -388,58 +455,216 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
   return [...porHash.values()];
 }
 
+async function executarBuscaPublicacoes(input: {
+  nome?: string;
+  oabNumero?: string;
+  oabUF?: string;
+}): Promise<{ resultados: PubEncontrada[]; erros: string[]; buscadoEm: string }> {
+  const { nome, oabNumero, oabUF } = input;
+  const resultados: PubEncontrada[] = [];
+  const erros: string[] = [];
+
+  if (nome) {
+    try {
+      const items = await buscarDOU(nome);
+      resultados.push(...items);
+      console.log(`[DOU] ${items.length} publicacao(oes) encontrada(s)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      erros.push(`DOU: ${msg}`);
+      console.error("[DOU] erro:", msg);
+    }
+  }
+
+  if (oabNumero || nome) {
+    try {
+      const items = await buscarDJEN(nome, oabNumero, oabUF ?? "RJ");
+      resultados.push(...items);
+      console.log(`[DJEN/CNJ] ${items.length} publicacao(oes) encontrada(s)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      erros.push(`DJEN/CNJ: ${msg}`);
+      console.error("[DJEN/CNJ] erro:", msg);
+    }
+  }
+
+  if ((oabNumero && (!oabUF || oabUF === "RJ")) || nome) {
+    try {
+      const items = await buscarDJETJERJ(nome, oabNumero, oabUF ?? "RJ");
+      resultados.push(...items);
+      console.log(`[TJERJ DJE] ${items.length} publicacao(oes) encontrada(s)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      erros.push(`TJERJ DJE: ${msg}`);
+      console.error("[TJERJ DJE] erro:", msg);
+    }
+  }
+
+  return {
+    resultados,
+    erros,
+    buscadoEm: new Date().toISOString(),
+  };
+}
+
+async function getPerfilCron(): Promise<PerfilAdvogadoDb | null> {
+  const { data, error } = await supabase
+    .from("perfil_advogado")
+    .select("nome,oab_numero,oab_uf")
+    .eq("user_id", USER_ID)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingTable(error)) return null;
+    throw error;
+  }
+
+  return data as PerfilAdvogadoDb | null;
+}
+
+async function salvarResultadosNoBanco(resultados: PubEncontrada[]): Promise<number> {
+  if (resultados.length === 0) return 0;
+
+  const [{ data: publicacoesExistentes, error: publicacoesError }, { data: processosData, error: processosError }] = await Promise.all([
+    supabase
+      .from("publicacoes")
+      .select("titulo,conteudo,data_publicacao,diario,url"),
+    supabase
+      .from("processos")
+      .select("id,numero"),
+  ]);
+
+  if (publicacoesError) throw publicacoesError;
+  if (processosError) throw processosError;
+
+  const knownKeys = new Set(
+    ((publicacoesExistentes ?? []) as Publicacao[]).map((pub) => publicacaoKey(pub))
+  );
+  const processos = (processosData ?? []) as Pick<Processo, "id" | "numero">[];
+  const nowIso = new Date().toISOString();
+  const novas: Publicacao[] = [];
+
+  for (const pub of resultados) {
+    const key = publicacaoKey(pub);
+    if (knownKeys.has(key)) continue;
+
+    novas.push({
+      id: generateId(),
+      processo_id: findProcessoIdByCNJ(processos, pub.titulo, pub.conteudo),
+      titulo: pub.titulo,
+      conteudo: pub.conteudo,
+      data_publicacao: pub.data_publicacao,
+      diario: pub.diario,
+      url: pub.url || undefined,
+      lida: false,
+      created_at: nowIso,
+      user_id: USER_ID,
+    });
+    knownKeys.add(key);
+  }
+
+  if (novas.length === 0) return 0;
+
+  const { error } = await supabase.from("publicacoes").insert(novas);
+  if (error) throw error;
+
+  return novas.length;
+}
+
+async function getSyncStatus(): Promise<PublicacoesSyncStatus | null> {
+  const { data, error } = await supabase
+    .from("publicacoes_sync_status")
+    .select("*")
+    .eq("id", SYNC_STATUS_ID)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingTable(error)) return null;
+    throw error;
+  }
+
+  return data as PublicacoesSyncStatus | null;
+}
+
+async function updateSyncStatus(input: Partial<PublicacoesSyncStatus>): Promise<void> {
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase
+    .from("publicacoes_sync_status")
+    .upsert({
+      id: SYNC_STATUS_ID,
+      updated_at: nowIso,
+      ...input,
+    }, { onConflict: "id" });
+
+  if (error && !isMissingTable(error)) throw error;
+}
+
+function isCronAuthorized(req: NextRequest): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return true;
+  return req.headers.get("authorization") === `Bearer ${secret}`;
+}
+
+export async function GET(req: NextRequest) {
+  if (process.env.PUBLICACOES_CRON_ENABLED !== "true") {
+    return NextResponse.json({ ok: true, skipped: true, reason: "cron disabled" });
+  }
+
+  if (!isCronAuthorized(req)) {
+    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const startedAt = new Date().toISOString();
+  await updateSyncStatus({ last_run_at: startedAt, last_errors: [] });
+
+  try {
+    const perfil = await getPerfilCron();
+    const nome = perfil?.nome?.trim() ?? "";
+    const oabNumero = perfil?.oab_numero?.trim() ?? "";
+    const oabUF = perfil?.oab_uf?.trim().toUpperCase() || "RJ";
+
+    if (!nome && !oabNumero) {
+      throw new Error("Perfil de advogado nao configurado para busca automatica.");
+    }
+
+    const busca = await executarBuscaPublicacoes({ nome, oabNumero, oabUF });
+    const imported = await salvarResultadosNoBanco(busca.resultados);
+
+    await updateSyncStatus({
+      last_run_at: startedAt,
+      last_success_at: busca.buscadoEm,
+      last_found: busca.resultados.length,
+      last_imported: imported,
+      last_errors: busca.erros,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      total: busca.resultados.length,
+      imported,
+      erros: busca.erros,
+      buscadoEm: busca.buscadoEm,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    await updateSyncStatus({ last_run_at: startedAt, last_errors: [msg] });
+
+    return NextResponse.json(
+      { ok: false, error: msg },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { nome, oabNumero, oabUF } = (await req.json()) as {
+    const input = (await req.json()) as {
       nome?: string;
       oabNumero?: string;
       oabUF?: string;
     };
 
-    const resultados: PubEncontrada[] = [];
-    const erros: string[] = [];
-
-    if (nome) {
-      try {
-        const items = await buscarDOU(nome);
-        resultados.push(...items);
-        console.log(`[DOU] ${items.length} publicacao(oes) encontrada(s)`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        erros.push(`DOU: ${msg}`);
-        console.error("[DOU] erro:", msg);
-      }
-    }
-
-    if (oabNumero || nome) {
-      try {
-        const items = await buscarDJEN(nome, oabNumero, oabUF ?? "RJ");
-        resultados.push(...items);
-        console.log(`[DJEN/CNJ] ${items.length} publicacao(oes) encontrada(s)`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        erros.push(`DJEN/CNJ: ${msg}`);
-        console.error("[DJEN/CNJ] erro:", msg);
-      }
-    }
-
-    if ((oabNumero && (!oabUF || oabUF === "RJ")) || nome) {
-      try {
-        const items = await buscarDJETJERJ(nome, oabNumero, oabUF ?? "RJ");
-        resultados.push(...items);
-        console.log(`[TJERJ DJE] ${items.length} publicacao(oes) encontrada(s)`);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        erros.push(`TJERJ DJE: ${msg}`);
-        console.error("[TJERJ DJE] erro:", msg);
-      }
-    }
-
-    return NextResponse.json({
-      resultados,
-      erros,
-      buscadoEm: new Date().toISOString(),
-    });
+    return NextResponse.json(await executarBuscaPublicacoes(input));
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erro desconhecido" },

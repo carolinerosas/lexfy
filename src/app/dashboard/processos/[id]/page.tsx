@@ -197,13 +197,13 @@ export default function ProcessoDetailPage() {
 
   const tabs: { key: Tab; label: string; count: number; unread?: number; showCount?: boolean }[] = [
     { key: "movimentacoes", label: "Movimentações", count: movimentacoes.length, unread: movNaoLidas },
-    { key: "resultado", label: "Resultado", count: hasResultado ? 1 : 0, showCount: false },
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
     { key: "atendimentos", label: "Atendimentos", count: atendimentos.filter((a) => a.status === "agendado").length },
     { key: "honorarios", label: "Honorários", count: honorarios.length },
+    { key: "resultado", label: "Resultado", count: hasResultado ? 1 : 0, showCount: false },
   ];
 
   return (

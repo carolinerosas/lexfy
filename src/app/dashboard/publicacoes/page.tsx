@@ -159,6 +159,18 @@ interface Perfil {
   oab_uf?: string;
 }
 
+interface PublicacoesSyncStatus {
+  last_run_at?: string | null;
+  last_success_at?: string | null;
+  last_found?: number | null;
+  last_imported?: number | null;
+  last_errors?: string[] | null;
+}
+
+interface PublicacoesStatusResponse {
+  status?: PublicacoesSyncStatus | null;
+}
+
 type DjenAdvogado = {
   advogado?: {
     nome?: string;
@@ -217,6 +229,23 @@ function simpleHash(value: string): string {
     hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+function newestIso(...values: (string | null | undefined)[]): string {
+  let newest = "";
+  let newestTime = 0;
+
+  for (const value of values) {
+    if (!value) continue;
+    const time = new Date(value).getTime();
+    if (!Number.isFinite(time)) continue;
+    if (time > newestTime) {
+      newest = value;
+      newestTime = time;
+    }
+  }
+
+  return newest;
 }
 
 function mapDjenItem(item: DjenComunicacao): PubEncontrada {
@@ -328,7 +357,24 @@ export default function PublicacoesPage() {
     } catch { /* silently fail */ }
 
     try {
-      setUltimaBusca(localStorage.getItem(ULTIMA_BUSCA_KEY) ?? "");
+      const localUltima = localStorage.getItem(ULTIMA_BUSCA_KEY) ?? "";
+      let cloudUltima = "";
+
+      try {
+        const res = await fetch("/api/publicacoes/status", { cache: "no-store" });
+        if (res.ok) {
+          const data = (await res.json()) as PublicacoesStatusResponse;
+          cloudUltima = data.status?.last_success_at ?? data.status?.last_run_at ?? "";
+        }
+      } catch {
+        /* status remoto opcional */
+      }
+
+      const ultima = newestIso(localUltima, cloudUltima);
+      setUltimaBusca(ultima);
+      if (ultima && ultima !== localUltima) {
+        localStorage.setItem(ULTIMA_BUSCA_KEY, ultima);
+      }
     } catch { /* silently fail */ }
   }, []);
 
@@ -507,6 +553,7 @@ export default function PublicacoesPage() {
             <p className="text-gray-400 text-xs mt-0.5">
               {perfil.nome} · OAB/{perfil.oab_uf ?? "RJ"} {perfil.oab_numero}
               {ultimaBuscaLabel && <> · última busca: {ultimaBuscaLabel}</>}
+              <> · busca diária às 8h</>
             </p>
           </div>
           <Link href="/dashboard/configuracoes" className="text-gray-500 hover:text-white transition-colors">
