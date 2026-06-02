@@ -1,6 +1,5 @@
 import Fastify from "fastify";
 import { chromium } from "playwright";
-import { createClient } from "@supabase/supabase-js";
 
 if (!process.env.TZ) process.env.TZ = "America/Sao_Paulo";
 
@@ -14,11 +13,19 @@ const PUBLICACOES_DAILY_ENABLED = process.env.JUSTIO_PUBLICACOES_DAILY_ENABLED !
 const PUBLICACOES_SEARCH_DAYS = Number(process.env.JUSTIO_PUBLICACOES_SEARCH_DAYS || 45);
 const SYNC_STATUS_ID = "daily_publicacoes";
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const app = Fastify({ logger: true });
 let publicacoesTimer = null;
 let nextPublicacoesRunAt = "";
+let supabaseClientPromise = null;
+
+async function getSupabase() {
+  if (!supabaseClientPromise) {
+    supabaseClientPromise = import("@supabase/supabase-js")
+      .then(({ createClient }) => createClient(SUPABASE_URL, SUPABASE_KEY));
+  }
+  return supabaseClientPromise;
+}
 
 // CORS — permite chamadas do justio.com.br e localhost
 const ALLOWED_ORIGINS = [
@@ -217,6 +224,7 @@ function mapDjenPublicacao(item) {
 }
 
 async function getPerfilAdvogadoCloud() {
+  const supabase = await getSupabase();
   const { data, error } = await supabase
     .from("perfil_advogado")
     .select("nome,oab_numero,oab_uf")
@@ -228,6 +236,7 @@ async function getPerfilAdvogadoCloud() {
 }
 
 async function updatePublicacoesSyncStatus(input) {
+  const supabase = await getSupabase();
   const { error } = await supabase
     .from("publicacoes_sync_status")
     .upsert({
@@ -242,6 +251,7 @@ async function updatePublicacoesSyncStatus(input) {
 async function salvarPublicacoesDjen(items) {
   if (!items.length) return 0;
 
+  const supabase = await getSupabase();
   const [{ data: publicacoesData, error: publicacoesError }, { data: processosData, error: processosError }] = await Promise.all([
     supabase.from("publicacoes").select("titulo,conteudo,data_publicacao,diario,url"),
     supabase.from("processos").select("id,numero"),
