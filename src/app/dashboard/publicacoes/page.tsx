@@ -241,6 +241,14 @@ function publicacaoKey(pub: Pick<Publicacao, "titulo" | "conteudo" | "data_publi
   ].join("|"));
 }
 
+function publicacaoLooseKey(pub: Pick<Publicacao, "titulo" | "data_publicacao" | "diario"> | PubEncontrada): string {
+  return simpleHash([
+    pub.diario ?? "",
+    pub.data_publicacao ?? "",
+    pub.titulo ?? "",
+  ].join("|"));
+}
+
 function newestIso(...values: (string | null | undefined)[]): string {
   let newest = "";
   let newestTime = 0;
@@ -426,12 +434,15 @@ export default function PublicacoesPage() {
     }
 
     const knownKeys = new Set(publicacoes.map((p) => publicacaoKey(p)));
+    const knownLooseKeys = new Set(publicacoes.map((p) => publicacaoLooseKey(p)));
     const novas: PubEncontrada[] = [];
 
     for (const pub of resultados) {
       const key = publicacaoKey(pub);
-      if (knownKeys.has(key) || hashesSet.has(pub.hash)) continue;
+      const looseKey = publicacaoLooseKey(pub);
+      if (knownKeys.has(key) || knownLooseKeys.has(looseKey) || hashesSet.has(pub.hash)) continue;
       knownKeys.add(key);
+      knownLooseKeys.add(looseKey);
       hashesSet.add(pub.hash);
       novas.push(pub);
     }
@@ -497,7 +508,14 @@ export default function PublicacoesPage() {
         if (hasDjenServerError && (perfil.oab_numero || perfil.nome)) {
           try {
             const diretas = await buscarDjenDireto(perfil);
-            const importedDireto = await importarResultadosNoCliente(diretas);
+            const saveRes = await fetch("/api/publicacoes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ resultados: diretas, buscadoEm: agora }),
+            });
+            const saveData = await saveRes.json() as { imported?: number; error?: string };
+            if (!saveRes.ok) throw new Error(saveData.error ?? "Nao foi possivel salvar DJEN/CNJ direto.");
+            const importedDireto = saveData.imported ?? 0;
             imported += importedDireto;
             if (diretas.length > 0) {
               erros = erros.filter((e) => !e.startsWith("DJEN/CNJ"));

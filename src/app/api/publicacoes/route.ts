@@ -127,6 +127,14 @@ function publicacaoKey(pub: Pick<Publicacao, "titulo" | "conteudo" | "data_publi
   ].join("|"));
 }
 
+function publicacaoLooseKey(pub: Pick<Publicacao, "titulo" | "data_publicacao" | "diario"> | PubEncontrada): string {
+  return simpleHash([
+    pub.diario ?? "",
+    pub.data_publicacao ?? "",
+    pub.titulo ?? "",
+  ].join("|"));
+}
+
 function decodeHtml(text: string): string {
   return text
     .replace(/&nbsp;/gi, " ")
@@ -579,13 +587,17 @@ async function salvarResultadosNoBanco(resultados: PubEncontrada[]): Promise<num
   const knownKeys = new Set(
     ((publicacoesExistentes ?? []) as Publicacao[]).map((pub) => publicacaoKey(pub))
   );
+  const knownLooseKeys = new Set(
+    ((publicacoesExistentes ?? []) as Publicacao[]).map((pub) => publicacaoLooseKey(pub))
+  );
   const processos = (processosData ?? []) as Pick<Processo, "id" | "numero">[];
   const nowIso = new Date().toISOString();
   const novas: Publicacao[] = [];
 
   for (const pub of resultados) {
     const key = publicacaoKey(pub);
-    if (knownKeys.has(key)) continue;
+    const looseKey = publicacaoLooseKey(pub);
+    if (knownKeys.has(key) || knownLooseKeys.has(looseKey)) continue;
 
     novas.push({
       id: generateId(),
@@ -600,6 +612,7 @@ async function salvarResultadosNoBanco(resultados: PubEncontrada[]): Promise<num
       user_id: USER_ID,
     });
     knownKeys.add(key);
+    knownLooseKeys.add(looseKey);
   }
 
   if (novas.length === 0) return 0;
@@ -701,10 +714,33 @@ export async function POST(req: NextRequest) {
       nome?: string;
       oabNumero?: string;
       oabUF?: string;
+      resultados?: PubEncontrada[];
+      buscadoEm?: string;
     };
 
     const startedAt = new Date().toISOString();
     await updateSyncStatus({ last_run_at: startedAt, last_errors: [] });
+
+    if (Array.isArray(input.resultados)) {
+      const buscadoEm = input.buscadoEm ?? startedAt;
+      const imported = await salvarResultadosNoBanco(input.resultados);
+
+      await updateSyncStatus({
+        last_run_at: startedAt,
+        last_success_at: buscadoEm,
+        last_found: input.resultados.length,
+        last_imported: imported,
+        last_errors: [],
+      });
+
+      return NextResponse.json({
+        saved: true,
+        total: input.resultados.length,
+        imported,
+        erros: [],
+        buscadoEm,
+      });
+    }
 
     const busca = await executarBuscaPublicacoes(input);
     const imported = await salvarResultadosNoBanco(busca.resultados);

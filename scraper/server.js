@@ -133,6 +133,14 @@ function publicacaoKey(pub) {
   ].join("|"));
 }
 
+function publicacaoLooseKey(pub) {
+  return simpleHash([
+    pub.diario || "",
+    pub.data_publicacao || "",
+    pub.titulo || "",
+  ].join("|"));
+}
+
 function generateId() {
   return crypto.randomUUID();
 }
@@ -261,6 +269,7 @@ async function salvarPublicacoesDjen(items) {
   if (processosError) throw processosError;
 
   const knownKeys = new Set((publicacoesData || []).map((pub) => publicacaoKey(pub)));
+  const knownLooseKeys = new Set((publicacoesData || []).map((pub) => publicacaoLooseKey(pub)));
   const processos = processosData || [];
   const createdAt = new Date().toISOString();
   const novas = [];
@@ -270,8 +279,9 @@ async function salvarPublicacoesDjen(items) {
     const processoDigits = onlyDigits(extractCNJ(`${pub.titulo} ${pub.conteudo}`));
     const processo = processos.find((p) => onlyDigits(p.numero) === processoDigits);
     const key = publicacaoKey(pub);
+    const looseKey = publicacaoLooseKey(pub);
 
-    if (knownKeys.has(key)) continue;
+    if (knownKeys.has(key) || knownLooseKeys.has(looseKey)) continue;
 
     novas.push({
       id: generateId(),
@@ -282,6 +292,7 @@ async function salvarPublicacoesDjen(items) {
       ...pub,
     });
     knownKeys.add(key);
+    knownLooseKeys.add(looseKey);
   }
 
   if (!novas.length) return 0;
