@@ -1,12 +1,20 @@
 import Fastify from "fastify";
 import { chromium } from "playwright";
+import { createClient } from "@supabase/supabase-js";
 import os from "node:os";
 import path from "node:path";
 
 const PORT = Number(process.env.JUSTIO_SYNC_PORT || 4477);
 const API_KEY = process.env.JUSTIO_SYNC_KEY || "";
+const USER_ID = process.env.JUSTIO_USER_ID || "lexfy_shared";
+const SUPABASE_URL = process.env.JUSTIO_SUPABASE_URL || "https://upwckimpkpxfzejrupkg.supabase.co";
+const SUPABASE_KEY = process.env.JUSTIO_SUPABASE_KEY || "sb_publishable_AzgYO9RznVv6B10D1ZdqJQ_A-ZsMBmc";
+const PUBLICACOES_DAILY_HOUR = Number(process.env.JUSTIO_PUBLICACOES_DAILY_HOUR || 8);
+const PUBLICACOES_DAILY_ENABLED = process.env.JUSTIO_PUBLICACOES_DAILY_ENABLED !== "false";
+const SYNC_STATUS_ID = "daily_publicacoes";
 const PROFILE_DIR = process.env.JUSTIO_SYNC_PROFILE_DIR ||
   path.join(os.homedir(), ".justio-sync", "chrome-profile");
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const ALLOWED_ORIGINS = new Set([
   "https://www.justio.com.br",
@@ -20,6 +28,8 @@ const app = Fastify({ logger: true });
 
 let browserContextPromise = null;
 let ephemeralPin = { value: "", expiresAt: 0 };
+let publicacoesTimer = null;
+let nextPublicacoesRunAt = "";
 
 function isAllowedOrigin(origin = "") {
   if (!origin) return true;
@@ -84,6 +94,35 @@ function maskCNJ(numero) {
 
 function onlyDigits(value) {
   return String(value || "").replace(/\D/g, "");
+}
+
+function simpleHash(value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+const CNJ_REGEX = /\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/;
+
+function extractCNJ(text) {
+  const match = CNJ_REGEX.exec(String(text || ""));
+  return match ? match[0] : "";
+}
+
+function publicacaoKey(pub) {
+  return simpleHash([
+    pub.diario || "",
+    pub.data_publicacao || "",
+    pub.titulo || "",
+    String(pub.conteudo || "").slice(0, 1000),
+    pub.url || "",
+  ].join("|"));
+}
+
+function generateId() {
+  return crypto.randomUUID();
 }
 
 function cleanText(value) {
@@ -392,6 +431,182 @@ function mapDjenPublicacao(item) {
   };
 }
 
+function mapDjenPublicacaoDb(item, processos) {
+  const mapped = mapDjenPublicacao(item);
+  const teor = cleanText(item.texto || "");
+  const advogados = mapped.advogados?.length ? `\n\nAdvogados: ${mapped.advogados.join("; ")}` : "";
+  const meta = [
+    mapped.orgao,
+    mapped.classe ? `Classe: ${mapped.classe}` : "",
+    mapped.tribunal ? `Tribunal: ${mapped.tribunal}` : "",
+  ].filter(Boolean).join(" - ");
+  const numero = mapped.numero || "";
+  const titulo = `${mapped.tipo || "Publicacao"}${numero ? ` - ${numero}` : ""}`;
+  const conteudo = [teor, meta, advogados].filter(Boolean).join("\n\n").trim();
+  const processoDigits = onlyDigits(numero || extractCNJ(`${titulo} ${conteudo}`));
+  const processo = processos.find((p) => onlyDigits(p.numero) === processoDigits);
+
+  return {
+    processo_id: processo?.id,
+    titulo,
+    conteudo,
+    data_publicacao: mapped.data || normalizeDateISO(new Date()),
+    diario: item.meiocompleto || "Diario de Justica Eletronico Nacional",
+    url: mapped.url,
+    lida: false,
+    user_id: USER_ID,
+  };
+}
+
+async function getPerfilAdvogadoCloud() {
+  const { data, error } = await supabase
+    .from("perfil_advogado")
+    .select("nome,oab_numero,oab_uf")
+    .eq("user_id", USER_ID)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+async function updatePublicacoesSyncStatus(input) {
+  const { error } = await supabase
+    .from("publicacoes_sync_status")
+    .upsert({
+      id: SYNC_STATUS_ID,
+      updated_at: new Date().toISOString(),
+      ...input,
+    }, { onConflict: "id" });
+
+  if (error) throw error;
+}
+
+async function salvarPublicacoesDjen(items) {
+  if (!items.length) return 0;
+
+  const [{ data: publicacoesData, error: publicacoesError }, { data: processosData, error: processosError }] = await Promise.all([
+    supabase.from("publicacoes").select("titulo,conteudo,data_publicacao,diario,url"),
+    supabase.from("processos").select("id,numero"),
+  ]);
+
+  if (publicacoesError) throw publicacoesError;
+  if (processosError) throw processosError;
+
+  const knownKeys = new Set((publicacoesData || []).map((pub) => publicacaoKey(pub)));
+  const processos = processosData || [];
+  const createdAt = new Date().toISOString();
+  const novas = [];
+
+  for (const item of items) {
+    const pub = mapDjenPublicacaoDb(item, processos);
+    const key = publicacaoKey(pub);
+    if (knownKeys.has(key)) continue;
+
+    novas.push({
+      id: generateId(),
+      created_at: createdAt,
+      ...pub,
+    });
+    knownKeys.add(key);
+  }
+
+  if (!novas.length) return 0;
+
+  const { error } = await supabase.from("publicacoes").insert(novas);
+  if (error) throw error;
+  return novas.length;
+}
+
+async function executarBuscaPublicacoesLocal({ nome, oabNumero, oabUF, dias = 45 } = {}) {
+  const perfil = nome || oabNumero
+    ? { nome, oab_numero: oabNumero, oab_uf: oabUF || "RJ" }
+    : await getPerfilAdvogadoCloud();
+  const perfilNome = cleanText(perfil?.nome || "");
+  const perfilOab = onlyDigits(perfil?.oab_numero);
+  const perfilUf = cleanText(perfil?.oab_uf || "RJ").toUpperCase() || "RJ";
+  const startedAt = new Date().toISOString();
+
+  await updatePublicacoesSyncStatus({ last_run_at: startedAt, last_errors: [] });
+
+  if (!perfilNome && !perfilOab) {
+    throw new Error("Perfil de advogado nao configurado para busca local de publicacoes.");
+  }
+
+  const items = await buscarDjen({
+    nome: perfilNome,
+    oabNumero: perfilOab,
+    oabUF: perfilUf,
+    dias,
+  });
+  const imported = await salvarPublicacoesDjen(items);
+  const finishedAt = new Date().toISOString();
+
+  await updatePublicacoesSyncStatus({
+    last_run_at: startedAt,
+    last_success_at: finishedAt,
+    last_found: items.length,
+    last_imported: imported,
+    last_errors: [],
+  });
+
+  return {
+    ok: true,
+    total: items.length,
+    imported,
+    buscadoEm: finishedAt,
+  };
+}
+
+async function executarBuscaPublicacoesLocalSegura(source = "manual") {
+  try {
+    const result = await executarBuscaPublicacoesLocal();
+    app.log.info({ source, ...result }, "Busca local de publicacoes concluida");
+    return result;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    app.log.error({ source, error: message }, "Busca local de publicacoes falhou");
+    try {
+      await updatePublicacoesSyncStatus({
+        last_run_at: new Date().toISOString(),
+        last_errors: [`Sync Local: ${message}`],
+      });
+    } catch (statusErr) {
+      app.log.error(statusErr, "Nao foi possivel atualizar status de publicacoes");
+    }
+    throw err;
+  }
+}
+
+function nextDailyRun(hour) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(hour, 0, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next;
+}
+
+function schedulePublicacoesDaily() {
+  if (!PUBLICACOES_DAILY_ENABLED) return;
+  if (publicacoesTimer) clearTimeout(publicacoesTimer);
+
+  const next = nextDailyRun(PUBLICACOES_DAILY_HOUR);
+  nextPublicacoesRunAt = next.toISOString();
+  const delay = Math.max(1_000, next.getTime() - Date.now());
+
+  publicacoesTimer = setTimeout(async () => {
+    try {
+      await executarBuscaPublicacoesLocalSegura("daily");
+    } finally {
+      schedulePublicacoesDaily();
+    }
+  }, delay);
+
+  app.log.info(
+    { nextPublicacoesRunAt, hour: PUBLICACOES_DAILY_HOUR },
+    "Busca diaria local de publicacoes agendada"
+  );
+}
+
 async function syncTjrjPublico(numero) {
   const encoded = encodeURIComponent(numero);
   const metaRes = await fetch(`https://www3.tjrj.jus.br/consultaprocessual/api/processos/${encoded}`, {
@@ -479,6 +694,9 @@ app.get("/health", async () => ({
   profileDir: PROFILE_DIR,
   auth: Boolean(API_KEY),
   pinInMemory: Boolean(ephemeralPin.value && ephemeralPin.expiresAt > Date.now()),
+  publicacoesDailyEnabled: PUBLICACOES_DAILY_ENABLED,
+  publicacoesDailyHour: PUBLICACOES_DAILY_HOUR,
+  nextPublicacoesRunAt,
 }));
 
 app.post("/session/pin", async (req, reply) => {
@@ -496,6 +714,19 @@ app.post("/djen/publicacoes", async (req, reply) => {
   if (!checkAuth(req, reply)) return;
   const items = await buscarDjen(req.body ?? {});
   return { publicacoes: items.map(mapDjenPublicacao), count: items.length };
+});
+
+app.post("/publicacoes/sync", async (req, reply) => {
+  if (!checkAuth(req, reply)) return;
+  try {
+    const result = await executarBuscaPublicacoesLocalSegura("manual");
+    return result;
+  } catch (err) {
+    return reply.code(502).send({
+      error: "publicacoes_sync_failed",
+      message: err instanceof Error ? err.message : "Nao foi possivel sincronizar publicacoes.",
+    });
+  }
 });
 
 app.post("/djen/processos", async (req, reply) => {
@@ -561,6 +792,10 @@ app.listen({ port: PORT, host: "127.0.0.1" })
     console.log(`Justio Sync Local em http://127.0.0.1:${PORT}`);
     console.log(`Perfil Chrome: ${PROFILE_DIR}`);
     if (!API_KEY) console.log("Aviso: JUSTIO_SYNC_KEY nao configurada; aceitando chamadas locais sem chave.");
+    schedulePublicacoesDaily();
+    if (PUBLICACOES_DAILY_ENABLED) {
+      console.log(`Busca diaria de publicacoes: ${PUBLICACOES_DAILY_HOUR}:00; proxima em ${nextPublicacoesRunAt}`);
+    }
   })
   .catch((err) => {
     app.log.error(err);
