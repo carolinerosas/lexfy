@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { chromium } from "playwright";
 import { createClient } from "@supabase/supabase-js";
 
-process.env.TZ ||= "America/Sao_Paulo";
+if (!process.env.TZ) process.env.TZ = "America/Sao_Paulo";
 
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.API_KEY || "";
