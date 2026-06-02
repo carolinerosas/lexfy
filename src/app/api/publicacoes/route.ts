@@ -13,6 +13,8 @@ const PUBLICATION_SEARCH_DAYS = 45;
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
 const USER_ID = "lexfy_shared";
 const SYNC_STATUS_ID = "daily_publicacoes";
+const SCRAPER_URL = process.env.NEXT_PUBLIC_SCRAPER_URL || "";
+const SCRAPER_KEY = process.env.NEXT_PUBLIC_SCRAPER_KEY || "";
 
 export interface PubEncontrada {
   titulo: string;
@@ -455,6 +457,33 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
   return [...porHash.values()];
 }
 
+async function buscarDJENViaScraper(nome?: string, oabNumero?: string, oabUF = "RJ"): Promise<PubEncontrada[]> {
+  if (!SCRAPER_URL) throw new Error("Railway scraper nao configurado");
+
+  const res = await fetch(`${SCRAPER_URL.replace(/\/$/, "")}/djen/publicacoes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(SCRAPER_KEY ? { Authorization: `Bearer ${SCRAPER_KEY}` } : {}),
+    },
+    body: JSON.stringify({
+      nome,
+      oabNumero,
+      oabUF,
+      dias: PUBLICATION_SEARCH_DAYS,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Railway HTTP ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`);
+  }
+
+  const data = await res.json() as { publicacoes?: PubEncontrada[] };
+  return data.publicacoes ?? [];
+}
+
 async function executarBuscaPublicacoes(input: {
   nome?: string;
   oabNumero?: string;
@@ -483,8 +512,18 @@ async function executarBuscaPublicacoes(input: {
       console.log(`[DJEN/CNJ] ${items.length} publicacao(oes) encontrada(s)`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      erros.push(`DJEN/CNJ: ${msg}`);
       console.error("[DJEN/CNJ] erro:", msg);
+
+      try {
+        const items = await buscarDJENViaScraper(nome, oabNumero, oabUF ?? "RJ");
+        resultados.push(...items);
+        console.log(`[DJEN/CNJ Railway] ${items.length} publicacao(oes) encontrada(s)`);
+      } catch (fallbackErr) {
+        const fallbackMsg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+        erros.push(`DJEN/CNJ: ${msg}`);
+        erros.push(`DJEN/CNJ Railway: ${fallbackMsg}`);
+        console.error("[DJEN/CNJ Railway] erro:", fallbackMsg);
+      }
     }
   }
 
@@ -664,7 +703,27 @@ export async function POST(req: NextRequest) {
       oabUF?: string;
     };
 
-    return NextResponse.json(await executarBuscaPublicacoes(input));
+    const startedAt = new Date().toISOString();
+    await updateSyncStatus({ last_run_at: startedAt, last_errors: [] });
+
+    const busca = await executarBuscaPublicacoes(input);
+    const imported = await salvarResultadosNoBanco(busca.resultados);
+
+    await updateSyncStatus({
+      last_run_at: startedAt,
+      last_success_at: busca.buscadoEm,
+      last_found: busca.resultados.length,
+      last_imported: imported,
+      last_errors: busca.erros,
+    });
+
+    return NextResponse.json({
+      saved: true,
+      total: busca.resultados.length,
+      imported,
+      erros: busca.erros,
+      buscadoEm: busca.buscadoEm,
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Erro desconhecido" },

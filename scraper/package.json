@@ -9,6 +9,7 @@
     "postinstall": "playwright install --with-deps chromium"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
     "fastify": "^5.0.0",
     "playwright": "^1.48.0"
   },

@@ -427,9 +427,36 @@ export default function PublicacoesPage() {
         }),
       });
 
-      const data = await res.json() as { resultados?: PubEncontrada[]; erros?: string[]; buscadoEm?: string };
+      const data = await res.json() as {
+        resultados?: PubEncontrada[];
+        erros?: string[];
+        buscadoEm?: string;
+        saved?: boolean;
+        imported?: number;
+        total?: number;
+      };
       let resultados = data.resultados ?? [];
       let erros = data.erros ?? [];
+      const agora = data.buscadoEm ?? new Date().toISOString();
+
+      if (data.saved) {
+        localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
+        setUltimaBusca(agora);
+        load();
+
+        const imported = data.imported ?? 0;
+        if (imported > 0) {
+          setStatusTipo("ok");
+          setStatusMsg(`${imported} nova${imported > 1 ? "s" : ""} publicaÃ§Ã£o${imported > 1 ? "Ãµes" : ""} importada${imported > 1 ? "s" : ""}!`);
+        } else if (erros.length > 0) {
+          setStatusTipo("erro");
+          setStatusMsg(`Erros: ${erros.join(" | ")}`);
+        } else {
+          setStatusTipo("info");
+          setStatusMsg("Nenhuma publicaÃ§Ã£o nova encontrada no perÃ­odo recente.");
+        }
+        return;
+      }
 
       if (!resultados.some((p) => p.hash?.startsWith("djen-")) && (perfil.oab_numero || perfil.nome)) {
         try {
@@ -445,7 +472,6 @@ export default function PublicacoesPage() {
         }
       }
 
-      const agora = data.buscadoEm ?? new Date().toISOString();
       localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
       setUltimaBusca(agora);
 
