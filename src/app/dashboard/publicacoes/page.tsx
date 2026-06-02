@@ -231,6 +231,16 @@ function simpleHash(value: string): string {
   return Math.abs(hash).toString(36);
 }
 
+function publicacaoKey(pub: Pick<Publicacao, "titulo" | "conteudo" | "data_publicacao" | "diario" | "url"> | PubEncontrada): string {
+  return simpleHash([
+    pub.diario ?? "",
+    pub.data_publicacao ?? "",
+    pub.titulo ?? "",
+    (pub.conteudo ?? "").slice(0, 1000),
+    pub.url ?? "",
+  ].join("|"));
+}
+
 function newestIso(...values: (string | null | undefined)[]): string {
   let newest = "";
   let newestTime = 0;
@@ -405,6 +415,47 @@ export default function PublicacoesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perfil.nome]);
 
+  async function importarResultadosNoCliente(resultados: PubEncontrada[]): Promise<number> {
+    if (resultados.length === 0) return 0;
+
+    let hashesSet: Set<string>;
+    try {
+      hashesSet = new Set(JSON.parse(localStorage.getItem(HASHES_KEY) ?? "[]") as string[]);
+    } catch {
+      hashesSet = new Set();
+    }
+
+    const knownKeys = new Set(publicacoes.map((p) => publicacaoKey(p)));
+    const novas: PubEncontrada[] = [];
+
+    for (const pub of resultados) {
+      const key = publicacaoKey(pub);
+      if (knownKeys.has(key) || hashesSet.has(pub.hash)) continue;
+      knownKeys.add(key);
+      hashesSet.add(pub.hash);
+      novas.push(pub);
+    }
+
+    for (const p of novas) {
+      const processoId = findProcessoIdByCNJ(processos, p.titulo, p.conteudo);
+      await createPublicacao({
+        processo_id: processoId,
+        titulo: p.titulo,
+        conteudo: p.conteudo,
+        data_publicacao: p.data_publicacao,
+        diario: p.diario,
+        url: p.url || undefined,
+        lida: false,
+      });
+    }
+
+    try {
+      localStorage.setItem(HASHES_KEY, JSON.stringify([...hashesSet]));
+    } catch { /* silently fail */ }
+
+    return novas.length;
+  }
+
   async function buscarAgora() {
     if (!perfil.nome) {
       setStatusTipo("erro");
@@ -440,11 +491,26 @@ export default function PublicacoesPage() {
       const agora = data.buscadoEm ?? new Date().toISOString();
 
       if (data.saved) {
+        const hasDjenServerError = erros.some((e) => e.startsWith("DJEN/CNJ"));
+        let imported = data.imported ?? 0;
+
+        if (hasDjenServerError && (perfil.oab_numero || perfil.nome)) {
+          try {
+            const diretas = await buscarDjenDireto(perfil);
+            const importedDireto = await importarResultadosNoCliente(diretas);
+            imported += importedDireto;
+            if (diretas.length > 0) {
+              erros = erros.filter((e) => !e.startsWith("DJEN/CNJ"));
+            }
+          } catch (err) {
+            erros = [...erros, err instanceof Error ? err.message : "DJEN/CNJ direto: erro desconhecido"];
+          }
+        }
+
         localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
         setUltimaBusca(agora);
-        load();
+        await load();
 
-        const imported = data.imported ?? 0;
         if (imported > 0) {
           setStatusTipo("ok");
           setStatusMsg(`${imported} nova${imported > 1 ? "s" : ""} publicaÃ§Ã£o${imported > 1 ? "Ãµes" : ""} importada${imported > 1 ? "s" : ""}!`);
@@ -475,38 +541,13 @@ export default function PublicacoesPage() {
       localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
       setUltimaBusca(agora);
 
-      let hashesSet: Set<string>;
-      try {
-        hashesSet = new Set(JSON.parse(localStorage.getItem(HASHES_KEY) ?? "[]") as string[]);
-      } catch {
-        hashesSet = new Set();
-      }
+      const novasCount = await importarResultadosNoCliente(resultados);
 
-      const novas = resultados.filter((p) => !hashesSet.has(p.hash));
+      await load();
 
-      for (const p of novas) {
-        const processoId = findProcessoIdByCNJ(processos, p.titulo, p.conteudo);
-        await createPublicacao({
-          processo_id: processoId,
-          titulo: p.titulo,
-          conteudo: p.conteudo,
-          data_publicacao: p.data_publicacao,
-          diario: p.diario,
-          url: p.url || undefined,
-          lida: false,
-        });
-        hashesSet.add(p.hash);
-      }
-
-      try {
-        localStorage.setItem(HASHES_KEY, JSON.stringify([...hashesSet]));
-      } catch { /* silently fail */ }
-
-      load();
-
-      if (novas.length > 0) {
+      if (novasCount > 0) {
         setStatusTipo("ok");
-        setStatusMsg(`${novas.length} nova${novas.length > 1 ? "s" : ""} publicação${novas.length > 1 ? "ões" : ""} importada${novas.length > 1 ? "s" : ""}!`);
+        setStatusMsg(`${novasCount} nova${novasCount > 1 ? "s" : ""} publicação${novasCount > 1 ? "ões" : ""} importada${novasCount > 1 ? "s" : ""}!`);
       } else if (erros.length > 0) {
         setStatusTipo("erro");
         setStatusMsg(`Erros: ${erros.join(" | ")}`);
