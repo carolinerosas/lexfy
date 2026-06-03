@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
-  RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote,
+  RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote, Link2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import {
-  getProcesso, getProcessos, updateProcesso, deleteProcesso,
+  getProcesso, getProcessos, getClientes, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
@@ -29,7 +29,7 @@ import {
   sincronizarProcesso,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
-import type { Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade, ProcessoTipo, ProcessoResultadoTipo } from "@/types";
+import type { Cliente, Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade, ProcessoTipo, ProcessoResultadoTipo } from "@/types";
 
 const statusOptions = [
   { value: "ativo", label: "Ativo" },
@@ -156,6 +156,7 @@ export default function ProcessoDetailPage() {
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
   const [editModal, setEditModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
+  const [vincularClienteModal, setVincularClienteModal] = useState(false);
 
   const load = useCallback(async () => {
     const p = await getProcesso(id);
@@ -275,7 +276,26 @@ export default function ProcessoDetailPage() {
       </div>
 
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <InfoCard icon={<User className="w-4 h-4 text-blue-500" />} label="Cliente" value={processo.cliente_nome} />
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><User className="w-4 h-4 text-blue-500" />Cliente</div>
+            <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
+            <div className="mt-1.5 flex items-center gap-2">
+              {processo.cliente_id ? (
+                <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium"><CheckCircle className="w-3 h-3" /> Vinculado</span>
+              ) : (
+                <span className="text-[11px] text-amber-600">Não vinculado a um cliente cadastrado</span>
+              )}
+              <button
+                type="button"
+                onClick={() => setVincularClienteModal(true)}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+              >
+                <Link2 className="w-3 h-3" /> {processo.cliente_id ? "Trocar" : "Vincular cliente"}
+              </button>
+            </div>
+          </CardContent>
+        </Card>
         <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-rose-500" />} label="Comarca" value={processo.comarca ?? "—"} />
@@ -403,6 +423,13 @@ export default function ProcessoDetailPage() {
       />
       <EditarProcessoModal open={editModal} onClose={() => setEditModal(false)} processo={processo} onSaved={() => { load(); setEditModal(false); }} />
 
+      <VincularClienteModal
+        open={vincularClienteModal}
+        processo={processo}
+        onClose={() => setVincularClienteModal(false)}
+        onSaved={() => { load(); setVincularClienteModal(false); }}
+      />
+
       <Modal open={deleteModal} onClose={() => setDeleteModal(false)} title="Excluir Processo" size="sm">
         <p className="text-gray-600 text-sm mb-6">Tem certeza que deseja excluir este processo? Todos os prazos, audiências e honorários associados também serão excluídos. Esta ação não pode ser desfeita.</p>
         <div className="flex justify-end gap-3">
@@ -422,6 +449,78 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
         <p className="text-sm font-semibold text-gray-900 truncate">{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function VincularClienteModal({ open, processo, onClose, onSaved }: {
+  open: boolean; processo: Processo; onClose: () => void; onSaved: () => void;
+}) {
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clienteId, setClienteId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    getClientes().then(setClientes);
+    setClienteId(processo.cliente_id ?? "");
+  }, [open, processo]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!clienteId) return;
+    const c = clientes.find((cl) => cl.id === clienteId);
+    if (!c) return;
+    setSaving(true);
+    try {
+      await updateProcesso(processo.id, { cliente_id: c.id, cliente_nome: c.nome });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function desvincular() {
+    setSaving(true);
+    try {
+      await updateProcesso(processo.id, { cliente_id: undefined });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vincular cliente" size="sm">
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Associe este processo a um cliente cadastrado. O nome do cliente no processo será atualizado.
+        </p>
+        {clientes.length === 0 ? (
+          <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+            Nenhum cliente cadastrado ainda. Cadastre um cliente na aba Clientes primeiro.
+          </p>
+        ) : (
+          <Select
+            label="Cliente cadastrado"
+            placeholder="Selecione o cliente..."
+            value={clienteId}
+            onChange={(e) => setClienteId(e.target.value)}
+            options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+          />
+        )}
+        <div className="flex justify-between gap-3 pt-1">
+          {processo.cliente_id ? (
+            <Button type="button" variant="ghost" onClick={desvincular} disabled={saving}>
+              Desvincular
+            </Button>
+          ) : <span />}
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={!clienteId || saving}>{saving ? "Salvando..." : "Vincular"}</Button>
+          </div>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

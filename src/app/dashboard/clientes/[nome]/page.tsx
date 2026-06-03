@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, FolderOpen, DollarSign, Users,
   ChevronRight, TrendingUp, TrendingDown,
-  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash,
+  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getCliente, updateCliente, deleteCliente,
+  getProcessos, updateProcesso,
   getProcessosByCliente, getHonorariosByCliente,
   getAtendimentosByCliente, getPrazosByCliente, getAudienciasByCliente,
 } from "@/lib/store";
@@ -44,6 +45,7 @@ export default function ClienteDetailPage() {
   const [prazos, setPrazos] = useState<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [editOpen, setEditOpen] = useState(false);
+  const [vincularProcessoOpen, setVincularProcessoOpen] = useState(false);
 
   const load = useCallback(async () => {
     const c = await getCliente(id);
@@ -225,7 +227,12 @@ export default function ClienteDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Processos</CardTitle>
-                <span className="text-xs text-gray-400">{processos.length} no total</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">{processos.length} no total</span>
+                  <Button variant="secondary" size="sm" onClick={() => setVincularProcessoOpen(true)}>
+                    <Link2 className="w-3.5 h-3.5" /> Vincular processo
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -386,7 +393,97 @@ export default function ClienteDetailPage() {
         onClose={() => setEditOpen(false)}
         onSaved={() => { load(); setEditOpen(false); }}
       />
+
+      <VincularProcessoModal
+        open={vincularProcessoOpen}
+        cliente={cliente}
+        processosVinculados={processos}
+        onClose={() => setVincularProcessoOpen(false)}
+        onSaved={() => { load(); setVincularProcessoOpen(false); }}
+      />
     </div>
+  );
+}
+
+function VincularProcessoModal({ open, cliente, processosVinculados, onClose, onSaved }: {
+  open: boolean; cliente: Cliente; processosVinculados: Processo[]; onClose: () => void; onSaved: () => void;
+}) {
+  const [todos, setTodos] = useState<Processo[]>([]);
+  const [processoId, setProcessoId] = useState("");
+  const [busca, setBusca] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    getProcessos().then(setTodos);
+    setProcessoId("");
+    setBusca("");
+  }, [open]);
+
+  const vinculadosIds = new Set(processosVinculados.map((p) => p.id));
+  const disponiveis = todos
+    .filter((p) => !vinculadosIds.has(p.id))
+    .filter((p) => {
+      if (!busca) return true;
+      const s = busca.toLowerCase();
+      return p.numero.toLowerCase().includes(s) || p.titulo.toLowerCase().includes(s) || p.cliente_nome.toLowerCase().includes(s);
+    });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!processoId) return;
+    setSaving(true);
+    try {
+      await updateProcesso(processoId, { cliente_id: cliente.id, cliente_nome: cliente.nome });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vincular processo ao cliente" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Escolha um processo existente para vincular a <strong>{cliente.nome}</strong>. O processo passará a constar neste cliente.
+        </p>
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por número, título ou cliente atual..."
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
+        />
+        {disponiveis.length === 0 ? (
+          <p className="text-sm text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+            {todos.length === 0 ? "Nenhum processo cadastrado ainda." : "Nenhum processo disponível para vincular."}
+          </p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
+            {disponiveis.map((p) => (
+              <label key={p.id} className={`flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-50 ${processoId === p.id ? "bg-blue-50" : ""}`}>
+                <input
+                  type="radio"
+                  name="processo"
+                  checked={processoId === p.id}
+                  onChange={() => setProcessoId(p.id)}
+                  className="mt-1 h-4 w-4 accent-[#21181d]"
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{p.titulo}</p>
+                  <p className="text-xs text-gray-400 font-mono">{p.numero}</p>
+                  <p className="text-xs text-gray-400">Cliente atual: {p.cliente_nome || "—"}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={!processoId || saving}>{saving ? "Vinculando..." : "Vincular"}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
