@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getAtendimentosWithProcesso,
@@ -432,20 +433,20 @@ function NovoAtendimentoModal({
       </p>
       <form onSubmit={submit} className="space-y-4">
         {clientes.length > 0 && (
-          <Select
+          <ComboBox
             label="Cliente cadastrado"
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
             placeholder="Selecionar da lista de clientes…"
             value={clienteId}
-            onChange={(e) => handleClienteSelect(e.target.value)}
+            onChange={handleClienteSelect}
           />
         )}
-        <Select
+        <ComboBox
           label="Processo (opcional)"
           options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
           placeholder="Selecione se vinculado a processo..."
           value={form.processo_id}
-          onChange={(e) => handleProcessoChange(e.target.value)}
+          onChange={handleProcessoChange}
         />
         <Input
           label="Nome do Cliente *"

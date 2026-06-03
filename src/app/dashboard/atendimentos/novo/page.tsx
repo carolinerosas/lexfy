@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { createAtendimento, getProcessos, getClientes } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
 
@@ -111,12 +112,12 @@ export default function NovoAtendimentoPage() {
         <Card>
           <CardContent className="py-6 space-y-4">
             {clientes.length > 0 && (
-              <Select
+              <ComboBox
                 label="Cliente cadastrado"
                 options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
                 placeholder="Selecionar da lista de clientes…"
                 value={clienteId}
-                onChange={(e) => handleClienteSelect(e.target.value)}
+                onChange={handleClienteSelect}
               />
             )}
             <div className="grid gap-4 md:grid-cols-2">
@@ -127,12 +128,12 @@ export default function NovoAtendimentoPage() {
                 onChange={(e) => set("cliente_nome", e.target.value)}
                 required
               />
-              <Select
+              <ComboBox
                 label="Processo (opcional)"
                 options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
                 placeholder="Selecione se vinculado a processo..."
                 value={form.processo_id}
-                onChange={(e) => handleProcessoChange(e.target.value)}
+                onChange={handleProcessoChange}
               />
             </div>
             <div className="grid gap-4 md:grid-cols-4">
