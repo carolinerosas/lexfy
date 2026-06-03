@@ -531,13 +531,13 @@ export default function PublicacoesPage() {
 
         if (imported > 0) {
           setStatusTipo("ok");
-          setStatusMsg(`${imported} nova${imported > 1 ? "s" : ""} publicaÃ§Ã£o${imported > 1 ? "Ãµes" : ""} importada${imported > 1 ? "s" : ""}!`);
+          setStatusMsg(`${imported} nova${imported > 1 ? "s" : ""} publicação${imported > 1 ? "ões" : ""} importada${imported > 1 ? "s" : ""}!`);
         } else if (erros.length > 0) {
           setStatusTipo("erro");
           setStatusMsg(`Erros: ${erros.join(" | ")}`);
         } else {
           setStatusTipo("info");
-          setStatusMsg("Nenhuma publicaÃ§Ã£o nova encontrada no perÃ­odo recente.");
+          setStatusMsg("Nenhuma publicação nova encontrada no período recente.");
         }
         return;
       }
