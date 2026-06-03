@@ -125,10 +125,25 @@ export default function ProcessosPage() {
   const [importState, setImportState] = useState<ImportState | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [busyProcessoId, setBusyProcessoId] = useState<string | null>(null);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
     setProcessos(await getProcessos());
   }, []);
+
+  function toggleSelecionado(id: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function limparSelecao() {
+    setSelecionados(new Set());
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -214,6 +229,33 @@ export default function ProcessosPage() {
     }
   }, [load]);
 
+  const excluirSelecionados = useCallback(async () => {
+    const ids = [...selecionados];
+    if (ids.length === 0) return;
+    if (!window.confirm(`Excluir ${ids.length} processo${ids.length !== 1 ? "s" : ""} selecionado${ids.length !== 1 ? "s" : ""}? Esta ação não pode ser desfeita.`)) return;
+    setBulkBusy(true);
+    try {
+      for (const id of ids) await deleteProcesso(id);
+      await load();
+      limparSelecao();
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selecionados, load]);
+
+  const arquivarSelecionados = useCallback(async () => {
+    const ids = [...selecionados];
+    if (ids.length === 0) return;
+    setBulkBusy(true);
+    try {
+      for (const id of ids) await updateProcesso(id, { status: "arquivado" });
+      await load();
+      limparSelecao();
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selecionados, load]);
+
   const filtered = processos
     .filter((p) => {
       const matchSearch =
@@ -230,6 +272,17 @@ export default function ProcessosPage() {
       if (byStatus !== 0) return byStatus;
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
+
+  const todosSelecionados = filtered.length > 0 && filtered.every((p) => selecionados.has(p.id));
+  const algumSelecionado = selecionados.size > 0;
+
+  function toggleTodos() {
+    if (todosSelecionados) {
+      limparSelecao();
+    } else {
+      setSelecionados(new Set(filtered.map((p) => p.id)));
+    }
+  }
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
@@ -293,6 +346,36 @@ export default function ProcessosPage() {
         </div>
       </div>
 
+      {filtered.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={todosSelecionados}
+              onChange={toggleTodos}
+              className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+            />
+            Selecionar todos
+          </label>
+          {algumSelecionado && (
+            <>
+              <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button variant="secondary" size="sm" onClick={arquivarSelecionados} disabled={bulkBusy}>
+                  <Archive className="w-3.5 h-3.5" /> Arquivar
+                </Button>
+                <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir
+                </Button>
+                <Button variant="ghost" size="sm" onClick={limparSelecao} disabled={bulkBusy}>
+                  Limpar
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
@@ -312,8 +395,14 @@ export default function ProcessosPage() {
         <>
           <div className="space-y-3 md:hidden">
             {filtered.map((p) => (
-              <Card key={p.id} className="p-4">
+              <Card key={p.id} className={`p-4 ${selecionados.has(p.id) ? "ring-2 ring-[#21181d]" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selecionados.has(p.id)}
+                    onChange={() => toggleSelecionado(p.id)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <p className="break-all font-mono text-[12px] font-semibold leading-snug text-gray-900">{p.numero}</p>
@@ -393,6 +482,14 @@ export default function ProcessosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleTodos}
+                    className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                  />
+                </th>
                 <th className="text-left px-6 py-3">Número / Título</th>
                 <th className="text-left px-4 py-3">Cliente</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Tribunal</th>
@@ -404,7 +501,15 @@ export default function ProcessosPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50/60 transition-colors group">
+                <tr key={p.id} className={`transition-colors group ${selecionados.has(p.id) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(p.id)}
+                      onChange={() => toggleSelecionado(p.id)}
+                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                    />
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-gray-900 font-mono text-xs">{p.numero}</p>

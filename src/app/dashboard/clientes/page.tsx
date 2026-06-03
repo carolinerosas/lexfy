@@ -23,8 +23,25 @@ export default function ClientesPage() {
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [preNome, setPreNome] = useState("");
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const naoCadastrados = clientes.filter((c) => !c.cadastrado).length;
+
+  const keyOf = (c: Summary) => c.id ?? c.nome;
+
+  function toggleSelecionado(key: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function limparSelecao() {
+    setSelecionados(new Set());
+  }
 
   async function handleImportar() {
     const count = await importarClientesExistentes();
@@ -64,6 +81,35 @@ export default function ClientesPage() {
 
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
 
+  const todosSelecionados = filtered.length > 0 && filtered.every((c) => selecionados.has(keyOf(c)));
+  const algumSelecionado = selecionados.size > 0;
+
+  function toggleTodos() {
+    if (todosSelecionados) limparSelecao();
+    else setSelecionados(new Set(filtered.map(keyOf)));
+  }
+
+  async function excluirSelecionados() {
+    const alvos = filtered.filter((c) => selecionados.has(keyOf(c)));
+    if (alvos.length === 0) return;
+    const comProcessos = alvos.filter((c) => !c.cadastrado);
+    const aviso = comProcessos.length > 0
+      ? `\n\nAtenção: ${comProcessos.length} não cadastrado${comProcessos.length !== 1 ? "s" : ""} — isso também apaga os processos e atendimentos vinculados a esses nomes.`
+      : "";
+    if (!window.confirm(`Excluir ${alvos.length} cliente${alvos.length !== 1 ? "s" : ""} selecionado${alvos.length !== 1 ? "s" : ""}?${aviso}\n\nEsta ação não pode ser desfeita.`)) return;
+    setBulkBusy(true);
+    try {
+      for (const c of alvos) {
+        if (c.id) await deleteCliente(c.id);
+        else await excluirClienteNaoCadastrado(c.nome);
+      }
+      await load();
+      limparSelecao();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
@@ -96,6 +142,33 @@ export default function ClientesPage() {
         />
       </div>
 
+      {filtered.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+            <input
+              type="checkbox"
+              checked={todosSelecionados}
+              onChange={toggleTodos}
+              className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+            />
+            Selecionar todos
+          </label>
+          {algumSelecionado && (
+            <>
+              <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
+                  <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+                </Button>
+                <Button variant="ghost" size="sm" onClick={limparSelecao} disabled={bulkBusy}>
+                  Limpar
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
@@ -107,8 +180,14 @@ export default function ClientesPage() {
         <>
         <div className="space-y-3 md:hidden">
           {filtered.map((c) => (
-            <Card key={c.id ?? c.nome} className="p-4">
+            <Card key={c.id ?? c.nome} className={`p-4 ${selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
               <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selecionados.has(keyOf(c))}
+                  onChange={() => toggleSelecionado(keyOf(c))}
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                />
                 <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-gray-900" : "bg-gray-300"}`}>
                   {c.nome.charAt(0).toUpperCase()}
                 </div>
@@ -182,6 +261,14 @@ export default function ClientesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={todosSelecionados}
+                    onChange={toggleTodos}
+                    className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                  />
+                </th>
                 <th className="text-left px-6 py-3">Cliente</th>
                 <th className="text-center px-4 py-3">Processos</th>
                 <th className="px-4 py-3" />
@@ -189,7 +276,15 @@ export default function ClientesPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((c) => (
-                  <tr key={c.id ?? c.nome} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={c.id ?? c.nome} className={`transition-colors ${selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                    <td className="px-4 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(keyOf(c))}
+                        onChange={() => toggleSelecionado(keyOf(c))}
+                        className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-gray-900" : "bg-gray-300"}`}>
