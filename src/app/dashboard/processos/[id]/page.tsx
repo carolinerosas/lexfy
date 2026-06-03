@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
+import { ComboBox } from "@/components/ui/combobox";
 import {
   getProcesso, getProcessos, getClientes, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
@@ -500,11 +501,11 @@ function VincularClienteModal({ open, processo, onClose, onSaved }: {
             Nenhum cliente cadastrado ainda. Cadastre um cliente na aba Clientes primeiro.
           </p>
         ) : (
-          <Select
+          <ComboBox
             label="Cliente cadastrado"
             placeholder="Selecione o cliente..."
             value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
+            onChange={setClienteId}
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
           />
         )}
@@ -1361,11 +1362,11 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
           <Select label="Status" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />
         </div>
         {permiteIntegracao && (
-          <Select
+          <ComboBox
             label="Integrar a processo criminal principal"
             placeholder="Selecione um processo criminal..."
             value={form.processo_principal_id ?? ""}
-            onChange={(e) => set("processo_principal_id", e.target.value)}
+            onChange={(v) => set("processo_principal_id", v)}
             options={processosRelacionaveis.map((p) => ({
               value: p.id,
               label: `${p.numero} · ${p.cliente_nome}`,

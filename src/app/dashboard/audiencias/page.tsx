@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { getAudienciasWithProcesso, getProcessos, createAudiencia, updateAudiencia, deleteAudiencia } from "@/lib/store";
 import { formatDate, formatDateTime, daysUntil } from "@/lib/utils";
 import type { Audiencia, Processo } from "@/types";
@@ -152,7 +153,7 @@ function NovaAudienciaModal({ open, onClose, onCreated }: { open: boolean; onClo
   return (
     <Modal open={open} onClose={onClose} title="Nova Audiência" size="sm">
       <form onSubmit={submit} className="space-y-4">
-        <Select label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={(e) => setProcessoId(e.target.value)} />
+        <ComboBox label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={setProcessoId} />
         <Input label="Título *" placeholder="Ex: Audiência de Instrução" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <Select label="Tipo" options={audienciaTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />

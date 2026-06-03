@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { getPrazosWithProcesso, getProcessos, createPrazo, updatePrazo, deletePrazo } from "@/lib/store";
 import { formatDate, daysUntil, prazoColor } from "@/lib/utils";
 import type { Prazo, Processo } from "@/types";
@@ -149,12 +150,12 @@ function NovoPrazoModal({ open, onClose, onCreated }: { open: boolean; onClose: 
   return (
     <Modal open={open} onClose={onClose} title="Novo Prazo" size="sm">
       <form onSubmit={submit} className="space-y-4">
-        <Select
+        <ComboBox
           label="Processo *"
           options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
           placeholder="Selecione o processo..."
           value={processoId}
-          onChange={(e) => setProcessoId(e.target.value)}
+          onChange={setProcessoId}
         />
         <Input label="Título *" placeholder="Ex: Recurso de Apelação" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">

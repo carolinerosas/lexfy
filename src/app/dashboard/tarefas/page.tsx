@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { createTarefa, deleteTarefa, getProcessos, getTarefasWithProcesso, updateTarefa } from "@/lib/store";
 import { cn, daysUntil, formatDate, prazoColor } from "@/lib/utils";
@@ -191,16 +192,15 @@ export default function TarefasPage() {
 
       <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingTarefa(null); }} title={editingTarefa ? "Editar tarefa" : "Nova tarefa"} size="md">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Select
+          <ComboBox
             label="Processo"
             placeholder="Selecione um processo"
             value={form.processo_id}
-            onChange={(e) => setForm((f) => ({ ...f, processo_id: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, processo_id: v }))}
             options={processos.map((processo) => ({
               value: processo.id,
               label: `${processo.numero} · ${processo.cliente_nome}`,
             }))}
-            required
           />
           <Input
             label="Título"

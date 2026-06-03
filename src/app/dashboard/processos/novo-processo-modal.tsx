@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
+import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { createProcesso, createCliente, getClientes } from "@/lib/store";
@@ -298,12 +299,12 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
         />
 
         {clientes.length > 0 && (
-          <Select
+          <ComboBox
             label="Cliente cadastrado"
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
             placeholder="Selecionar da lista de clientes…"
             value={clienteId}
-            onChange={(e) => handleClienteSelect(e.target.value)}
+            onChange={handleClienteSelect}
           />
         )}
 

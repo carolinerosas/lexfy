@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { getHonorariosWithProcesso, getProcessos, createHonorario, deleteHonorario } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Honorario, Processo } from "@/types";
@@ -197,7 +198,7 @@ function NovoHonorarioModal({ open, onClose, onCreated }: { open: boolean; onClo
           value={categoria}
           onChange={(e) => setCategoria(e.target.value as "cobranca" | "pagamento")}
         />
-        <Select label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={(e) => setProcessoId(e.target.value)} />
+        <ComboBox label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={setProcessoId} />
         <Input label="Descrição *" placeholder={isPagamento ? "Ex: Pagamento parcela 1" : "Ex: Honorários contratuais"} value={descricao} onChange={(e) => setDescricao(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">
           <Input label="Valor (R$) *" type="number" min="0" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} required />

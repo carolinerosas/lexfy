@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo, createProcesso, vincularPublicacoesAoProcesso } from "@/lib/store";
 import { parseCNJ } from "@/lib/datajud";
@@ -929,12 +930,12 @@ function PrazoModal({
   return (
     <Modal open={!!publicacao} onClose={onClose} title="Criar prazo da publicação" size="md">
       <form onSubmit={submit} className="space-y-4">
-        <Select
+        <ComboBox
           label="Processo *"
           options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
           placeholder="Selecione o processo..."
           value={processoId}
-          onChange={(e) => setProcessoId(e.target.value)}
+          onChange={setProcessoId}
         />
         {!processoId && (
           <p className="text-xs text-amber-600 -mt-2">
@@ -1123,7 +1124,7 @@ function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: 
   return (
     <Modal open={open} onClose={onClose} title="Registrar Publicação" size="md">
       <form onSubmit={submit} className="space-y-4">
-        <Select label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={(e) => setProcessoId(e.target.value)} />
+        <ComboBox label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={setProcessoId} />
         <Input label="Título / Resumo" placeholder="Ex: Despacho — intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <div className="grid grid-cols-2 gap-4">
           <Select label="Diário / Fonte" options={diarioOptions} placeholder="Selecione..." value={diario} onChange={(e) => setDiario(e.target.value)} />
