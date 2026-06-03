@@ -104,7 +104,7 @@ export default function AtendimentosPage() {
           </Button>
           <Link href="/dashboard/atendimentos/novo">
             <Button>
-              <Plus className="w-4 h-4" /> Novo Atendimento
+              <Plus className="w-4 h-4" /> Iniciar Atendimento
             </Button>
           </Link>
         </div>
@@ -141,9 +141,11 @@ export default function AtendimentosPage() {
               <div className="flex flex-col items-center py-16 text-center">
                 <Users className="w-12 h-12 text-gray-200 mb-4" />
                 <p className="text-gray-500">Nenhum atendimento encontrado</p>
-                <Button className="mt-4" onClick={() => setShowModal(true)}>
-                  <Plus className="w-4 h-4" /> Agendar atendimento
-                </Button>
+                <Link href="/dashboard/atendimentos/novo" className="mt-4">
+                  <Button>
+                    <Plus className="w-4 h-4" /> Iniciar atendimento
+                  </Button>
+                </Link>
               </div>
             </Card>
           ) : (
@@ -426,7 +428,7 @@ function NovoAtendimentoModal({
   return (
     <Modal open={open} onClose={onClose} title="Agendar Atendimento" size="md">
       <p className="text-xs text-gray-500 mb-3 -mt-1">
-        Para registrar um atendimento já realizado com anotações completas, use <strong>Novo Atendimento</strong>.
+        Para registrar um atendimento já realizado com anotações completas, use <strong>Iniciar Atendimento</strong>.
       </p>
       <form onSubmit={submit} className="space-y-4">
         {clientes.length > 0 && (

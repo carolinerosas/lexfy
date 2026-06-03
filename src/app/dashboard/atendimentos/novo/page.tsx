@@ -102,7 +102,7 @@ export default function NovoAtendimentoPage() {
           </button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Novo Atendimento</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Iniciar Atendimento</h1>
           <p className="text-gray-400 text-sm mt-0.5">Registre o atendimento com anotações completas</p>
         </div>
       </div>
