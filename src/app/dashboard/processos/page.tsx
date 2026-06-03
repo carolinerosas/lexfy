@@ -483,7 +483,7 @@ export default function ProcessosPage() {
             ))}
           </div>
 
-          <Card className="hidden overflow-hidden md:block">
+          <Card className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
@@ -495,13 +495,13 @@ export default function ProcessosPage() {
                     className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
                   />
                 </th>
-                <th className="text-left px-6 py-3">Número / Título</th>
+                <th className="text-left px-4 py-3">Número / Título</th>
                 <th className="text-left px-4 py-3">Cliente</th>
                 <th className="text-left px-4 py-3 hidden md:table-cell">Tribunal</th>
                 <th className="text-left px-4 py-3 hidden lg:table-cell">Tipo</th>
                 <th className="text-left px-4 py-3">Status</th>
                 <th className="text-left px-4 py-3 hidden xl:table-cell">Distribuição</th>
-                <th className="px-6 py-3 text-right">Ações</th>
+                <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -515,11 +515,11 @@ export default function ProcessosPage() {
                       className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
                     />
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-4">
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/dashboard/processos/${p.id}`}
-                        className="whitespace-nowrap text-sm font-semibold tabular-nums tracking-tight text-gray-900 hover:text-blue-600 hover:underline transition-colors"
+                        className="whitespace-nowrap text-xs font-semibold tabular-nums tracking-tight text-gray-900 hover:text-blue-600 hover:underline transition-colors"
                       >
                         {p.numero}
                       </Link>
@@ -553,8 +553,8 @@ export default function ProcessosPage() {
                   <td className="px-4 py-4 hidden xl:table-cell text-gray-500">
                     {p.data_distribuicao ? formatDate(p.data_distribuicao) : "—"}
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center justify-end gap-1.5">
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
                       <Link
                         href={`/dashboard/processos/${p.id}`}
                         className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
