@@ -220,7 +220,7 @@ export default function ProcessoDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="flex items-center gap-2">
-                <code className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{processo.numero}</code>
+                <span className="text-sm font-semibold tabular-nums tracking-tight text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{processo.numero}</span>
                 <button
                   type="button"
                   title="Copiar número do processo"

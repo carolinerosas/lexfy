@@ -9,6 +9,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { createProcesso, deleteProcesso, getProcessos, updateProcesso } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import type { Processo, ProcessoStatus, ProcessoTipo } from "@/types";
@@ -120,6 +121,8 @@ export default function ProcessosPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ativo");
+  const [tipoFilter, setTipoFilter] = useState<string>("todos");
+  const [tribunalFilter, setTribunalFilter] = useState<string>("todos");
   const [showModal, setShowModal] = useState(false);
   const [importando, setImportando] = useState(false);
   const [importState, setImportState] = useState<ImportState | null>(null);
@@ -256,6 +259,10 @@ export default function ProcessosPage() {
     }
   }, [selecionados, load]);
 
+  // Opções distintas presentes nos processos para os filtros secundários
+  const tiposDisponiveis = Array.from(new Set(processos.map((p) => p.tipo).filter(Boolean) as string[])).sort();
+  const tribunaisDisponiveis = Array.from(new Set(processos.map((p) => p.tribunal).filter(Boolean) as string[])).sort();
+
   const filtered = processos
     .filter((p) => {
       const matchSearch =
@@ -265,7 +272,9 @@ export default function ProcessosPage() {
         p.cliente_nome.toLowerCase().includes(search.toLowerCase()) ||
         (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "todos" || p.status === statusFilter;
-      return matchSearch && matchStatus;
+      const matchTipo = tipoFilter === "todos" || p.tipo === tipoFilter;
+      const matchTribunal = tribunalFilter === "todos" || p.tribunal === tribunalFilter;
+      return matchSearch && matchStatus && matchTipo && matchTribunal;
     })
     .sort((a, b) => {
       const byStatus = statusPriority[a.status] - statusPriority[b.status];
@@ -344,6 +353,43 @@ export default function ProcessosPage() {
             </button>
           ))}
         </div>
+
+        {(tiposDisponiveis.length > 0 || tribunaisDisponiveis.length > 0) && (
+          <div className="flex w-full flex-wrap items-center gap-2">
+            {tiposDisponiveis.length > 0 && (
+              <div className="min-w-44">
+                <Select
+                  value={tipoFilter}
+                  onChange={(e) => setTipoFilter(e.target.value)}
+                  options={[
+                    { value: "todos", label: "Todos os tipos" },
+                    ...tiposDisponiveis.map((t) => ({ value: t, label: tipoDisplay(t) })),
+                  ]}
+                />
+              </div>
+            )}
+            {tribunaisDisponiveis.length > 0 && (
+              <div className="min-w-44">
+                <Select
+                  value={tribunalFilter}
+                  onChange={(e) => setTribunalFilter(e.target.value)}
+                  options={[
+                    { value: "todos", label: "Todos os tribunais" },
+                    ...tribunaisDisponiveis.map((t) => ({ value: t, label: t })),
+                  ]}
+                />
+              </div>
+            )}
+            {(tipoFilter !== "todos" || tribunalFilter !== "todos") && (
+              <button
+                onClick={() => { setTipoFilter("todos"); setTribunalFilter("todos"); }}
+                className="text-xs font-medium text-gray-500 hover:text-gray-900 underline underline-offset-2"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {filtered.length > 0 && (
@@ -501,7 +547,7 @@ export default function ProcessosPage() {
                 <th className="text-left px-3 py-3 hidden lg:table-cell">Tipo</th>
                 <th className="text-left px-3 py-3">Status</th>
                 <th className="text-left px-3 py-3 hidden xl:table-cell">Distribuição</th>
-                <th className="px-3 py-3 text-right">Ações</th>
+                <th className="px-3 py-3 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -554,7 +600,7 @@ export default function ProcessosPage() {
                     {p.data_distribuicao ? formatDate(p.data_distribuicao) : "—"}
                   </td>
                   <td className="px-3 py-4">
-                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1 whitespace-nowrap">
                       <Link
                         href={`/dashboard/processos/${p.id}`}
                         title="Ver detalhes"
