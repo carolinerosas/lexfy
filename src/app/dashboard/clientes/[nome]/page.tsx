@@ -21,6 +21,7 @@ import {
   getAtendimentosByCliente, getPrazosByCliente, getAudienciasByCliente,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
+import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
 import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia } from "@/types";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -393,8 +394,30 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
   open: boolean; cliente: Cliente; onClose: () => void; onSaved: () => void;
 }) {
   const [form, setForm] = useState({ ...cliente });
-  useEffect(() => { setForm({ ...cliente }); }, [cliente]);
+  const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "ok" | "erro">("idle");
+  useEffect(() => { setForm({ ...cliente }); setCepStatus("idle"); }, [cliente]);
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
+
+  async function handleCepChange(value: string) {
+    const masked = formatCEP(value);
+    setForm((f) => ({ ...f, cep: masked }));
+    const digits = masked.replace(/\D/g, "");
+    if (digits.length !== 8) { setCepStatus("idle"); return; }
+    setCepStatus("loading");
+    const end = await buscarCep(digits);
+    if (end) {
+      setForm((f) => ({
+        ...f,
+        logradouro: end.logradouro || f.logradouro,
+        bairro: end.bairro || f.bairro,
+        cidade: end.cidade || f.cidade,
+        uf: end.uf || f.uf,
+      }));
+      setCepStatus("ok");
+    } else {
+      setCepStatus("erro");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -417,8 +440,8 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
           <div className="space-y-3">
             <Input label="Nome completo *" value={form.nome ?? ""} onChange={(e) => set("nome", e.target.value)} required />
             <div className="grid grid-cols-2 gap-3">
-              <Input label="CPF" placeholder="000.000.000-00" value={form.cpf ?? ""} onChange={(e) => set("cpf", e.target.value)} />
-              <Input label="RG" placeholder="00.000.000-0" value={form.rg ?? ""} onChange={(e) => set("rg", e.target.value)} />
+              <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf ?? ""} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
+              <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg ?? ""} onChange={(e) => set("rg", formatRG(e.target.value))} />
             </div>
           </div>
         </div>
@@ -433,6 +456,14 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Endereço</p>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Input label="CEP" placeholder="00000-000" inputMode="numeric" value={form.cep ?? ""} onChange={(e) => handleCepChange(e.target.value)} />
+                {cepStatus === "loading" && <p className="mt-1 text-xs text-gray-400">Buscando endereço…</p>}
+                {cepStatus === "ok" && <p className="mt-1 text-xs text-green-600">Endereço preenchido — confira e ajuste se precisar.</p>}
+                {cepStatus === "erro" && <p className="mt-1 text-xs text-amber-600">CEP não encontrado. Preencha manualmente.</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Input label="Logradouro" value={form.logradouro ?? ""} onChange={(e) => set("logradouro", e.target.value)} />
               </div>
@@ -442,8 +473,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
               <Input label="Complemento" value={form.complemento ?? ""} onChange={(e) => set("complemento", e.target.value)} />
               <Input label="Bairro" value={form.bairro ?? ""} onChange={(e) => set("bairro", e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Input label="CEP" value={form.cep ?? ""} onChange={(e) => set("cep", e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
               <Input label="Cidade" value={form.cidade ?? ""} onChange={(e) => set("cidade", e.target.value)} />
               <Select label="UF" options={ufs} placeholder="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
             </div>
