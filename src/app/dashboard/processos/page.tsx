@@ -405,7 +405,12 @@ export default function ProcessosPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <p className="break-all font-mono text-[12px] font-semibold leading-snug text-gray-900">{p.numero}</p>
+                      <Link
+                        href={`/dashboard/processos/${p.id}`}
+                        className="text-sm font-semibold tabular-nums tracking-tight leading-snug text-gray-900 hover:text-blue-600"
+                      >
+                        {p.numero}
+                      </Link>
                       <button
                         type="button"
                         title="Copiar numero do processo"
@@ -512,7 +517,12 @@ export default function ProcessosPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                      <p className="font-medium text-gray-900 font-mono text-xs">{p.numero}</p>
+                      <Link
+                        href={`/dashboard/processos/${p.id}`}
+                        className="whitespace-nowrap text-sm font-semibold tabular-nums tracking-tight text-gray-900 hover:text-blue-600 hover:underline transition-colors"
+                      >
+                        {p.numero}
+                      </Link>
                       <button
                         type="button"
                         title="Copiar número do processo"
@@ -522,7 +532,7 @@ export default function ProcessosPage() {
                         {copiedId === p.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
-                    <p className="text-gray-600 mt-0.5 line-clamp-1">{p.titulo}</p>
+                    <Link href={`/dashboard/processos/${p.id}`} className="mt-0.5 block text-gray-600 line-clamp-1 hover:text-gray-900">{p.titulo}</Link>
                   </td>
                   <td className="px-4 py-4">
                     <p className="text-gray-800 font-medium truncate max-w-32">{p.cliente_nome}</p>
