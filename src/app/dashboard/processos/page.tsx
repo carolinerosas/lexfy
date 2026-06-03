@@ -303,7 +303,7 @@ export default function ProcessosPage() {
       </div>
 
       {importState && (
-        <div className={`mb-6 flex items-start gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
+        <div className={`mb-6 flex items-start gap-3 rounded-xl px-3 py-3 text-sm font-medium ${
           importState.type === "success"
             ? "bg-green-50 text-green-700"
             : importState.type === "error"
@@ -487,7 +487,7 @@ export default function ProcessosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
-                <th className="w-10 px-4 py-3">
+                <th className="w-10 px-3 py-3">
                   <input
                     type="checkbox"
                     checked={todosSelecionados}
@@ -495,19 +495,19 @@ export default function ProcessosPage() {
                     className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
                   />
                 </th>
-                <th className="text-left px-4 py-3">Número / Título</th>
-                <th className="text-left px-4 py-3">Cliente</th>
-                <th className="text-left px-4 py-3 hidden md:table-cell">Tribunal</th>
-                <th className="text-left px-4 py-3 hidden lg:table-cell">Tipo</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="text-left px-4 py-3 hidden xl:table-cell">Distribuição</th>
-                <th className="px-4 py-3 text-right">Ações</th>
+                <th className="text-left px-3 py-3">Número / Título</th>
+                <th className="text-left px-3 py-3">Cliente</th>
+                <th className="text-left px-3 py-3 hidden md:table-cell">Tribunal</th>
+                <th className="text-left px-3 py-3 hidden lg:table-cell">Tipo</th>
+                <th className="text-left px-3 py-3">Status</th>
+                <th className="text-left px-3 py-3 hidden xl:table-cell">Distribuição</th>
+                <th className="px-3 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => (
                 <tr key={p.id} className={`transition-colors group ${selecionados.has(p.id) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <input
                       type="checkbox"
                       checked={selecionados.has(p.id)}
@@ -515,7 +515,7 @@ export default function ProcessosPage() {
                       className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
                     />
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/dashboard/processos/${p.id}`}
@@ -534,33 +534,33 @@ export default function ProcessosPage() {
                     </div>
                     <Link href={`/dashboard/processos/${p.id}`} className="mt-0.5 block text-gray-600 line-clamp-1 hover:text-gray-900">{p.titulo}</Link>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <p className="text-gray-800 font-medium truncate max-w-32">{p.cliente_nome}</p>
                     {p.parte_contraria && (
                       <p className="text-gray-400 text-xs mt-0.5 truncate max-w-32">vs. {p.parte_contraria}</p>
                     )}
                   </td>
-                  <td className="px-4 py-4 hidden md:table-cell text-gray-600">
+                  <td className="px-3 py-4 hidden md:table-cell text-gray-600">
                     <p>{p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}</p>
                     {p.comarca && <p className="mt-0.5 max-w-36 truncate text-xs text-gray-400">{p.comarca}</p>}
                   </td>
-                  <td className="px-4 py-4 hidden lg:table-cell text-gray-600">
+                  <td className="px-3 py-4 hidden lg:table-cell text-gray-600">
                     {tipoDisplay(p.tipo)}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <Badge variant={statusVariant[p.status]}>{statusLabel[p.status]}</Badge>
                   </td>
-                  <td className="px-4 py-4 hidden xl:table-cell text-gray-500">
+                  <td className="px-3 py-4 hidden xl:table-cell text-gray-500">
                     {p.data_distribuicao ? formatDate(p.data_distribuicao) : "—"}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="px-3 py-4">
                     <div className="flex items-center justify-end gap-1 whitespace-nowrap">
                       <Link
                         href={`/dashboard/processos/${p.id}`}
-                        className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                        title="Ver detalhes"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        Detalhes
+                        <Eye className="w-4 h-4" />
                       </Link>
                       {p.status !== "arquivado" && (
                         <button
@@ -570,7 +570,7 @@ export default function ProcessosPage() {
                           disabled={busyProcessoId === p.id}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                         >
-                          <Archive className="w-3.5 h-3.5" />
+                          <Archive className="w-4 h-4" />
                         </button>
                       )}
                       <button
@@ -580,7 +580,7 @@ export default function ProcessosPage() {
                         disabled={busyProcessoId === p.id}
                         className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
