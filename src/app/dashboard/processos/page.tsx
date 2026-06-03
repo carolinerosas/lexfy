@@ -41,7 +41,7 @@ const statusPriority: Record<ProcessoStatus, number> = {
   encerrado: 3,
 };
 
-const tipoLabel: Record<ProcessoTipo, string> = {
+const tipoLabel: Record<string, string> = {
   civel: "Cível",
   familia: "Família",
   criminal: "Criminal",
@@ -54,6 +54,12 @@ const tipoLabel: Record<ProcessoTipo, string> = {
   federal: "Federal",
   outro: "Outro",
 };
+
+// Mostra o rótulo conhecido ou o próprio valor customizado
+function tipoDisplay(tipo?: string): string {
+  if (!tipo) return "—";
+  return tipoLabel[tipo] ?? tipo;
+}
 
 type ImportState = {
   type: "success" | "error" | "info";
@@ -343,7 +349,7 @@ export default function ProcessosPage() {
                     </p>
                   )}
                   <p>
-                    <span className="font-medium text-gray-700">Tipo:</span> {p.tipo ? tipoLabel[p.tipo] : "—"}
+                    <span className="font-medium text-gray-700">Tipo:</span> {tipoDisplay(p.tipo)}
                   </p>
                   {p.data_distribuicao && (
                     <p>
@@ -424,7 +430,7 @@ export default function ProcessosPage() {
                     {p.comarca && <p className="mt-0.5 max-w-36 truncate text-xs text-gray-400">{p.comarca}</p>}
                   </td>
                   <td className="px-4 py-4 hidden lg:table-cell text-gray-600">
-                    {p.tipo ? tipoLabel[p.tipo] : "—"}
+                    {tipoDisplay(p.tipo)}
                   </td>
                   <td className="px-4 py-4">
                     <Badge variant={statusVariant[p.status]}>{statusLabel[p.status]}</Badge>

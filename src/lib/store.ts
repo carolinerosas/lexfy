@@ -527,6 +527,24 @@ export async function deleteCliente(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// Conta o que está vinculado a um nome de cliente não cadastrado
+export async function contarVinculosClienteNome(nome: string): Promise<{ processos: number; atendimentos: number }> {
+  const [processos, atendimentos] = await Promise.all([getProcessos(), getAtendimentos()]);
+  return {
+    processos: processos.filter((p) => p.cliente_nome === nome && !p.cliente_id).length,
+    atendimentos: atendimentos.filter((a) => a.cliente_nome === nome && !a.cliente_id).length,
+  };
+}
+
+// Remove um "cliente não cadastrado": apaga os processos e atendimentos que carregam aquele nome
+export async function excluirClienteNaoCadastrado(nome: string): Promise<void> {
+  const [processos, atendimentos] = await Promise.all([getProcessos(), getAtendimentos()]);
+  const procs = processos.filter((p) => p.cliente_nome === nome && !p.cliente_id);
+  for (const p of procs) await deleteProcesso(p.id);
+  const atends = atendimentos.filter((a) => a.cliente_nome === nome && !a.cliente_id);
+  await Promise.all(atends.map((a) => deleteAtendimento(a.id)));
+}
+
 export async function importarClientesExistentes(): Promise<number> {
   const [processos, clientesExistentes] = await Promise.all([getProcessos(), getClientes()]);
   let count = 0;

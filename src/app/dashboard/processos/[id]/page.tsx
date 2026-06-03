@@ -15,6 +15,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 import {
   getProcesso, getProcessos, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
@@ -425,15 +426,13 @@ function InfoCard({ icon, label, value }: { icon: React.ReactNode; label: string
 }
 
 function ResultadoTab({ processo, onSaved }: { processo: Processo; onSaved: () => void }) {
-  const [resultadoTipo, setResultadoTipo] = useState<ProcessoResultadoTipo | "">(processo.resultado_tipo ?? "");
+  const [resultadoTipo, setResultadoTipo] = useState<string>(processo.resultado_tipo ?? "");
   const [descricao, setDescricao] = useState(processo.resultado_descricao ?? "");
-  const [pena, setPena] = useState(processo.pena ?? "");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setResultadoTipo(processo.resultado_tipo ?? "");
     setDescricao(processo.resultado_descricao ?? "");
-    setPena(processo.pena ?? "");
   }, [processo]);
 
   async function submit(e: React.FormEvent) {
@@ -443,11 +442,10 @@ function ResultadoTab({ processo, onSaved }: { processo: Processo; onSaved: () =
       await updateProcesso(processo.id, {
         resultado_tipo: resultadoTipo || undefined,
         resultado_descricao: descricao.trim() || undefined,
-        pena: pena.trim() || undefined,
       });
       onSaved();
     } catch (error) {
-      alert(`Não consegui salvar o resultado. Se você ainda não rodou o SQL supabase-processos-resultados.sql, rode primeiro.\n\nDetalhe: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      alert(`Não consegui salvar o resultado. Se você ainda não rodou o SQL supabase-processos-resultados.sql atualizado, rode primeiro.\n\nDetalhe: ${error instanceof Error ? error.message : "erro desconhecido"}`);
     } finally {
       setSaving(false);
     }
@@ -460,19 +458,14 @@ function ResultadoTab({ processo, onSaved }: { processo: Processo; onSaved: () =
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Select
+          <div className="md:max-w-sm">
+            <SelectComOutro
               label="Classificação do resultado"
+              category="resultado_tipo"
               placeholder="Selecione..."
               value={resultadoTipo}
-              onChange={(e) => setResultadoTipo(e.target.value as ProcessoResultadoTipo | "")}
-              options={resultadoTipoOptions}
-            />
-            <Input
-              label="Pena / condição criminal"
-              placeholder="Ex: 2 anos em regime aberto, sursis..."
-              value={pena}
-              onChange={(e) => setPena(e.target.value)}
+              onChange={setResultadoTipo}
+              baseOptions={resultadoTipoOptions}
             />
           </div>
           <Textarea
@@ -1265,7 +1258,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
           <Input label="Parte Contrária" value={form.parte_contraria ?? ""} onChange={(e) => set("parte_contraria", e.target.value)} />
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <Select label="Classificação" options={processoTipoOptions} value={form.tipo ?? "outro"} onChange={(e) => set("tipo", e.target.value)} />
+          <SelectComOutro label="Classificação" category="processo_tipo" baseOptions={processoTipoOptions} value={form.tipo ?? "outro"} onChange={(v) => set("tipo", v)} />
           <Select label="Status" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />
         </div>
         {permiteIntegracao && (

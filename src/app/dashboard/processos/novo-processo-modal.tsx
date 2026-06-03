@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { createProcesso, createCliente, getClientes } from "@/lib/store";
@@ -261,12 +262,13 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
             onChange={(e) => set("numero", e.target.value)}
             required
           />
-          <Select
+          <SelectComOutro
             label="Tipo"
-            options={tipoOptions}
+            category="processo_tipo"
+            baseOptions={tipoOptions}
             placeholder="Selecione..."
             value={form.tipo}
-            onChange={(e) => set("tipo", e.target.value)}
+            onChange={(v) => set("tipo", v)}
           />
         </div>
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import {
   Users, Plus, Trash2, CheckCircle, X, Clock, FileText,
-  ChevronRight, Calendar, DollarSign, Search,
+  ChevronRight, Calendar, DollarSign, Search, CalendarPlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,9 +98,16 @@ export default function AtendimentosPage() {
             {agendados} agendado{agendados !== 1 ? "s" : ""}{proximos7 > 0 ? ` · ${proximos7} nos próximos 7 dias` : ""}
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4" /> Novo Atendimento
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => setShowModal(true)}>
+            <CalendarPlus className="w-4 h-4" /> Agendar
+          </Button>
+          <Link href="/dashboard/atendimentos/novo">
+            <Button>
+              <Plus className="w-4 h-4" /> Novo Atendimento
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
@@ -416,7 +424,10 @@ function NovoAtendimentoModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Novo Atendimento" size="md">
+    <Modal open={open} onClose={onClose} title="Agendar Atendimento" size="md">
+      <p className="text-xs text-gray-500 mb-3 -mt-1">
+        Para registrar um atendimento já realizado com anotações completas, use <strong>Novo Atendimento</strong>.
+      </p>
       <form onSubmit={submit} className="space-y-4">
         {clientes.length > 0 && (
           <Select
@@ -478,8 +489,8 @@ function NovoAtendimentoModal({
           />
         </div>
         <Textarea
-          label="Anotações / Pauta"
-          placeholder="Assuntos a tratar, orientações, observações..."
+          label="Pauta / assuntos a tratar"
+          placeholder="Breve pauta para o atendimento agendado..."
           rows={3}
           value={form.notas}
           onChange={(e) => set("notas", e.target.value)}

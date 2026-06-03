@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesSummary, createCliente, deleteCliente, importarClientesExistentes, type ClienteSummary } from "@/lib/store";
+import { getClientesSummary, createCliente, deleteCliente, importarClientesExistentes, contarVinculosClienteNome, excluirClienteNaoCadastrado, type ClienteSummary } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -37,6 +37,18 @@ export default function ClientesPage() {
     if (!cliente.id) return;
     if (!window.confirm(`Excluir o cliente "${cliente.nome}"? Os processos vinculados continuam cadastrados.`)) return;
     await deleteCliente(cliente.id);
+    await load();
+  }
+
+  async function handleDeleteNaoCadastrado(cliente: Summary) {
+    if (cliente.id) return;
+    const v = await contarVinculosClienteNome(cliente.nome);
+    const partes: string[] = [];
+    if (v.processos > 0) partes.push(`${v.processos} processo${v.processos !== 1 ? "s" : ""}`);
+    if (v.atendimentos > 0) partes.push(`${v.atendimentos} atendimento${v.atendimentos !== 1 ? "s" : ""}`);
+    const detalhe = partes.length ? ` Isso também vai apagar ${partes.join(" e ")} vinculado${v.processos + v.atendimentos !== 1 ? "s" : ""} a este nome.` : "";
+    if (!window.confirm(`Remover "${cliente.nome}" da lista?${detalhe}\n\nEsta ação não pode ser desfeita.`)) return;
+    await excluirClienteNaoCadastrado(cliente.nome);
     await load();
   }
 
@@ -141,15 +153,25 @@ export default function ClientesPage() {
                     </button>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setPreNome(c.nome);
-                      setShowModal(true);
-                    }}
-                    className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
-                  >
-                    + Cadastrar cliente
-                  </button>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <button
+                      onClick={() => {
+                        setPreNome(c.nome);
+                        setShowModal(true);
+                      }}
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                    >
+                      + Cadastrar cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNaoCadastrado(c)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-100 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+                      title="Remover da lista"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             </Card>
@@ -196,29 +218,45 @@ export default function ClientesPage() {
                     </td>
                     <td className="px-4 py-4">
                       {c.id ? (
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/dashboard/clientes/${c.id}`}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#21181d] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#2b2027]"
+                          >
+                            Ver cliente
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
                           <button
                             type="button"
                             onClick={() => handleDeleteCliente(c)}
-                            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 transition-colors hover:bg-red-50 hover:text-red-600"
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
                             title="Excluir cliente"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Excluir
                           </button>
-                          <Link href={`/dashboard/clientes/${c.id}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700" title="Ver cliente">
-                            <ChevronRight className="w-4 h-4" />
-                          </Link>
                         </div>
                       ) : (
-                        <button
-                          onClick={() => {
-                            setPreNome(c.nome);
-                            setShowModal(true);
-                          }}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-900 border border-gray-200 hover:border-gray-400 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap"
-                        >
-                          + Cadastrar
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setPreNome(c.nome);
+                              setShowModal(true);
+                            }}
+                            className="inline-flex h-8 items-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 whitespace-nowrap"
+                          >
+                            + Cadastrar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteNaoCadastrado(c)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                            title="Remover da lista"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remover
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

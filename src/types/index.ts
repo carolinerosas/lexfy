@@ -1,4 +1,6 @@
 export type ProcessoStatus = "ativo" | "suspenso" | "arquivado" | "encerrado";
+// As classificações abaixo aceitam valores customizados (cadastrados pela usuária via "Outro").
+// O (string & {}) mantém o autocomplete dos valores conhecidos e permite texto livre.
 export type ProcessoTipo =
   | "civel"
   | "familia"
@@ -10,7 +12,8 @@ export type ProcessoTipo =
   | "previdenciario"
   | "tributario"
   | "federal"
-  | "outro";
+  | "outro"
+  | (string & {});
 export type ProcessoResultadoTipo =
   | "sentenca_favoravel"
   | "exito"
@@ -19,7 +22,8 @@ export type ProcessoResultadoTipo =
   | "impronuncia"
   | "pena"
   | "acordo"
-  | "outro";
+  | "outro"
+  | (string & {});
 export type PrazoTipo =
   | "recurso"
   | "contestacao"

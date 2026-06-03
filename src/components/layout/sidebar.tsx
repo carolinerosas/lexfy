@@ -21,14 +21,14 @@ import { useDatajudSync } from "@/hooks/useDatajudSync";
 
 const navItems = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen, badge: "movimentacoes" },
-  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo, badge: "tarefas" },
-  { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
-  { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
   { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
   { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
-  { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
+  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo, badge: "tarefas" },
   { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
+  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen, badge: "movimentacoes" },
+  { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
+  { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
+  { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
 ];
 
 export function Sidebar() {
