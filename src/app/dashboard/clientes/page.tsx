@@ -494,7 +494,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
 
         <Textarea label="Observações" placeholder="Informações adicionais sobre o cliente..." rows={3} value={form.observacoes} onChange={(e) => set("observacoes", e.target.value)} />
 
-        <div className="flex justify-end gap-3 pt-1">
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!form.nome.trim()}>Salvar Cliente</Button>
         </div>

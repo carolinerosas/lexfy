@@ -1052,7 +1052,7 @@ function NovoPrazoModal({ open, onClose, processoId, onCreated }: { open: boolea
           <Select label="Prioridade" options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]} value={prioridade} onChange={(e) => setPrioridade(e.target.value)} />
         </div>
         <Input label="Data Limite *" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
-        <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );
@@ -1078,7 +1078,7 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
         <Select label="Tipo" options={audienciaTipoOptions} placeholder="Selecione..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <Input label="Local" placeholder="Fórum, sala, online..." value={local} onChange={(e) => setLocal(e.target.value)} />
-        <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );
@@ -1380,7 +1380,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
           <Input label="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
         </div>
         <Textarea label="Descrição" value={form.descricao ?? ""} onChange={(e) => set("descricao", e.target.value)} />
-        <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );
