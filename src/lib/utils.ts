@@ -12,13 +12,21 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function formatDate(date: string | Date): string {
+function toValidDate(date: string | Date | null | undefined): Date | null {
+  if (date === null || date === undefined || date === "") return null;
   const d = typeof date === "string" ? new Date(date) : date;
+  return d instanceof Date && !isNaN(d.getTime()) ? d : null;
+}
+
+export function formatDate(date: string | Date | null | undefined): string {
+  const d = toValidDate(date);
+  if (!d) return "—";
   return new Intl.DateTimeFormat("pt-BR").format(d);
 }
 
-export function formatDateTime(date: string | Date): string {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function formatDateTime(date: string | Date | null | undefined): string {
+  const d = toValidDate(date);
+  if (!d) return "—";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",
@@ -28,8 +36,9 @@ export function formatDateTime(date: string | Date): string {
   }).format(d);
 }
 
-export function daysUntil(date: string | Date): number {
-  const d = typeof date === "string" ? new Date(date) : date;
+export function daysUntil(date: string | Date | null | undefined): number {
+  const d = toValidDate(date);
+  if (!d) return NaN;
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   d.setHours(0, 0, 0, 0);
