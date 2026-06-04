@@ -172,6 +172,24 @@ export interface Atendimento {
   processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome">;
 }
 
+export type TriagemStatus = "novo" | "aprovado" | "descartado";
+
+export interface TriagemLead {
+  id: string;
+  nome?: string;
+  contato?: string;
+  telefone?: string;
+  area?: string;
+  resumo?: string;
+  urgencia?: string;
+  detalhes?: string;
+  transcricao?: string;
+  canal?: string;
+  status: TriagemStatus;
+  created_at: string;
+  user_id?: string;
+}
+
 export interface Publicacao {
   id: string;
   processo_id?: string;

@@ -10,6 +10,7 @@ import type {
   Publicacao,
   Anotacao,
   Tarefa,
+  TriagemLead,
 } from "@/types";
 
 const USER_ID = "lexfy_shared";
@@ -295,6 +296,47 @@ export async function vincularPublicacoesAoProcesso(processoId: string, numeroCN
     return texto.includes(digits);
   });
   await Promise.all(alvo.map((p) => updatePublicacao(p.id, { processo_id: processoId })));
+}
+
+// --- Triagem (leads / atendimento automático) ---
+
+export async function getTriagemLeads(): Promise<TriagemLead[]> {
+  const { data } = await supabase
+    .from("triagem_leads")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []) as TriagemLead[];
+}
+
+export async function getTriagemNovosCount(): Promise<number> {
+  const { count } = await supabase
+    .from("triagem_leads")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "novo");
+  return count ?? 0;
+}
+
+export async function createTriagemLead(
+  input: Omit<TriagemLead, "id" | "created_at" | "user_id" | "status"> & { status?: TriagemLead["status"] }
+): Promise<TriagemLead> {
+  const novo = {
+    ...input,
+    status: input.status ?? "novo",
+    id: generateId(),
+    created_at: now(),
+    user_id: USER_ID,
+  };
+  const { data, error } = await supabase.from("triagem_leads").insert(novo).select().single();
+  if (error) throw new Error(error.message);
+  return data as TriagemLead;
+}
+
+export async function updateTriagemLead(id: string, input: Partial<TriagemLead>): Promise<void> {
+  await supabase.from("triagem_leads").update(input).eq("id", id);
+}
+
+export async function deleteTriagemLead(id: string): Promise<void> {
+  await supabase.from("triagem_leads").delete().eq("id", id);
 }
 
 // --- Atendimentos ---
