@@ -1138,15 +1138,21 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
   const [data, setData] = useState(hojeISODate());
   const [vencimento, setVencimento] = useState("");
   const [parcelas, setParcelas] = useState("1");
+  const [entrada, setEntrada] = useState("");
   const [saving, setSaving] = useState(false);
 
   const isCobranca = categoria === "cobranca";
   const nParcelas = Math.max(1, Math.min(60, parseInt(parcelas) || 1));
+  const totalVal = parseFloat(valor) || 0;
+  const entradaVal = parseFloat(entrada) || 0;
+  const restanteVal = Math.max(0, Math.round((totalVal - entradaVal) * 100) / 100);
+  const valorParcela = restanteVal > 0 ? restanteVal / nParcelas : 0;
+  const qtdLanc = (entradaVal > 0 ? 1 : 0) + (restanteVal > 0 ? nParcelas : 0);
 
   useEffect(() => {
     if (open) {
       setDescricao(""); setValor(""); setTipo(""); setData(hojeISODate());
-      setVencimento(""); setParcelas("1");
+      setVencimento(""); setParcelas("1"); setEntrada("");
     }
   }, [open]);
 
@@ -1155,19 +1161,31 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
     if (!descricao || !valor) return;
     setSaving(true);
     try {
-      if (isCobranca && nParcelas > 1) {
-        const valores = dividirValor(parseFloat(valor), nParcelas);
-        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Parcela";
-        for (let i = 0; i < nParcelas; i++) {
+      if (isCobranca) {
+        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Honorários";
+        const hoje = hojeISODate();
+        const lanc: { descricao: string; valor: number; venc?: string }[] = [];
+        if (entradaVal > 0) lanc.push({ descricao: `${base} — Entrada`, valor: entradaVal, venc: hoje });
+        if (restanteVal > 0) {
+          const valores = dividirValor(restanteVal, nParcelas);
+          for (let i = 0; i < nParcelas; i++) {
+            lanc.push({
+              descricao: nParcelas > 1 ? `${base} (${i + 1}/${nParcelas})` : base,
+              valor: valores[i],
+              venc: vencimento ? addMesesISO(vencimento, i) : undefined,
+            });
+          }
+        }
+        for (const l of lanc) {
           await createHonorario({
             processo_id: processoId,
-            descricao: `${base} (${i + 1}/${nParcelas})`,
-            valor: valores[i],
+            descricao: l.descricao,
+            valor: l.valor,
             tipo: (tipo as Honorario["tipo"]) || undefined,
             categoria: "cobranca",
             status: "pendente",
-            data_lancamento: hojeISODate(),
-            data_vencimento: vencimento ? addMesesISO(vencimento, i) : undefined,
+            data_lancamento: hoje,
+            data_vencimento: l.venc,
           });
         }
       } else {
@@ -1177,10 +1195,8 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
           valor: parseFloat(valor),
           tipo: (tipo as Honorario["tipo"]) || undefined,
           categoria,
-          status: isCobranca ? "pendente" : "recebido",
-          data_recebimento: !isCobranca ? data : undefined,
-          data_lancamento: isCobranca ? hojeISODate() : undefined,
-          data_vencimento: isCobranca ? (vencimento || undefined) : undefined,
+          status: "recebido",
+          data_recebimento: data,
         });
       }
       onCreated();
@@ -1201,7 +1217,7 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label={isCobranca && nParcelas > 1 ? "Valor total (R$) *" : "Valor (R$) *"}
+            label={isCobranca && (nParcelas > 1 || entradaVal > 0) ? "Valor total (R$) *" : "Valor (R$) *"}
             type="number" min="0" step="0.01" placeholder="0,00"
             value={valor}
             onChange={(e) => setValor(e.target.value)}
@@ -1213,12 +1229,16 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
         {isCobranca ? (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Input label={nParcelas > 1 ? "1º vencimento" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+              <Input label="Entrada (R$)" type="number" min="0" step="0.01" inputMode="decimal" placeholder="opcional" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
               <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
             </div>
-            {nParcelas > 1 && valor && (
+            <Input label={nParcelas > 1 ? "1º vencimento das parcelas" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+            {valor && (entradaVal > 0 || nParcelas > 1) && (
               <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                {nParcelas}x de aprox. {formatCurrency((parseFloat(valor) || 0) / nParcelas)} — vencimentos mensais a partir de {vencimento ? formatDate(vencimento) : "—"}.
+                {[
+                  entradaVal > 0 ? `Entrada de ${formatCurrency(entradaVal)} (hoje)` : "",
+                  restanteVal > 0 ? `${nParcelas}x de aprox. ${formatCurrency(valorParcela)}${vencimento ? ` a partir de ${formatDate(vencimento)}` : ""}` : "",
+                ].filter(Boolean).join(" + ")}
               </p>
             )}
           </>
@@ -1229,7 +1249,7 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!descricao || !valor || saving}>
-            {saving ? "Salvando..." : isCobranca ? (nParcelas > 1 ? `Lançar ${nParcelas} parcelas` : "Registrar cobrança") : "Confirmar pagamento"}
+            {saving ? "Salvando..." : isCobranca ? (qtdLanc > 1 ? `Lançar ${qtdLanc} lançamentos` : "Registrar cobrança") : "Confirmar pagamento"}
           </Button>
         </div>
       </form>

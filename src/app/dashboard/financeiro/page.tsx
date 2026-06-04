@@ -373,38 +373,68 @@ function HonorarioModal({
   const [tipo, setTipo] = useState(editing?.tipo ?? "");
   const [vencimento, setVencimento] = useState(editing?.data_vencimento ?? "");
   const [parcelas, setParcelas] = useState("1");
+  const [entrada, setEntrada] = useState("");
   const [data, setData] = useState(editing?.data_recebimento ?? editing?.data_lancamento ?? todayISO());
   const [saving, setSaving] = useState(false);
 
   const isPagamento = categoria === "pagamento";
   const nParcelas = Math.max(1, Math.min(60, parseInt(parcelas) || 1));
   const podeParcelar = !isPagamento;
+  const totalVal = parseFloat(valor) || 0;
+  const entradaVal = editing ? 0 : (parseFloat(entrada) || 0);
+  const restanteVal = Math.max(0, Math.round((totalVal - entradaVal) * 100) / 100);
+  const valorParcela = restanteVal > 0 ? restanteVal / nParcelas : 0;
+  const qtdLanc = (entradaVal > 0 ? 1 : 0) + (restanteVal > 0 ? nParcelas : 0);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao || !valor || !processoId) return;
     setSaving(true);
     try {
-      if (podeParcelar && nParcelas > 1) {
-        // Parcelar (cria N parcelas com vencimentos mensais). Vale para nova cobrança ou ao editar.
-        const valores = splitValor(parseFloat(valor), nParcelas);
-        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Parcela";
-        const lancamento = editing?.data_lancamento ?? todayISO();
-        if (editing) {
-          // O lançamento atual vira a 1ª parcela
-          await updateHonorario(editing.id, {
-            descricao: `${base} (1/${nParcelas})`,
-            valor: valores[0],
+      if (!editing && !isPagamento) {
+        // Nova cobrança: entrada (opcional) + parcelas do restante, com vencimentos mensais.
+        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Honorários";
+        const hoje = todayISO();
+        const lanc: { descricao: string; valor: number; venc?: string }[] = [];
+        if (entradaVal > 0) lanc.push({ descricao: `${base} — Entrada`, valor: entradaVal, venc: hoje });
+        if (restanteVal > 0) {
+          const valores = splitValor(restanteVal, nParcelas);
+          for (let i = 0; i < nParcelas; i++) {
+            lanc.push({
+              descricao: nParcelas > 1 ? `${base} (${i + 1}/${nParcelas})` : base,
+              valor: valores[i],
+              venc: vencimento ? addMonthsISO(vencimento, i) : undefined,
+            });
+          }
+        }
+        for (const l of lanc) {
+          await createHonorario({
+            processo_id: processoId,
+            descricao: l.descricao,
+            valor: l.valor,
             tipo: (tipo || undefined) as Honorario["tipo"],
             categoria: "cobranca",
             status: "pendente",
-            data_lancamento: lancamento,
-            data_recebimento: undefined,
-            data_vencimento: vencimento ? addMonthsISO(vencimento, 0) : undefined,
+            data_lancamento: hoje,
+            data_vencimento: l.venc,
           });
         }
-        const inicio = editing ? 1 : 0;
-        for (let i = inicio; i < nParcelas; i++) {
+      } else if (editing && podeParcelar && nParcelas > 1) {
+        // Ao editar, transformar em N parcelas com vencimentos mensais.
+        const valores = splitValor(parseFloat(valor), nParcelas);
+        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Parcela";
+        const lancamento = editing.data_lancamento ?? todayISO();
+        await updateHonorario(editing.id, {
+          descricao: `${base} (1/${nParcelas})`,
+          valor: valores[0],
+          tipo: (tipo || undefined) as Honorario["tipo"],
+          categoria: "cobranca",
+          status: "pendente",
+          data_lancamento: lancamento,
+          data_recebimento: undefined,
+          data_vencimento: vencimento ? addMonthsISO(vencimento, 0) : undefined,
+        });
+        for (let i = 1; i < nParcelas; i++) {
           await createHonorario({
             processo_id: processoId,
             descricao: `${base} (${i + 1}/${nParcelas})`,
@@ -477,7 +507,7 @@ function HonorarioModal({
         />
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label={podeParcelar && nParcelas > 1 ? "Valor total (R$) *" : "Valor (R$) *"}
+            label={podeParcelar && (nParcelas > 1 || entradaVal > 0) ? "Valor total (R$) *" : "Valor (R$) *"}
             type="number" min="0" step="0.01" inputMode="decimal"
             value={valor}
             onChange={(e) => setValor(e.target.value)}
@@ -491,24 +521,30 @@ function HonorarioModal({
         </div>
 
         {!isPagamento && (
-          <div className="grid grid-cols-2 gap-3">
-            <Input label={nParcelas > 1 ? "1º vencimento" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
-            {podeParcelar && (
-              <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+          <>
+            {!editing && (
+              <Input label="Entrada (R$)" type="number" min="0" step="0.01" inputMode="decimal" placeholder="opcional" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
             )}
-          </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label={nParcelas > 1 ? "1º vencimento das parcelas" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+              <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+            </div>
+          </>
         )}
 
-        {podeParcelar && nParcelas > 1 && valor && (
+        {!isPagamento && valor && (entradaVal > 0 || nParcelas > 1) && (
           <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            {nParcelas}x de aprox. {formatCurrency((parseFloat(valor) || 0) / nParcelas)} — vencimentos mensais a partir de {vencimento ? formatDate(vencimento) : "—"}.
+            {[
+              entradaVal > 0 ? `Entrada de ${formatCurrency(entradaVal)} (hoje)` : "",
+              restanteVal > 0 ? `${nParcelas}x de aprox. ${formatCurrency(valorParcela)}${vencimento ? ` a partir de ${formatDate(vencimento)}` : ""}` : "",
+            ].filter(Boolean).join(" + ")}
           </p>
         )}
 
         <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!processoId || !descricao || !valor || saving}>
-            {saving ? "Salvando..." : editing ? "Salvar alterações" : nParcelas > 1 ? `Lançar ${nParcelas} parcelas` : "Salvar"}
+            {saving ? "Salvando..." : editing ? "Salvar alterações" : qtdLanc > 1 ? `Lançar ${qtdLanc} lançamentos` : "Salvar"}
           </Button>
         </div>
       </form>
