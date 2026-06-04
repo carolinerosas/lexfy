@@ -147,6 +147,7 @@ export interface Honorario {
   valor: number;
   data_lancamento?: string;
   data_recebimento?: string;
+  data_vencimento?: string;
   status: HonorarioStatus;
   tipo?: HonorarioTipo;
   categoria: HonorarioCategoria;
