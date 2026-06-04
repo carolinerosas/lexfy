@@ -1084,6 +1084,27 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
   );
 }
 
+function hojeISODate(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
+function addMesesISO(iso: string, n: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function dividirValor(total: number, n: number): number[] {
+  const cents = Math.round(total * 100);
+  const base = Math.floor(cents / n);
+  const arr = Array(n).fill(base);
+  const rem = cents - base * n;
+  for (let i = 0; i < rem; i++) arr[i] += 1;
+  return arr.map((c) => c / 100);
+}
+
 function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }: {
   open: boolean; onClose: () => void; processoId: string;
   categoria: "cobranca" | "pagamento"; onCreated: () => void;
@@ -1091,26 +1112,60 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [tipo, setTipo] = useState("");
-  const [data, setData] = useState(new Date().toISOString().split("T")[0]);
+  const [data, setData] = useState(hojeISODate());
+  const [vencimento, setVencimento] = useState("");
+  const [parcelas, setParcelas] = useState("1");
+  const [saving, setSaving] = useState(false);
+
+  const isCobranca = categoria === "cobranca";
+  const nParcelas = Math.max(1, Math.min(60, parseInt(parcelas) || 1));
+
+  useEffect(() => {
+    if (open) {
+      setDescricao(""); setValor(""); setTipo(""); setData(hojeISODate());
+      setVencimento(""); setParcelas("1");
+    }
+  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao || !valor) return;
-    await createHonorario({
-      processo_id: processoId,
-      descricao,
-      valor: parseFloat(valor),
-      tipo: (tipo as any) || undefined,
-      categoria,
-      status: categoria === "pagamento" ? "recebido" : "pendente",
-      data_recebimento: categoria === "pagamento" ? data : undefined,
-      data_lancamento: categoria === "cobranca" ? data : undefined,
-    });
-    setDescricao(""); setValor(""); setTipo(""); setData(new Date().toISOString().split("T")[0]);
-    onCreated();
+    setSaving(true);
+    try {
+      if (isCobranca && nParcelas > 1) {
+        const valores = dividirValor(parseFloat(valor), nParcelas);
+        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Parcela";
+        for (let i = 0; i < nParcelas; i++) {
+          await createHonorario({
+            processo_id: processoId,
+            descricao: `${base} (${i + 1}/${nParcelas})`,
+            valor: valores[i],
+            tipo: (tipo as Honorario["tipo"]) || undefined,
+            categoria: "cobranca",
+            status: "pendente",
+            data_lancamento: hojeISODate(),
+            data_vencimento: vencimento ? addMesesISO(vencimento, i) : undefined,
+          });
+        }
+      } else {
+        await createHonorario({
+          processo_id: processoId,
+          descricao,
+          valor: parseFloat(valor),
+          tipo: (tipo as Honorario["tipo"]) || undefined,
+          categoria,
+          status: isCobranca ? "pendente" : "recebido",
+          data_recebimento: !isCobranca ? data : undefined,
+          data_lancamento: isCobranca ? hojeISODate() : undefined,
+          data_vencimento: isCobranca ? (vencimento || undefined) : undefined,
+        });
+      }
+      onCreated();
+    } finally {
+      setSaving(false);
+    }
   }
 
-  const isCobranca = categoria === "cobranca";
   return (
     <Modal open={open} onClose={onClose} title={isCobranca ? "Nova Cobrança" : "Registrar Pagamento"} size="sm">
       <form onSubmit={submit} className="space-y-4">
@@ -1122,18 +1177,37 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
           required
         />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Valor (R$) *" type="number" min="0" step="0.01" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} required />
+          <Input
+            label={isCobranca && nParcelas > 1 ? "Valor total (R$) *" : "Valor (R$) *"}
+            type="number" min="0" step="0.01" placeholder="0,00"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            required
+          />
           <Select label="Tipo" options={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
         </div>
-        <Input
-          label={isCobranca ? "Data da cobrança" : "Data do recebimento"}
-          type="date"
-          value={data}
-          onChange={(e) => setData(e.target.value)}
-        />
+
+        {isCobranca ? (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Input label={nParcelas > 1 ? "1º vencimento" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
+              <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
+            </div>
+            {nParcelas > 1 && valor && (
+              <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                {nParcelas}x de aprox. {formatCurrency((parseFloat(valor) || 0) / nParcelas)} — vencimentos mensais a partir de {vencimento ? formatDate(vencimento) : "—"}.
+              </p>
+            )}
+          </>
+        ) : (
+          <Input label="Data do recebimento" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        )}
+
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit">{isCobranca ? "Registrar cobrança" : "Confirmar pagamento"}</Button>
+          <Button type="submit" disabled={!descricao || !valor || saving}>
+            {saving ? "Salvando..." : isCobranca ? (nParcelas > 1 ? `Lançar ${nParcelas} parcelas` : "Registrar cobrança") : "Confirmar pagamento"}
+          </Button>
         </div>
       </form>
     </Modal>
