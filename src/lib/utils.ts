@@ -14,7 +14,14 @@ export function formatCurrency(value: number): string {
 
 function toValidDate(date: string | Date | null | undefined): Date | null {
   if (date === null || date === undefined || date === "") return null;
-  const d = typeof date === "string" ? new Date(date) : date;
+  let d: Date;
+  if (typeof date === "string") {
+    // Datas "YYYY-MM-DD" (sem hora) sao interpretadas como meia-noite LOCAL,
+    // evitando o recuo de 1 dia por causa do fuso (UTC).
+    d = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(date + "T00:00:00") : new Date(date);
+  } else {
+    d = date;
+  }
   return d instanceof Date && !isNaN(d.getTime()) ? d : null;
 }
 
