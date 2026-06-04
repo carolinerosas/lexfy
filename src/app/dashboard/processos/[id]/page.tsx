@@ -150,6 +150,8 @@ export default function ProcessoDetailPage() {
   const [prazoModal, setPrazoModal] = useState(false);
   const [audModal, setAudModal] = useState(false);
   const [honModal, setHonModal] = useState(false);
+  const [honRecebendo, setHonRecebendo] = useState<Honorario | null>(null);
+  const [honDataRec, setHonDataRec] = useState("");
   const [atenModal, setAtenModal] = useState(false);
   const [anotacaoModal, setAnotacaoModal] = useState(false);
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
@@ -384,7 +386,8 @@ export default function ProcessoDetailPage() {
       {tab === "honorarios" && (
         <HonorariosTab
           honorarios={honorarios}
-          onAdd={(cat) => { setHonCategoria(cat); setHonModal(true); }}
+          onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
+          onReceber={(h) => { setHonRecebendo(h); setHonDataRec(hojeISODate()); }}
           onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
         />
       )}
@@ -407,6 +410,41 @@ export default function ProcessoDetailPage() {
       <NovoPrazoModal open={prazoModal} onClose={() => setPrazoModal(false)} processoId={id} onCreated={() => { load(); setPrazoModal(false); }} />
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
       <NovoHonorarioModal open={honModal} onClose={() => setHonModal(false)} processoId={id} categoria={honCategoria} onCreated={() => { load(); setHonModal(false); }} />
+
+      {honRecebendo && (
+        <Modal open onClose={() => setHonRecebendo(null)} title="Confirmar recebimento" size="sm">
+          <div className="space-y-4">
+            <div className="rounded-lg bg-gray-50 px-3 py-2.5">
+              <p className="text-sm font-medium text-gray-900">{honRecebendo.descricao}</p>
+              <p className="text-sm font-bold text-green-700">{formatCurrency(honRecebendo.valor)}</p>
+            </div>
+            <Input label="Quando você recebeu? *" type="date" value={honDataRec} onChange={(e) => setHonDataRec(e.target.value)} />
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setHonRecebendo(null)}>Cancelar</Button>
+              <Button
+                disabled={!honDataRec}
+                onClick={async () => {
+                  const h = honRecebendo;
+                  const quando = honDataRec || hojeISODate();
+                  setHonRecebendo(null);
+                  await updateHonorario(h.id, { status: "recebido", data_recebimento: quando });
+                  await createHonorario({
+                    processo_id: h.processo_id,
+                    descricao: `Recebimento — ${h.descricao}`,
+                    valor: h.valor,
+                    categoria: "pagamento",
+                    status: "recebido",
+                    data_recebimento: quando,
+                  });
+                  load();
+                }}
+              >
+                <CheckCircle className="w-4 h-4" /> Confirmar recebimento
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
       <AnotacaoModal
         open={anotacaoModal}
@@ -702,12 +740,15 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete }: { audiencias: 
   );
 }
 
-function HonorariosTab({ honorarios, onAdd, onDelete }: {
+function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
   honorarios: Honorario[];
-  onAdd: (categoria: "cobranca" | "pagamento") => void;
+  onAdd: () => void;
+  onReceber: (h: Honorario) => void;
   onDelete: (id: string) => void;
 }) {
-  const cobracas = honorarios.filter((h) => h.categoria === "cobranca");
+  const cobracas = honorarios
+    .filter((h) => h.categoria === "cobranca")
+    .sort((a, b) => (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999"));
   const pagamentos = honorarios.filter((h) => h.categoria === "pagamento");
   const totalCobrado = cobracas.reduce((s, h) => s + h.valor, 0);
   const totalPago = pagamentos.reduce((s, h) => s + h.valor, 0);
@@ -718,80 +759,62 @@ function HonorariosTab({ honorarios, onAdd, onDelete }: {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Cobrado</p>
-          <p className="text-lg font-black text-gray-900">{formatCurrency(totalCobrado)}</p>
+          <p className="text-lg font-black text-gray-900 tabular-nums">{formatCurrency(totalCobrado)}</p>
         </div>
         <div className="bg-green-50 rounded-xl px-4 py-3 text-center">
-          <p className="text-xs text-gray-500 mb-1">Pago</p>
-          <p className="text-lg font-black text-green-700">{formatCurrency(totalPago)}</p>
+          <p className="text-xs text-gray-500 mb-1">Recebido</p>
+          <p className="text-lg font-black text-green-700 tabular-nums">{formatCurrency(totalPago)}</p>
         </div>
         <div className={`rounded-xl px-4 py-3 text-center ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
-          <p className="text-xs text-gray-500 mb-1">Saldo devedor</p>
-          <p className={`text-lg font-black ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(saldo)}</p>
+          <p className="text-xs text-gray-500 mb-1">Saldo a receber</p>
+          <p className={`text-lg font-black tabular-nums ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-700">Cobranças</h4>
-          <Button size="sm" variant="outline" onClick={() => onAdd("cobranca")}>
+          <h4 className="text-sm font-semibold text-gray-700">Cobranças e parcelas</h4>
+          <Button size="sm" variant="outline" onClick={onAdd}>
             <Plus className="w-3.5 h-3.5" /> Cobrança
           </Button>
         </div>
         {cobracas.length === 0 ? (
-          <p className="text-xs text-gray-400 py-3 text-center">Nenhuma cobrança registrada</p>
+          <p className="text-xs text-gray-400 py-6 text-center">Nenhuma cobrança registrada. Clique em “Cobrança” para lançar (à vista ou parcelada).</p>
         ) : (
           <div className="space-y-2">
-            {cobracas.map((h) => (
-              <Card key={h.id}>
-                <CardContent className="py-3 px-5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{h.descricao}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {h.tipo ?? "Honorário"}
-                        {h.data_lancamento ? ` · ${formatDate(h.data_lancamento)}` : ""}
-                      </p>
+            {cobracas.map((h) => {
+              const recebida = h.status === "recebido";
+              const venc = h.data_vencimento ? new Date(h.data_vencimento + "T00:00:00") : null;
+              const vencida = !recebida && venc && !isNaN(venc.getTime()) && venc < new Date(new Date().toDateString());
+              return (
+                <Card key={h.id}>
+                  <CardContent className="py-3 px-5">
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${recebida ? "bg-green-50 text-green-600" : vencida ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
+                        {recebida ? <CheckCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">{h.descricao}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {recebida
+                            ? `Recebido${h.data_recebimento ? ` em ${formatDate(h.data_recebimento)}` : ""}`
+                            : h.data_vencimento
+                              ? <>vence {formatDate(h.data_vencimento)}{vencida && <span className="ml-1 font-semibold text-red-600">(vencida)</span>}</>
+                              : (h.tipo ?? "Honorário")}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 tabular-nums shrink-0">{formatCurrency(h.valor)}</span>
+                      {!recebida && (
+                        <Button size="sm" onClick={() => onReceber(h)}>
+                          <CheckCircle className="w-3.5 h-3.5" /> Recebido
+                        </Button>
+                      )}
+                      <button onClick={() => onDelete(h.id)} title="Excluir" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
                     </div>
-                    <span className="text-sm font-bold text-gray-900">{formatCurrency(h.valor)}</span>
-                    <button onClick={() => onDelete(h.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-700">Pagamentos recebidos</h4>
-          <Button size="sm" onClick={() => onAdd("pagamento")}>
-            <Plus className="w-3.5 h-3.5" /> Pagamento
-          </Button>
-        </div>
-        {pagamentos.length === 0 ? (
-          <p className="text-xs text-gray-400 py-3 text-center">Nenhum pagamento registrado</p>
-        ) : (
-          <div className="space-y-2">
-            {pagamentos.map((h) => (
-              <Card key={h.id}>
-                <CardContent className="py-3 px-5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shrink-0">
-                      <CheckCircle className="w-3 h-3 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{h.descricao}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {h.data_recebimento ? `Recebido em ${formatDate(h.data_recebimento)}` : "Data não informada"}
-                      </p>
-                    </div>
-                    <span className="text-sm font-bold text-green-600">{formatCurrency(h.valor)}</span>
-                    <button onClick={() => onDelete(h.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
