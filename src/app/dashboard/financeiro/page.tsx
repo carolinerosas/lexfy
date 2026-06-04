@@ -350,14 +350,45 @@ function HonorarioModal({
 
   const isPagamento = categoria === "pagamento";
   const nParcelas = Math.max(1, Math.min(60, parseInt(parcelas) || 1));
-  const podeParcelar = !isPagamento && !editing;
+  const podeParcelar = !isPagamento;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!descricao || !valor || !processoId) return;
     setSaving(true);
     try {
-      if (editing) {
+      if (podeParcelar && nParcelas > 1) {
+        // Parcelar (cria N parcelas com vencimentos mensais). Vale para nova cobrança ou ao editar.
+        const valores = splitValor(parseFloat(valor), nParcelas);
+        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Parcela";
+        const lancamento = editing?.data_lancamento ?? todayISO();
+        if (editing) {
+          // O lançamento atual vira a 1ª parcela
+          await updateHonorario(editing.id, {
+            descricao: `${base} (1/${nParcelas})`,
+            valor: valores[0],
+            tipo: (tipo || undefined) as Honorario["tipo"],
+            categoria: "cobranca",
+            status: "pendente",
+            data_lancamento: lancamento,
+            data_recebimento: undefined,
+            data_vencimento: vencimento ? addMonthsISO(vencimento, 0) : undefined,
+          });
+        }
+        const inicio = editing ? 1 : 0;
+        for (let i = inicio; i < nParcelas; i++) {
+          await createHonorario({
+            processo_id: processoId,
+            descricao: `${base} (${i + 1}/${nParcelas})`,
+            valor: valores[i],
+            tipo: (tipo || undefined) as Honorario["tipo"],
+            categoria: "cobranca",
+            status: "pendente",
+            data_lancamento: lancamento,
+            data_vencimento: vencimento ? addMonthsISO(vencimento, i) : undefined,
+          });
+        }
+      } else if (editing) {
         await updateHonorario(editing.id, {
           processo_id: processoId,
           descricao,
@@ -369,20 +400,6 @@ function HonorarioModal({
           data_recebimento: isPagamento ? (data || undefined) : undefined,
           data_vencimento: !isPagamento ? (vencimento || undefined) : undefined,
         });
-      } else if (podeParcelar && nParcelas > 1) {
-        const valores = splitValor(parseFloat(valor), nParcelas);
-        for (let i = 0; i < nParcelas; i++) {
-          await createHonorario({
-            processo_id: processoId,
-            descricao: `${descricao} (${i + 1}/${nParcelas})`,
-            valor: valores[i],
-            tipo: (tipo || undefined) as Honorario["tipo"],
-            categoria: "cobranca",
-            status: "pendente",
-            data_lancamento: todayISO(),
-            data_vencimento: vencimento ? addMonthsISO(vencimento, i) : undefined,
-          });
-        }
       } else {
         await createHonorario({
           processo_id: processoId,
