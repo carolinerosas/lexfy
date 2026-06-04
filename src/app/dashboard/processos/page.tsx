@@ -345,7 +345,7 @@ export default function ProcessosPage() {
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
                 statusFilter === s
-                  ? "bg-gray-900 text-white"
+                  ? "bg-[#21181d] text-white"
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -501,7 +501,7 @@ export default function ProcessosPage() {
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <Link
                     href={`/dashboard/processos/${p.id}`}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-gray-900 px-2 text-xs font-semibold text-white transition-colors hover:bg-gray-800"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#21181d] px-2 text-xs font-semibold text-white transition-colors hover:bg-[#2b2027]"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     Detalhes

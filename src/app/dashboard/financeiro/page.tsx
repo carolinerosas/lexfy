@@ -68,7 +68,7 @@ export default function FinanceiroPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <SummaryCard icon={<DollarSign className="w-5 h-5 text-gray-700" />} bg="bg-gray-900" label="Total Cobrado" value={formatCurrency(totalCobrado)} />
+        <SummaryCard icon={<DollarSign className="w-5 h-5 text-gray-700" />} bg="bg-[#21181d]" label="Total Cobrado" value={formatCurrency(totalCobrado)} />
         <SummaryCard icon={<TrendingUp className="w-5 h-5 text-gray-600" />} bg="bg-gray-100" label="Total Recebido" value={formatCurrency(totalPago)} />
         <SummaryCard icon={<TrendingDown className="w-5 h-5 text-gray-600" />} bg="bg-gray-100" label="Saldo Devedor" value={formatCurrency(saldoDevedor)} />
         <SummaryCard icon={<TrendingUp className="w-5 h-5 text-gray-600" />} bg="bg-gray-100" label="Recebido este Mês" value={formatCurrency(recebidoMes)} />
@@ -147,9 +147,9 @@ export default function FinanceiroPage() {
 }
 
 function SummaryCard({ icon, bg, label, value }: { icon: React.ReactNode; bg: string; label: string; value: string; textColor?: string }) {
-  const isDark = bg === "bg-gray-900";
+  const isDark = bg === "bg-[#21181d]";
   return (
-    <Card className={isDark ? "bg-gray-900 border-gray-800" : ""}>
+    <Card className={isDark ? "bg-[#21181d] border-[#2b2027]" : ""}>
       <CardContent className="p-5">
         <div className={`w-10 h-10 rounded-xl ${isDark ? "bg-white/10" : bg} flex items-center justify-center mb-3`}>{icon}</div>
         <p className={`text-xl font-black tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>{value}</p>

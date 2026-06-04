@@ -632,7 +632,7 @@ export default function PublicacoesPage() {
           </div>
         </div>
       ) : (
-        <div className="mb-6 bg-gray-900 border border-gray-800 rounded-xl p-4 flex gap-3 items-center">
+        <div className="mb-6 bg-[#21181d] border border-[#2b2027] rounded-xl p-4 flex gap-3 items-center">
           <RefreshCw className="w-4 h-4 text-gray-400 shrink-0" />
           <div className="flex-1 min-w-0 text-sm">
             <p className="font-semibold text-white">Busca automática ativa</p>
@@ -712,7 +712,7 @@ export default function PublicacoesPage() {
                     className="flex-1 min-w-0 text-left cursor-pointer"
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      {!pub.lida && <span className="w-2 h-2 rounded-full bg-gray-900 shrink-0" />}
+                      {!pub.lida && <span className="w-2 h-2 rounded-full bg-[#21181d] shrink-0" />}
                       <p className="text-sm font-semibold text-gray-900 line-clamp-2">
                         {pub.titulo ?? "Publicação sem título"}
                       </p>

@@ -87,7 +87,7 @@ export default function AudienciasPage() {
               <Card key={a.id} className={`transition-all ${a.realizada ? "opacity-60" : isToday ? "ring-2 ring-gray-400" : ""}`}>
                 <CardContent className="py-4 px-5">
                   <div className="flex items-start gap-4">
-                    <div className={`shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center text-center ${a.realizada ? "bg-gray-100" : isToday ? "bg-gray-900" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
+                    <div className={`shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center text-center ${a.realizada ? "bg-gray-100" : isToday ? "bg-[#21181d]" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                       <span className={`text-lg font-bold leading-none ${a.realizada ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                         {new Date(a.data_hora).getDate()}
                       </span>

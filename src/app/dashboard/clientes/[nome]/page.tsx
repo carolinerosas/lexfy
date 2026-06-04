@@ -109,7 +109,7 @@ export default function ClienteDetailPage() {
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gray-900 text-white text-xl font-bold flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-full bg-[#21181d] text-white text-xl font-bold flex items-center justify-center shrink-0">
               {cliente.nome.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -210,7 +210,7 @@ export default function ClienteDetailPage() {
             <p className="text-sm text-gray-500 mt-0.5">Total Recebido</p>
           </CardContent>
         </Card>
-        <Card className={saldo > 0 ? "bg-gray-900 border-gray-800" : ""}>
+        <Card className={saldo > 0 ? "bg-[#21181d] border-[#2b2027]" : ""}>
           <CardContent className="p-5">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${saldo > 0 ? "bg-white/10" : "bg-gray-100"}`}>
               <TrendingDown className={`w-4 h-4 ${saldo > 0 ? "text-gray-300" : "text-gray-400"}`} />

@@ -189,7 +189,7 @@ export default function ClientesPage() {
                   onChange={() => toggleSelecionado(keyOf(c))}
                   className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
                 />
-                <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-gray-900" : "bg-gray-300"}`}>
+                <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>
                   {c.nome.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -288,7 +288,7 @@ export default function ClientesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-gray-900" : "bg-gray-300"}`}>
+                        <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>
                           {c.nome.charAt(0).toUpperCase()}
                         </div>
                         <div>

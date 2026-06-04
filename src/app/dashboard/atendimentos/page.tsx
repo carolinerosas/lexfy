@@ -164,7 +164,7 @@ export default function AtendimentosPage() {
                   >
                     <CardContent className="py-3.5 px-5">
                       <div className="flex items-center gap-4">
-                        <div className={`shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center ${a.status === "realizado" ? "bg-gray-100" : isToday ? "bg-gray-900" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
+                        <div className={`shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center ${a.status === "realizado" ? "bg-gray-100" : isToday ? "bg-[#21181d]" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                           <span className={`text-base font-black leading-none ${a.status === "realizado" ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                             {new Date(a.data_hora).getDate()}
                           </span>
