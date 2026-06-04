@@ -86,6 +86,8 @@ export default function FinanceiroPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [modal, setModal] = useState<ModalState | null>(null);
+  const [recebendo, setRecebendo] = useState<HonorarioFull | null>(null);
+  const [dataRecebida, setDataRecebida] = useState(todayISO());
 
   const load = useCallback(async () => {
     const [hon, procs, cls] = await Promise.all([getHonorariosWithProcesso(), getProcessos(), getClientes()]);
@@ -141,16 +143,16 @@ export default function FinanceiroPage() {
     await load();
   }
 
-  async function marcarRecebido(h: HonorarioFull) {
-    const hoje = todayISO();
-    await updateHonorario(h.id, { status: "recebido", data_recebimento: hoje });
+  async function marcarRecebido(h: HonorarioFull, dataRec: string) {
+    const quando = dataRec || todayISO();
+    await updateHonorario(h.id, { status: "recebido", data_recebimento: quando });
     await createHonorario({
       processo_id: h.processo_id,
       descricao: `Recebimento — ${h.descricao}`,
       valor: h.valor,
       categoria: "pagamento",
       status: "recebido",
-      data_recebimento: hoje,
+      data_recebimento: quando,
     });
     await load();
   }
@@ -208,7 +210,7 @@ export default function FinanceiroPage() {
                     </p>
                   </div>
                   <span className="text-sm font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
-                  <Button size="sm" onClick={() => marcarRecebido(h)}>
+                  <Button size="sm" onClick={() => { setRecebendo(h); setDataRecebida(todayISO()); }}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Recebido
                   </Button>
                 </li>
@@ -312,6 +314,32 @@ export default function FinanceiroPage() {
           onClose={() => setModal(null)}
           onSaved={() => { load(); setModal(null); }}
         />
+      )}
+
+      {recebendo && (
+        <Modal open onClose={() => setRecebendo(null)} title="Confirmar recebimento" size="sm">
+          <div className="space-y-4">
+            <div className="rounded-lg bg-gray-50 px-3 py-2.5">
+              <p className="text-sm font-medium text-gray-900">{recebendo.descricao}</p>
+              <p className="text-sm font-bold text-green-700">{formatCurrency(recebendo.valor)}</p>
+            </div>
+            <Input
+              label="Quando você recebeu? *"
+              type="date"
+              value={dataRecebida}
+              onChange={(e) => setDataRecebida(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setRecebendo(null)}>Cancelar</Button>
+              <Button
+                onClick={async () => { const h = recebendo; setRecebendo(null); await marcarRecebido(h, dataRecebida); }}
+                disabled={!dataRecebida}
+              >
+                <CheckCircle2 className="w-4 h-4" /> Confirmar recebimento
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
