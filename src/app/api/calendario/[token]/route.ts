@@ -11,6 +11,26 @@ function escapar(txt: string): string {
     .replace(/\r?\n/g, "\\n");
 }
 
+// encurta textos longos (ex: texto inteiro da intimação) pra não poluir o evento
+function cortar(txt?: string, max = 280): string {
+  if (!txt) return "";
+  const t = txt.trim();
+  return t.length > max ? t.slice(0, max).trimEnd() + "…" : t;
+}
+
+// dobra linhas com mais de ~73 caracteres (exigência do formato iCal RFC 5545)
+function dobrar(linha: string): string {
+  const max = 73;
+  if (linha.length <= max) return linha;
+  let out = linha.slice(0, max);
+  let resto = linha.slice(max);
+  while (resto.length > max - 1) {
+    out += "\r\n " + resto.slice(0, max - 1);
+    resto = resto.slice(max - 1);
+  }
+  return out + "\r\n " + resto;
+}
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }
@@ -127,7 +147,7 @@ export async function GET(
       cliente ? `Cliente: ${cliente}` : "",
       p.tipo ? `Tipo: ${p.tipo}` : "",
       p.prioridade ? `Prioridade: ${p.prioridade}` : "",
-      p.descricao ?? "",
+      cortar(p.descricao),
       p.concluido ? "✓ Concluído" : "",
     ].filter(Boolean).join("\n");
     const { inicio } = interpretar(p.data_prazo);
@@ -143,7 +163,7 @@ export async function GET(
       proc?.numero ? `Processo ${proc.numero}` : "",
       cliente ? `Cliente: ${cliente}` : "",
       a.tipo ? `Tipo: ${a.tipo}` : "",
-      a.observacoes ?? "",
+      cortar(a.observacoes),
       a.realizada ? "✓ Realizada" : "",
     ].filter(Boolean).join("\n");
     const { diaInteiro, inicio } = interpretar(a.data_hora);
@@ -155,7 +175,7 @@ export async function GET(
   }
 
   linhas.push("END:VCALENDAR");
-  const corpo = linhas.join("\r\n") + "\r\n";
+  const corpo = linhas.map(dobrar).join("\r\n") + "\r\n";
 
   return new Response(corpo, {
     status: 200,
