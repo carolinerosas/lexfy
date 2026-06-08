@@ -39,6 +39,59 @@ export type AudienciaTipo =
   | "outro";
 export type HonorarioStatus = "pendente" | "recebido" | "cancelado";
 export type HonorarioTipo = "contratual" | "sucumbencial" | "exito" | "outro";
+export type ContaEscritorioStatus = "pendente" | "paga" | "cancelada";
+export type ContaEscritorioCategoria =
+  | "aluguel"
+  | "condominio"
+  | "internet"
+  | "telefone"
+  | "energia"
+  | "agua"
+  | "software"
+  | "contador"
+  | "tributos"
+  | "marketing"
+  | "material"
+  | "servicos"
+  | "outro"
+  | (string & {});
+export type IncidenteExecucaoTipo =
+  | "trabalho_extramuros"
+  | "progressao_regime"
+  | "livramento_condicional"
+  | "remicao"
+  | "saida_temporaria"
+  | "regressao"
+  | "unificacao_penas"
+  | "detracao"
+  | "indulto"
+  | "comutacao"
+  | "extincao_pena"
+  | "outro"
+  | (string & {});
+export type IncidenteExecucaoStatus =
+  | "em_preparacao"
+  | "protocolado"
+  | "em_andamento"
+  | "deferido"
+  | "indeferido"
+  | "cumprido"
+  | "arquivado";
+export type BeneficioPenalTipo = "comutacao" | "indulto";
+export type BeneficioPenalStatus =
+  | "em_estudo"
+  | "requerido"
+  | "deferido"
+  | "indeferido"
+  | "prejudicado";
+export type InqueritoSituacao =
+  | "em_andamento"
+  | "relatado"
+  | "denunciado"
+  | "arquivado"
+  | "baixado"
+  | "outro"
+  | (string & {});
 
 export type AtendimentoStatus = "agendado" | "realizado" | "cancelado";
 export type AtendimentoTipo =
@@ -90,6 +143,12 @@ export interface Processo {
   resultado_descricao?: string;
   pena?: string;
   processo_principal_id?: string;
+  numero_inquerito?: string;
+  delegacia?: string;
+  autoridade_policial?: string;
+  data_instauracao?: string;
+  situacao_inquerito?: InqueritoSituacao;
+  relatorio_final?: string;
   monitorar_datajud?: boolean;
   ultimo_sync?: string;
   created_at: string;
@@ -156,6 +215,74 @@ export interface Honorario {
   processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome">;
 }
 
+export interface ContaEscritorio {
+  id: string;
+  descricao: string;
+  valor: number;
+  categoria: ContaEscritorioCategoria;
+  status: ContaEscritorioStatus;
+  data_vencimento: string;
+  data_pagamento?: string;
+  forma_pagamento?: string;
+  recorrente?: boolean;
+  observacoes?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface IncidenteExecucao {
+  id: string;
+  processo_id: string;
+  tipo: IncidenteExecucaoTipo;
+  titulo: string;
+  descricao?: string;
+  status: IncidenteExecucaoStatus;
+  data_pedido?: string;
+  data_decisao?: string;
+  resultado?: string;
+  observacoes?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface CalculoPena {
+  id: string;
+  processo_id: string;
+  titulo: string;
+  pena_anos?: number;
+  pena_meses?: number;
+  pena_dias?: number;
+  data_inicio?: string;
+  dias_detracao?: number;
+  dias_remicao?: number;
+  regime_atual?: string;
+  marco_base?: string;
+  resumo?: string;
+  observacoes?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+export interface BeneficioPenal {
+  id: string;
+  processo_id: string;
+  tipo: BeneficioPenalTipo;
+  decreto?: string;
+  titulo: string;
+  status: BeneficioPenalStatus;
+  data_requerimento?: string;
+  data_decisao?: string;
+  requisitos?: string;
+  resultado?: string;
+  observacoes?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
 export interface Atendimento {
   id: string;
   processo_id?: string;
@@ -173,6 +300,7 @@ export interface Atendimento {
 }
 
 export type TriagemStatus = "novo" | "aprovado" | "descartado";
+export type TriagemImportacaoStatus = "pendente" | "aprovada" | "descartada";
 
 export interface TriagemLead {
   id: string;
@@ -188,6 +316,57 @@ export interface TriagemLead {
   status: TriagemStatus;
   created_at: string;
   user_id?: string;
+}
+
+export interface TriagemImportDraft {
+  cliente?: {
+    nome?: string;
+    cpf?: string;
+    rg?: string;
+    email?: string;
+    celular?: string;
+    cep?: string;
+    logradouro?: string;
+    numero_end?: string;
+    complemento?: string;
+    bairro?: string;
+    cidade?: string;
+    uf?: string;
+    observacoes?: string;
+  };
+  processos: Array<{
+    numero: string;
+    titulo?: string;
+    descricao?: string;
+    tribunal?: string;
+    uf?: string;
+    comarca?: string;
+    vara?: string;
+    tipo?: string;
+    parte_contraria?: string;
+    cliente_nome?: string;
+    cliente_cpf_cnpj?: string;
+    data_distribuicao?: string;
+  }>;
+  movimentacoes?: Array<{
+    processo_numero?: string;
+    data_movimentacao?: string;
+    descricao: string;
+    tipo?: string;
+    fonte?: string;
+  }>;
+  avisos?: string[];
+}
+
+export interface TriagemImportacao {
+  id: string;
+  texto_original: string;
+  draft: TriagemImportDraft;
+  origem?: string;
+  status: TriagemImportacaoStatus;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
 export interface Publicacao {

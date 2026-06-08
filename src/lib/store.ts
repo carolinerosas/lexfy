@@ -6,11 +6,16 @@ import type {
   Audiencia,
   Movimentacao,
   Honorario,
+  ContaEscritorio,
   Atendimento,
   Publicacao,
   Anotacao,
   Tarefa,
+  IncidenteExecucao,
+  CalculoPena,
+  BeneficioPenal,
   TriagemLead,
+  TriagemImportacao,
 } from "@/types";
 
 const USER_ID = "lexfy_shared";
@@ -23,10 +28,15 @@ function now(): string {
   return new Date().toISOString();
 }
 
-type LocalTable = "anotacoes" | "tarefas";
+type LocalTable = "anotacoes" | "tarefas" | "contas_escritorio" | "incidentes_execucao" | "calculos_pena" | "beneficios_penais";
 
 function isMissingTable(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && (error as { code?: string }).code === "PGRST205";
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    ["PGRST205", "42P01"].includes((error as { code?: string }).code ?? "")
+  );
 }
 
 function localKey(table: LocalTable): string {
@@ -109,9 +119,15 @@ export async function deleteProcesso(id: string): Promise<void> {
     supabase.from("atendimentos").delete().eq("processo_id", id),
     supabase.from("anotacoes").delete().eq("processo_id", id),
     supabase.from("tarefas").delete().eq("processo_id", id),
+    supabase.from("incidentes_execucao").delete().eq("processo_id", id),
+    supabase.from("calculos_pena").delete().eq("processo_id", id),
+    supabase.from("beneficios_penais").delete().eq("processo_id", id),
   ]);
   localDeleteByProcesso("anotacoes", id);
   localDeleteByProcesso("tarefas", id);
+  localDeleteByProcesso("incidentes_execucao", id);
+  localDeleteByProcesso("calculos_pena", id);
+  localDeleteByProcesso("beneficios_penais", id);
   await supabase.from("processos").delete().eq("id", id);
 }
 
@@ -261,6 +277,69 @@ export async function deleteHonorario(id: string): Promise<void> {
   await supabase.from("honorarios").delete().eq("id", id);
 }
 
+// --- Contas do escritorio ---
+
+export async function getContasEscritorio(): Promise<ContaEscritorio[]> {
+  const { data, error } = await supabase
+    .from("contas_escritorio")
+    .select("*")
+    .order("data_vencimento", { ascending: true });
+
+  if (error) {
+    if (isMissingTable(error)) return getLocalRows<ContaEscritorio>("contas_escritorio");
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as ContaEscritorio[];
+}
+
+export async function createContaEscritorio(
+  input: Omit<ContaEscritorio, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<ContaEscritorio> {
+  const nova = {
+    ...input,
+    id: generateId(),
+    created_at: now(),
+    updated_at: now(),
+    user_id: USER_ID,
+  };
+  const { data, error } = await supabase.from("contas_escritorio").insert(nova).select().single();
+
+  if (error) {
+    if (isMissingTable(error)) return localInsert("contas_escritorio", nova);
+    throw new Error(error.message);
+  }
+
+  return data as ContaEscritorio;
+}
+
+export async function updateContaEscritorio(id: string, input: Partial<ContaEscritorio>): Promise<void> {
+  const { error } = await supabase
+    .from("contas_escritorio")
+    .update({ ...input, updated_at: now() })
+    .eq("id", id);
+
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate("contas_escritorio", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteContaEscritorio(id: string): Promise<void> {
+  const { error } = await supabase.from("contas_escritorio").delete().eq("id", id);
+
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("contas_escritorio", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
 // --- Publicações ---
 
 export async function getPublicacoes(): Promise<Publicacao[]> {
@@ -309,11 +388,18 @@ export async function getTriagemLeads(): Promise<TriagemLead[]> {
 }
 
 export async function getTriagemNovosCount(): Promise<number> {
-  const { count } = await supabase
+  const [{ count: leadsCount, error: leadsError }, { count: importacoesCount, error: importacoesError }] = await Promise.all([
+    supabase
     .from("triagem_leads")
     .select("*", { count: "exact", head: true })
-    .eq("status", "novo");
-  return count ?? 0;
+      .eq("status", "novo"),
+    supabase
+      .from("triagem_importacoes")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pendente"),
+  ]);
+
+  return (leadsError ? 0 : leadsCount ?? 0) + (importacoesError ? 0 : importacoesCount ?? 0);
 }
 
 export async function createTriagemLead(
@@ -337,6 +423,49 @@ export async function updateTriagemLead(id: string, input: Partial<TriagemLead>)
 
 export async function deleteTriagemLead(id: string): Promise<void> {
   await supabase.from("triagem_leads").delete().eq("id", id);
+}
+
+export async function getTriagemImportacoes(): Promise<TriagemImportacao[]> {
+  const { data, error } = await supabase
+    .from("triagem_importacoes")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as TriagemImportacao[];
+}
+
+export async function createTriagemImportacao(
+  input: Omit<TriagemImportacao, "id" | "created_at" | "updated_at" | "user_id" | "status"> & { status?: TriagemImportacao["status"] }
+): Promise<TriagemImportacao> {
+  const nova = {
+    ...input,
+    status: input.status ?? "pendente",
+    id: generateId(),
+    created_at: now(),
+    updated_at: now(),
+    user_id: USER_ID,
+  };
+  const { data, error } = await supabase.from("triagem_importacoes").insert(nova).select().single();
+  if (error) throw new Error(error.message);
+  return data as TriagemImportacao;
+}
+
+export async function updateTriagemImportacao(id: string, input: Partial<TriagemImportacao>): Promise<void> {
+  const { error } = await supabase
+    .from("triagem_importacoes")
+    .update({ ...input, updated_at: now() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteTriagemImportacao(id: string): Promise<void> {
+  const { error } = await supabase.from("triagem_importacoes").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 // --- Atendimentos ---
@@ -520,6 +649,167 @@ export async function deleteTarefa(id: string): Promise<void> {
   if (error) {
     if (isMissingTable(error)) {
       localDelete("tarefas", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+// --- Execução penal: incidentes, cálculo de pena e benefícios ---
+
+export async function getIncidentesByProcesso(processoId: string): Promise<IncidenteExecucao[]> {
+  const { data, error } = await supabase
+    .from("incidentes_execucao")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<IncidenteExecucao>("incidentes_execucao")
+        .filter((i) => i.processo_id === processoId)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as IncidenteExecucao[];
+}
+
+export async function createIncidente(
+  input: Omit<IncidenteExecucao, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<IncidenteExecucao> {
+  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("incidentes_execucao").insert(novo).select().single();
+  if (error) {
+    if (isMissingTable(error)) return localInsert("incidentes_execucao", novo);
+    throw new Error(error.message);
+  }
+  return data as IncidenteExecucao;
+}
+
+export async function updateIncidente(id: string, input: Partial<IncidenteExecucao>): Promise<void> {
+  const { error } = await supabase.from("incidentes_execucao").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate<IncidenteExecucao>("incidentes_execucao", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteIncidente(id: string): Promise<void> {
+  const { error } = await supabase.from("incidentes_execucao").delete().eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("incidentes_execucao", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function getCalculosPenaByProcesso(processoId: string): Promise<CalculoPena[]> {
+  const { data, error } = await supabase
+    .from("calculos_pena")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<CalculoPena>("calculos_pena")
+        .filter((c) => c.processo_id === processoId)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    }
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as CalculoPena[];
+}
+
+export async function createCalculoPena(
+  input: Omit<CalculoPena, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<CalculoPena> {
+  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("calculos_pena").insert(novo).select().single();
+  if (error) {
+    if (isMissingTable(error)) return localInsert("calculos_pena", novo);
+    throw new Error(error.message);
+  }
+  return data as CalculoPena;
+}
+
+export async function updateCalculoPena(id: string, input: Partial<CalculoPena>): Promise<void> {
+  const { error } = await supabase.from("calculos_pena").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate<CalculoPena>("calculos_pena", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteCalculoPena(id: string): Promise<void> {
+  const { error } = await supabase.from("calculos_pena").delete().eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("calculos_pena", id);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function getBeneficiosPenaisByProcesso(processoId: string): Promise<BeneficioPenal[]> {
+  const { data, error } = await supabase
+    .from("beneficios_penais")
+    .select("*")
+    .eq("processo_id", processoId)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<BeneficioPenal>("beneficios_penais")
+        .filter((b) => b.processo_id === processoId)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    }
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as BeneficioPenal[];
+}
+
+export async function createBeneficioPenal(
+  input: Omit<BeneficioPenal, "id" | "created_at" | "updated_at" | "user_id">
+): Promise<BeneficioPenal> {
+  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("beneficios_penais").insert(novo).select().single();
+  if (error) {
+    if (isMissingTable(error)) return localInsert("beneficios_penais", novo);
+    throw new Error(error.message);
+  }
+  return data as BeneficioPenal;
+}
+
+export async function updateBeneficioPenal(id: string, input: Partial<BeneficioPenal>): Promise<void> {
+  const { error } = await supabase.from("beneficios_penais").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localUpdate<BeneficioPenal>("beneficios_penais", id, input);
+      return;
+    }
+    throw new Error(error.message);
+  }
+}
+
+export async function deleteBeneficioPenal(id: string): Promise<void> {
+  const { error } = await supabase.from("beneficios_penais").delete().eq("id", id);
+  if (error) {
+    if (isMissingTable(error)) {
+      localDelete("beneficios_penais", id);
       return;
     }
     throw new Error(error.message);

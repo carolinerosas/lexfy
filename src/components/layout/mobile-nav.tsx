@@ -18,19 +18,19 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { getMovimentacoesNaoLidas, getPublicacoes, getTarefas, getTriagemNovosCount } from "@/lib/store";
+import { getPublicacoes, getTriagemNovosCount } from "@/lib/store";
 
 const mainItems = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
   { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
   { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
-  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo, badge: "tarefas" },
+  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo },
 ];
 
 const moreItems = [
   { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
   { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
-  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen, badge: "movimentacoes" },
+  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
   { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
   { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
   { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
@@ -39,21 +39,15 @@ const moreItems = [
 export function MobileNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [movNaoLidas, setMovNaoLidas] = useState(0);
   const [pubNaoLidas, setPubNaoLidas] = useState(0);
-  const [tarefasPendentes, setTarefasPendentes] = useState(0);
   const [triagemNovos, setTriagemNovos] = useState(0);
 
   async function refreshBadges() {
-    const [mov, pubs, tarefas, triagem] = await Promise.all([
-      getMovimentacoesNaoLidas(),
+    const [pubs, triagem] = await Promise.all([
       getPublicacoes(),
-      getTarefas(),
       getTriagemNovosCount(),
     ]);
-    setMovNaoLidas(mov);
     setPubNaoLidas(pubs.filter((p) => !p.lida).length);
-    setTarefasPendentes(tarefas.filter((t) => !t.concluida).length);
     setTriagemNovos(triagem);
   }
 
@@ -68,15 +62,13 @@ export function MobileNav() {
   }, [pathname]);
 
   function getBadge(key?: string): number {
-    if (key === "movimentacoes") return movNaoLidas;
     if (key === "publicacoes") return pubNaoLidas;
-    if (key === "tarefas") return tarefasPendentes;
     if (key === "triagem") return triagemNovos;
     return 0;
   }
 
   const isMoreActive = moreItems.some((item) => pathname.startsWith(item.href));
-  const totalMoreBadge = getBadge("publicacoes") + getBadge("movimentacoes");
+  const totalMoreBadge = getBadge("publicacoes");
 
   return (
     <>

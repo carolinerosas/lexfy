@@ -7,6 +7,7 @@ import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
   RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote, Link2,
+  Shield, GitBranch,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import {
-  getProcesso, getProcessos, getClientes, updateProcesso, deleteProcesso,
+  getProcesso, getProcessos, getClientes, createProcesso, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
@@ -27,10 +28,17 @@ import {
   getAtendimentosByProcesso, createAtendimento, updateAtendimento, deleteAtendimento,
   getAnotacoesByProcesso, createAnotacao, updateAnotacao, deleteAnotacao,
   getTarefasByProcesso, createTarefa, updateTarefa, deleteTarefa,
+  getIncidentesByProcesso, createIncidente, updateIncidente, deleteIncidente,
+  getCalculosPenaByProcesso, createCalculoPena, updateCalculoPena, deleteCalculoPena,
+  getBeneficiosPenaisByProcesso, createBeneficioPenal, updateBeneficioPenal, deleteBeneficioPenal,
   sincronizarProcesso,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
-import type { Cliente, Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade, ProcessoTipo, ProcessoResultadoTipo } from "@/types";
+import type {
+  Cliente, Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
+  ProcessoTipo, ProcessoResultadoTipo, IncidenteExecucao, CalculoPena, BeneficioPenal,
+  IncidenteExecucaoTipo, IncidenteExecucaoStatus, BeneficioPenalTipo, BeneficioPenalStatus, InqueritoSituacao,
+} from "@/types";
 
 const statusOptions = [
   { value: "ativo", label: "Ativo" },
@@ -89,7 +97,90 @@ const resultadoTipoOptions: { value: ProcessoResultadoTipo; label: string }[] = 
   { value: "outro", label: "Outro" },
 ];
 
-type Tab = "movimentacoes" | "resultado" | "anotacoes" | "tarefas" | "prazos" | "audiencias" | "honorarios" | "atendimentos";
+const incidenteTipoOptions: { value: IncidenteExecucaoTipo; label: string }[] = [
+  { value: "trabalho_extramuros", label: "Trabalho extramuros" },
+  { value: "progressao_regime", label: "Progressão de regime" },
+  { value: "livramento_condicional", label: "Livramento condicional" },
+  { value: "remicao", label: "Remição" },
+  { value: "saida_temporaria", label: "Saída temporária" },
+  { value: "regressao", label: "Regressão" },
+  { value: "unificacao_penas", label: "Unificação de penas" },
+  { value: "detracao", label: "Detração" },
+  { value: "indulto", label: "Indulto" },
+  { value: "comutacao", label: "Comutação" },
+  { value: "extincao_pena", label: "Extinção da pena" },
+  { value: "outro", label: "Outro" },
+];
+
+const incidenteStatusOptions: { value: IncidenteExecucaoStatus; label: string }[] = [
+  { value: "em_preparacao", label: "Em preparação" },
+  { value: "protocolado", label: "Protocolado" },
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "deferido", label: "Deferido" },
+  { value: "indeferido", label: "Indeferido" },
+  { value: "cumprido", label: "Cumprido" },
+  { value: "arquivado", label: "Arquivado" },
+];
+
+const beneficioPenalTipoOptions: { value: BeneficioPenalTipo; label: string }[] = [
+  { value: "comutacao", label: "Comutação" },
+  { value: "indulto", label: "Indulto" },
+];
+
+const beneficioPenalStatusOptions: { value: BeneficioPenalStatus; label: string }[] = [
+  { value: "em_estudo", label: "Em estudo" },
+  { value: "requerido", label: "Requerido" },
+  { value: "deferido", label: "Deferido" },
+  { value: "indeferido", label: "Indeferido" },
+  { value: "prejudicado", label: "Prejudicado" },
+];
+
+const inqueritoSituacaoOptions: { value: InqueritoSituacao; label: string }[] = [
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "relatado", label: "Relatado" },
+  { value: "denunciado", label: "Denunciado / ação penal proposta" },
+  { value: "arquivado", label: "Arquivado" },
+  { value: "baixado", label: "Baixado" },
+  { value: "outro", label: "Outro" },
+];
+
+type Tab =
+  | "movimentacoes"
+  | "inqueritos"
+  | "incidentes"
+  | "calculo_pena"
+  | "beneficios_penais"
+  | "resultado"
+  | "anotacoes"
+  | "tarefas"
+  | "prazos"
+  | "audiencias"
+  | "honorarios"
+  | "atendimentos";
+
+const execucaoPenalTabs: Tab[] = ["incidentes", "calculo_pena", "beneficios_penais"];
+const acaoPenalTabs: Tab[] = ["inqueritos"];
+
+function normalizeTipo(tipo?: string): string {
+  return (tipo ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+}
+
+function isExecucaoPenalTipo(tipo?: string): boolean {
+  return normalizeTipo(tipo) === "execucao_penal";
+}
+
+function isAcaoPenalTipo(tipo?: string): boolean {
+  const normalized = normalizeTipo(tipo);
+  return normalized === "criminal" || normalized === "acao_penal" || normalized === "penal";
+}
+
+function isInqueritoTipo(tipo?: string): boolean {
+  return normalizeTipo(tipo) === "inquerito_policial";
+}
 
 export default function ProcessoDetailPage() {
   const params = useParams();
@@ -105,6 +196,11 @@ export default function ProcessoDetailPage() {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [anotacoes, setAnotacoes] = useState<Anotacao[]>([]);
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteExecucao[]>([]);
+  const [calculosPena, setCalculosPena] = useState<CalculoPena[]>([]);
+  const [beneficiosPenais, setBeneficiosPenais] = useState<BeneficioPenal[]>([]);
+  const [todosProcessos, setTodosProcessos] = useState<Processo[]>([]);
+  const [inqueritosDaAcao, setInqueritosDaAcao] = useState<Processo[]>([]);
 
   const [honCategoria, setHonCategoria] = useState<"cobranca" | "pagamento">("pagamento");
   const [syncing, setSyncing] = useState(false);
@@ -157,6 +253,14 @@ export default function ProcessoDetailPage() {
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
   const [tarefaModal, setTarefaModal] = useState(false);
   const [editingTarefa, setEditingTarefa] = useState<Tarefa | null>(null);
+  const [incidenteModal, setIncidenteModal] = useState(false);
+  const [editingIncidente, setEditingIncidente] = useState<IncidenteExecucao | null>(null);
+  const [calculoPenaModal, setCalculoPenaModal] = useState(false);
+  const [editingCalculoPena, setEditingCalculoPena] = useState<CalculoPena | null>(null);
+  const [beneficioPenalModal, setBeneficioPenalModal] = useState(false);
+  const [editingBeneficioPenal, setEditingBeneficioPenal] = useState<BeneficioPenal | null>(null);
+  const [vincularInqueritoModal, setVincularInqueritoModal] = useState(false);
+  const [transformarInqueritoModal, setTransformarInqueritoModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
   const [vincularClienteModal, setVincularClienteModal] = useState(false);
@@ -165,7 +269,10 @@ export default function ProcessoDetailPage() {
     const p = await getProcesso(id);
     if (!p) { router.push("/dashboard/processos"); return; }
     setProcesso(p);
-    const [movs, prazosAll, audienciasAll, honorariosAll, atendimentosData, anotacoesData, tarefasData] = await Promise.all([
+    const [
+      movs, prazosAll, audienciasAll, honorariosAll, atendimentosData, anotacoesData, tarefasData,
+      incidentesData, calculosPenaData, beneficiosPenaisData, todosData,
+    ] = await Promise.all([
       getMovimentacoesByProcesso(id),
       getPrazos(),
       getAudiencias(),
@@ -173,6 +280,10 @@ export default function ProcessoDetailPage() {
       getAtendimentosByProcesso(id),
       getAnotacoesByProcesso(id),
       getTarefasByProcesso(id),
+      getIncidentesByProcesso(id),
+      getCalculosPenaByProcesso(id),
+      getBeneficiosPenaisByProcesso(id),
+      getProcessos(),
     ]);
     setMovimentacoes(movs);
     setPrazos(prazosAll.filter((pr) => pr.processo_id === id));
@@ -181,9 +292,24 @@ export default function ProcessoDetailPage() {
     setAtendimentos(atendimentosData);
     setAnotacoes(anotacoesData);
     setTarefas(tarefasData);
+    setIncidentes(incidentesData);
+    setCalculosPena(calculosPenaData);
+    setBeneficiosPenais(beneficiosPenaisData);
+    setTodosProcessos(todosData);
+    setInqueritosDaAcao(todosData.filter((proc) => isInqueritoTipo(proc.tipo) && proc.processo_principal_id === id));
   }, [id, router]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!processo) return;
+    if (
+      (!isExecucaoPenalTipo(processo.tipo) && execucaoPenalTabs.includes(tab)) ||
+      (!isAcaoPenalTipo(processo.tipo) && acaoPenalTabs.includes(tab))
+    ) {
+      setTab("movimentacoes");
+    }
+  }, [processo, tab]);
 
   async function handleDelete() {
     await deleteProcesso(id);
@@ -197,11 +323,23 @@ export default function ProcessoDetailPage() {
   };
 
   const movNaoLidas = movimentacoes.filter((m) => !m.lida).length;
+  const clienteDetalheHref = processo.cliente_id ? `/dashboard/clientes/${processo.cliente_id}` : undefined;
 
   const hasResultado = Boolean(processo.resultado_tipo || processo.resultado_descricao || processo.pena);
+  const isExecucaoPenal = isExecucaoPenalTipo(processo.tipo);
+  const isAcaoPenal = isAcaoPenalTipo(processo.tipo);
+  const isInquerito = isInqueritoTipo(processo.tipo);
 
   const tabs: { key: Tab; label: string; count: number; unread?: number; showCount?: boolean }[] = [
     { key: "movimentacoes", label: "Movimentações", count: movimentacoes.length, unread: movNaoLidas },
+    ...(isAcaoPenal ? [
+      { key: "inqueritos" as const, label: "Inquéritos", count: inqueritosDaAcao.length },
+    ] : []),
+    ...(isExecucaoPenal ? [
+      { key: "incidentes" as const, label: "Incidentes", count: incidentes.length },
+      { key: "calculo_pena" as const, label: "Cálculo de pena", count: calculosPena.length },
+      { key: "beneficios_penais" as const, label: "Comutação/Indulto", count: beneficiosPenais.length },
+    ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
@@ -269,6 +407,11 @@ export default function ProcessoDetailPage() {
           {syncMsg && (
             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{syncMsg}</span>
           )}
+          {isInquerito && (
+            <Button variant="secondary" size="sm" onClick={() => setTransformarInqueritoModal(true)}>
+              <GitBranch className="w-3.5 h-3.5" /> Transformar em ação penal
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setEditModal(true)}>
             <Edit2 className="w-3.5 h-3.5" /> Editar
           </Button>
@@ -282,7 +425,16 @@ export default function ProcessoDetailPage() {
         <Card>
           <CardContent className="py-3 px-4">
             <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><User className="w-4 h-4 text-blue-500" />Cliente</div>
-            <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
+            {clienteDetalheHref ? (
+              <Link
+                href={clienteDetalheHref}
+                className="block truncate text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline"
+              >
+                {processo.cliente_nome || "—"}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
+            )}
             <div className="mt-1.5 flex items-center gap-2">
               {processo.cliente_id ? (
                 <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium"><CheckCircle className="w-3 h-3" /> Vinculado</span>
@@ -313,7 +465,11 @@ export default function ProcessoDetailPage() {
         </Card>
       )}
 
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+      {isInquerito && (
+        <InqueritoInfoPanel processo={processo} acaoPenal={todosProcessos.find((p) => p.id === processo.processo_principal_id)} />
+      )}
+
+      <div className="flex flex-wrap gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-full">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -345,6 +501,37 @@ export default function ProcessoDetailPage() {
           onDelete={async (mid) => { await deleteMovimentacao(mid); load(); }}
           onMarcarLidas={async () => { await marcarTodasMovimentacoesLidas(id); load(); }}
           naoLidas={movNaoLidas}
+        />
+      )}
+      {isAcaoPenal && tab === "inqueritos" && (
+        <InqueritosTab
+          inqueritos={inqueritosDaAcao}
+          onVincular={() => setVincularInqueritoModal(true)}
+          onDesvincular={async (inqId) => { await updateProcesso(inqId, { processo_principal_id: undefined }); load(); }}
+        />
+      )}
+      {isExecucaoPenal && tab === "incidentes" && (
+        <IncidentesTab
+          incidentes={incidentes}
+          onAdd={() => { setEditingIncidente(null); setIncidenteModal(true); }}
+          onEdit={(incidente) => { setEditingIncidente(incidente); setIncidenteModal(true); }}
+          onDelete={async (iid) => { await deleteIncidente(iid); load(); }}
+        />
+      )}
+      {isExecucaoPenal && tab === "calculo_pena" && (
+        <CalculosPenaTab
+          calculos={calculosPena}
+          onAdd={() => { setEditingCalculoPena(null); setCalculoPenaModal(true); }}
+          onEdit={(calculo) => { setEditingCalculoPena(calculo); setCalculoPenaModal(true); }}
+          onDelete={async (cid) => { await deleteCalculoPena(cid); load(); }}
+        />
+      )}
+      {isExecucaoPenal && tab === "beneficios_penais" && (
+        <BeneficiosPenaisTab
+          beneficios={beneficiosPenais}
+          onAdd={() => { setEditingBeneficioPenal(null); setBeneficioPenalModal(true); }}
+          onEdit={(beneficio) => { setEditingBeneficioPenal(beneficio); setBeneficioPenalModal(true); }}
+          onDelete={async (bid) => { await deleteBeneficioPenal(bid); load(); }}
         />
       )}
       {tab === "resultado" && (
@@ -459,6 +646,43 @@ export default function ProcessoDetailPage() {
         processoId={id}
         tarefa={editingTarefa}
         onSaved={() => { load(); setTarefaModal(false); setEditingTarefa(null); }}
+      />
+      <IncidenteModal
+        open={incidenteModal}
+        onClose={() => { setIncidenteModal(false); setEditingIncidente(null); }}
+        processoId={id}
+        incidente={editingIncidente}
+        onSaved={() => { load(); setIncidenteModal(false); setEditingIncidente(null); }}
+      />
+      <CalculoPenaModal
+        open={calculoPenaModal}
+        onClose={() => { setCalculoPenaModal(false); setEditingCalculoPena(null); }}
+        processoId={id}
+        calculo={editingCalculoPena}
+        onSaved={() => { load(); setCalculoPenaModal(false); setEditingCalculoPena(null); }}
+      />
+      <BeneficioPenalModal
+        open={beneficioPenalModal}
+        onClose={() => { setBeneficioPenalModal(false); setEditingBeneficioPenal(null); }}
+        processoId={id}
+        beneficio={editingBeneficioPenal}
+        onSaved={() => { load(); setBeneficioPenalModal(false); setEditingBeneficioPenal(null); }}
+      />
+      <VincularInqueritoModal
+        open={vincularInqueritoModal}
+        onClose={() => setVincularInqueritoModal(false)}
+        acaoPenal={processo}
+        processos={todosProcessos}
+        onSaved={() => { load(); setVincularInqueritoModal(false); }}
+      />
+      <TransformarInqueritoModal
+        open={transformarInqueritoModal}
+        onClose={() => setTransformarInqueritoModal(false)}
+        inquerito={processo}
+        onCreated={(acaoId) => {
+          setTransformarInqueritoModal(false);
+          router.push(`/dashboard/processos/${acaoId}`);
+        }}
       />
       <EditarProcessoModal open={editModal} onClose={() => setEditModal(false)} processo={processo} onSaved={() => { load(); setEditModal(false); }} />
 
@@ -826,6 +1050,125 @@ function EmptyTab({ text }: { text: string }) {
   return <div className="text-center py-12 text-gray-400 text-sm">{text}</div>;
 }
 
+function optionLabel<T extends string>(options: { value: T; label: string }[], value?: T): string {
+  if (!value) return "—";
+  return options.find((option) => option.value === value)?.label ?? value;
+}
+
+function cleanText(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+
+function optionalNumber(value: string): number | undefined {
+  if (value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function mesmoCliente(a: Processo, b: Processo): boolean {
+  if (a.cliente_id && b.cliente_id) return a.cliente_id === b.cliente_id;
+  return a.cliente_nome.trim().toLowerCase() === b.cliente_nome.trim().toLowerCase();
+}
+
+function InqueritoInfoPanel({ processo, acaoPenal }: { processo: Processo; acaoPenal?: Processo }) {
+  return (
+    <Card className="mb-6 border-[#21181d]/20">
+      <CardHeader className="flex flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-[#21181d]" />
+          <CardTitle>Dados do inquérito policial</CardTitle>
+        </div>
+        {acaoPenal && (
+          <Link href={`/dashboard/processos/${acaoPenal.id}`} className="text-xs font-semibold text-blue-600 hover:underline">
+            Ação penal vinculada
+          </Link>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 text-sm md:grid-cols-3">
+          <InfoBlock label="Nº do inquérito" value={processo.numero_inquerito || processo.numero} />
+          <InfoBlock label="Delegacia" value={processo.delegacia || "—"} />
+          <InfoBlock label="Autoridade policial" value={processo.autoridade_policial || "—"} />
+          <InfoBlock label="Data de instauração" value={processo.data_instauracao ? formatDate(processo.data_instauracao) : "—"} />
+          <InfoBlock label="Situação" value={optionLabel(inqueritoSituacaoOptions, processo.situacao_inquerito)} />
+          <InfoBlock label="Ação penal" value={acaoPenal ? `${acaoPenal.numero} · ${acaoPenal.titulo}` : "Ainda não vinculada"} />
+        </div>
+        {processo.relatorio_final && (
+          <div className="mt-4 rounded-lg bg-gray-50 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Relatório final</p>
+            <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{processo.relatorio_final}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+      <p className="mt-1 font-medium text-gray-900">{value}</p>
+    </div>
+  );
+}
+
+function InqueritosTab({
+  inqueritos, onVincular, onDesvincular,
+}: {
+  inqueritos: Processo[];
+  onVincular: () => void;
+  onDesvincular: (id: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onVincular}><Link2 className="w-3.5 h-3.5" /> Vincular inquérito</Button>
+      </div>
+      {inqueritos.length === 0 ? <EmptyTab text="Nenhum inquérito policial vinculado a esta ação penal" /> : (
+        <div className="space-y-3">
+          {inqueritos.map((inquerito) => (
+            <Card key={inquerito.id}>
+              <CardContent className="py-4 px-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <Shield className="w-4 h-4 text-gray-400" />
+                      <Link href={`/dashboard/processos/${inquerito.id}`} className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline">
+                        {inquerito.numero_inquerito || inquerito.numero}
+                      </Link>
+                      <Badge variant="neutral">{optionLabel(inqueritoSituacaoOptions, inquerito.situacao_inquerito)}</Badge>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700">{inquerito.titulo}</p>
+                    <div className="mt-2 grid gap-2 text-xs text-gray-500 md:grid-cols-3">
+                      <span>Delegacia: {inquerito.delegacia || "—"}</span>
+                      <span>Autoridade: {inquerito.autoridade_policial || "—"}</span>
+                      <span>Instaurado: {inquerito.data_instauracao ? formatDate(inquerito.data_instauracao) : "—"}</span>
+                    </div>
+                    {inquerito.relatorio_final && <p className="mt-3 text-sm text-gray-600 line-clamp-3">{inquerito.relatorio_final}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link href={`/dashboard/processos/${inquerito.id}`} className="text-xs font-semibold text-blue-600 hover:underline">
+                      Abrir
+                    </Link>
+                    <button
+                      onClick={() => { if (confirm("Desvincular este inquérito da ação penal?")) onDesvincular(inquerito.id); }}
+                      className="text-xs font-semibold text-gray-400 hover:text-red-600"
+                    >
+                      Desvincular
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnotacoesTab({
   anotacoes, onAdd, onEdit, onDelete,
 }: {
@@ -940,6 +1283,194 @@ function TarefasTab({
               </Card>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IncidentesTab({
+  incidentes, onAdd, onEdit, onDelete,
+}: {
+  incidentes: IncidenteExecucao[];
+  onAdd: () => void;
+  onEdit: (incidente: IncidenteExecucao) => void;
+  onDelete: (id: string) => void;
+}) {
+  const sorted = [...incidentes].sort((a, b) => (
+    (b.data_pedido ?? b.created_at).localeCompare(a.data_pedido ?? a.created_at)
+  ));
+
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onAdd}><Plus className="w-3.5 h-3.5" /> Novo incidente</Button>
+      </div>
+      {sorted.length === 0 ? <EmptyTab text="Nenhum incidente de execução penal registrado" /> : (
+        <div className="space-y-3">
+          {sorted.map((incidente) => (
+            <Card key={incidente.id}>
+              <CardContent className="py-4 px-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{incidente.titulo}</p>
+                      <Badge variant="neutral">{optionLabel(incidenteTipoOptions, incidente.tipo)}</Badge>
+                      <Badge variant={incidente.status === "deferido" || incidente.status === "cumprido" ? "success" : incidente.status === "indeferido" ? "warning" : "neutral"}>
+                        {optionLabel(incidenteStatusOptions, incidente.status)}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                      {incidente.data_pedido && <span>Pedido: {formatDate(incidente.data_pedido)}</span>}
+                      {incidente.data_decisao && <span>Decisão: {formatDate(incidente.data_decisao)}</span>}
+                    </div>
+                    {incidente.descricao && <p className="mt-3 text-sm text-gray-600 whitespace-pre-wrap">{incidente.descricao}</p>}
+                    {incidente.resultado && (
+                      <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
+                        <strong>Resultado:</strong> {incidente.resultado}
+                      </p>
+                    )}
+                    {incidente.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{incidente.observacoes}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => onEdit(incidente)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar incidente">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("Excluir este incidente?")) onDelete(incidente.id); }}
+                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      title="Excluir incidente"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CalculosPenaTab({
+  calculos, onAdd, onEdit, onDelete,
+}: {
+  calculos: CalculoPena[];
+  onAdd: () => void;
+  onEdit: (calculo: CalculoPena) => void;
+  onDelete: (id: string) => void;
+}) {
+  function penaResumo(calculo: CalculoPena): string {
+    const partes = [
+      calculo.pena_anos ? `${calculo.pena_anos}a` : "",
+      calculo.pena_meses ? `${calculo.pena_meses}m` : "",
+      calculo.pena_dias ? `${calculo.pena_dias}d` : "",
+    ].filter(Boolean);
+    return partes.length ? partes.join(" ") : "Pena não informada";
+  }
+
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onAdd}><Plus className="w-3.5 h-3.5" /> Novo cálculo</Button>
+      </div>
+      {calculos.length === 0 ? <EmptyTab text="Nenhum cálculo de pena registrado" /> : (
+        <div className="space-y-3">
+          {calculos.map((calculo) => (
+            <Card key={calculo.id}>
+              <CardContent className="py-4 px-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{calculo.titulo}</p>
+                      <Badge variant="neutral">{penaResumo(calculo)}</Badge>
+                      {calculo.regime_atual && <Badge variant="neutral">{calculo.regime_atual}</Badge>}
+                    </div>
+                    <div className="grid gap-2 text-xs text-gray-500 md:grid-cols-4">
+                      <span>Início: {calculo.data_inicio ? formatDate(calculo.data_inicio) : "—"}</span>
+                      <span>Detração: {calculo.dias_detracao ?? 0} dia(s)</span>
+                      <span>Remição: {calculo.dias_remicao ?? 0} dia(s)</span>
+                      <span>Marco: {calculo.marco_base || "—"}</span>
+                    </div>
+                    {calculo.resumo && <p className="mt-3 text-sm text-gray-600 whitespace-pre-wrap">{calculo.resumo}</p>}
+                    {calculo.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{calculo.observacoes}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => onEdit(calculo)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar cálculo">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("Excluir este cálculo de pena?")) onDelete(calculo.id); }}
+                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      title="Excluir cálculo"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BeneficiosPenaisTab({
+  beneficios, onAdd, onEdit, onDelete,
+}: {
+  beneficios: BeneficioPenal[];
+  onAdd: () => void;
+  onEdit: (beneficio: BeneficioPenal) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <Button size="sm" onClick={onAdd}><Plus className="w-3.5 h-3.5" /> Novo pedido</Button>
+      </div>
+      {beneficios.length === 0 ? <EmptyTab text="Nenhum pedido de comutação ou indulto registrado" /> : (
+        <div className="space-y-3">
+          {beneficios.map((beneficio) => (
+            <Card key={beneficio.id}>
+              <CardContent className="py-4 px-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{beneficio.titulo}</p>
+                      <Badge variant="neutral">{optionLabel(beneficioPenalTipoOptions, beneficio.tipo)}</Badge>
+                      <Badge variant={beneficio.status === "deferido" ? "success" : beneficio.status === "indeferido" ? "warning" : "neutral"}>
+                        {optionLabel(beneficioPenalStatusOptions, beneficio.status)}
+                      </Badge>
+                      {beneficio.decreto && <Badge variant="neutral">{beneficio.decreto}</Badge>}
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                      {beneficio.data_requerimento && <span>Requerido: {formatDate(beneficio.data_requerimento)}</span>}
+                      {beneficio.data_decisao && <span>Decisão: {formatDate(beneficio.data_decisao)}</span>}
+                    </div>
+                    {beneficio.requisitos && <p className="mt-3 text-sm text-gray-600 whitespace-pre-wrap"><strong>Requisitos:</strong> {beneficio.requisitos}</p>}
+                    {beneficio.resultado && <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap"><strong>Resultado:</strong> {beneficio.resultado}</p>}
+                    {beneficio.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{beneficio.observacoes}</p>}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button onClick={() => onEdit(beneficio)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar pedido">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (confirm("Excluir este pedido?")) onDelete(beneficio.id); }}
+                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      title="Excluir pedido"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
@@ -1428,6 +1959,417 @@ function TarefaModal({
   );
 }
 
+function IncidenteModal({
+  open, onClose, processoId, incidente, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  incidente: IncidenteExecucao | null;
+  onSaved: () => void;
+}) {
+  const [titulo, setTitulo] = useState("");
+  const [tipo, setTipo] = useState<IncidenteExecucaoTipo>("trabalho_extramuros");
+  const [status, setStatus] = useState<IncidenteExecucaoStatus>("em_preparacao");
+  const [dataPedido, setDataPedido] = useState("");
+  const [dataDecisao, setDataDecisao] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [resultado, setResultado] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitulo(incidente?.titulo ?? "");
+    setTipo(incidente?.tipo ?? "trabalho_extramuros");
+    setStatus(incidente?.status ?? "em_preparacao");
+    setDataPedido(incidente?.data_pedido ?? "");
+    setDataDecisao(incidente?.data_decisao ?? "");
+    setDescricao(incidente?.descricao ?? "");
+    setResultado(incidente?.resultado ?? "");
+    setObservacoes(incidente?.observacoes ?? "");
+  }, [open, incidente]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!titulo.trim()) return;
+    const payload = {
+      processo_id: processoId,
+      titulo: titulo.trim(),
+      tipo,
+      status,
+      data_pedido: dataPedido || undefined,
+      data_decisao: dataDecisao || undefined,
+      descricao: cleanText(descricao),
+      resultado: cleanText(resultado),
+      observacoes: cleanText(observacoes),
+    };
+    if (incidente) {
+      await updateIncidente(incidente.id, payload);
+    } else {
+      await createIncidente(payload);
+    }
+    onSaved();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={incidente ? "Editar incidente" : "Novo incidente"} size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Título *" placeholder="Ex: Pedido de trabalho extramuros" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <div className="grid grid-cols-2 gap-3">
+          <Select label="Tipo" options={incidenteTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as IncidenteExecucaoTipo)} />
+          <Select label="Status" options={incidenteStatusOptions} value={status} onChange={(e) => setStatus(e.target.value as IncidenteExecucaoStatus)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Data do pedido" type="date" value={dataPedido} onChange={(e) => setDataPedido(e.target.value)} />
+          <Input label="Data da decisão" type="date" value={dataDecisao} onChange={(e) => setDataDecisao(e.target.value)} />
+        </div>
+        <Textarea label="Descrição" placeholder="Contexto do incidente, pedido feito e documentos relevantes..." rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        <Textarea label="Resultado" placeholder="Decisão, deferimento, exigências, observações da vara..." rows={3} value={resultado} onChange={(e) => setResultado(e.target.value)} />
+        <Textarea label="Observações internas" placeholder="Estratégia, próximos passos, pendências..." rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{incidente ? "Salvar alterações" : "Criar incidente"}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function CalculoPenaModal({
+  open, onClose, processoId, calculo, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  calculo: CalculoPena | null;
+  onSaved: () => void;
+}) {
+  const [titulo, setTitulo] = useState("");
+  const [penaAnos, setPenaAnos] = useState("");
+  const [penaMeses, setPenaMeses] = useState("");
+  const [penaDias, setPenaDias] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [diasDetracao, setDiasDetracao] = useState("");
+  const [diasRemicao, setDiasRemicao] = useState("");
+  const [regimeAtual, setRegimeAtual] = useState("");
+  const [marcoBase, setMarcoBase] = useState("");
+  const [resumo, setResumo] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitulo(calculo?.titulo ?? "");
+    setPenaAnos(calculo?.pena_anos?.toString() ?? "");
+    setPenaMeses(calculo?.pena_meses?.toString() ?? "");
+    setPenaDias(calculo?.pena_dias?.toString() ?? "");
+    setDataInicio(calculo?.data_inicio ?? "");
+    setDiasDetracao(calculo?.dias_detracao?.toString() ?? "");
+    setDiasRemicao(calculo?.dias_remicao?.toString() ?? "");
+    setRegimeAtual(calculo?.regime_atual ?? "");
+    setMarcoBase(calculo?.marco_base ?? "");
+    setResumo(calculo?.resumo ?? "");
+    setObservacoes(calculo?.observacoes ?? "");
+  }, [open, calculo]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!titulo.trim()) return;
+    const payload = {
+      processo_id: processoId,
+      titulo: titulo.trim(),
+      pena_anos: optionalNumber(penaAnos),
+      pena_meses: optionalNumber(penaMeses),
+      pena_dias: optionalNumber(penaDias),
+      data_inicio: dataInicio || undefined,
+      dias_detracao: optionalNumber(diasDetracao) ?? 0,
+      dias_remicao: optionalNumber(diasRemicao) ?? 0,
+      regime_atual: cleanText(regimeAtual),
+      marco_base: cleanText(marcoBase),
+      resumo: cleanText(resumo),
+      observacoes: cleanText(observacoes),
+    };
+    if (calculo) {
+      await updateCalculoPena(calculo.id, payload);
+    } else {
+      await createCalculoPena(payload);
+    }
+    onSaved();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={calculo ? "Editar cálculo de pena" : "Novo cálculo de pena"} size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Título *" placeholder="Ex: Cálculo para trabalho extramuros" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Anos" type="number" min="0" step="1" value={penaAnos} onChange={(e) => setPenaAnos(e.target.value)} />
+          <Input label="Meses" type="number" min="0" step="1" value={penaMeses} onChange={(e) => setPenaMeses(e.target.value)} />
+          <Input label="Dias" type="number" min="0" step="1" value={penaDias} onChange={(e) => setPenaDias(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Data de início" type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+          <Input label="Dias de detração" type="number" min="0" step="1" value={diasDetracao} onChange={(e) => setDiasDetracao(e.target.value)} />
+          <Input label="Dias de remição" type="number" min="0" step="1" value={diasRemicao} onChange={(e) => setDiasRemicao(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Regime atual" placeholder="Ex: semiaberto" value={regimeAtual} onChange={(e) => setRegimeAtual(e.target.value)} />
+          <Input label="Marco-base" placeholder="Ex: guia definitiva, prisão, unificação..." value={marcoBase} onChange={(e) => setMarcoBase(e.target.value)} />
+        </div>
+        <Textarea label="Resumo do cálculo" placeholder="Datas relevantes, frações, observações sobre requisito objetivo..." rows={4} value={resumo} onChange={(e) => setResumo(e.target.value)} />
+        <Textarea label="Observações internas" placeholder="Pendências, documentos, cautelas..." rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{calculo ? "Salvar alterações" : "Criar cálculo"}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function BeneficioPenalModal({
+  open, onClose, processoId, beneficio, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  processoId: string;
+  beneficio: BeneficioPenal | null;
+  onSaved: () => void;
+}) {
+  const [titulo, setTitulo] = useState("");
+  const [tipo, setTipo] = useState<BeneficioPenalTipo>("comutacao");
+  const [status, setStatus] = useState<BeneficioPenalStatus>("em_estudo");
+  const [decreto, setDecreto] = useState("");
+  const [dataRequerimento, setDataRequerimento] = useState("");
+  const [dataDecisao, setDataDecisao] = useState("");
+  const [requisitos, setRequisitos] = useState("");
+  const [resultado, setResultado] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitulo(beneficio?.titulo ?? "");
+    setTipo(beneficio?.tipo ?? "comutacao");
+    setStatus(beneficio?.status ?? "em_estudo");
+    setDecreto(beneficio?.decreto ?? "");
+    setDataRequerimento(beneficio?.data_requerimento ?? "");
+    setDataDecisao(beneficio?.data_decisao ?? "");
+    setRequisitos(beneficio?.requisitos ?? "");
+    setResultado(beneficio?.resultado ?? "");
+    setObservacoes(beneficio?.observacoes ?? "");
+  }, [open, beneficio]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!titulo.trim()) return;
+    const payload = {
+      processo_id: processoId,
+      titulo: titulo.trim(),
+      tipo,
+      status,
+      decreto: cleanText(decreto),
+      data_requerimento: dataRequerimento || undefined,
+      data_decisao: dataDecisao || undefined,
+      requisitos: cleanText(requisitos),
+      resultado: cleanText(resultado),
+      observacoes: cleanText(observacoes),
+    };
+    if (beneficio) {
+      await updateBeneficioPenal(beneficio.id, payload);
+    } else {
+      await createBeneficioPenal(payload);
+    }
+    onSaved();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={beneficio ? "Editar comutação/indulto" : "Novo pedido de comutação/indulto"} size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <Input label="Título *" placeholder="Ex: Pedido de comutação - Decreto 2026" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <div className="grid grid-cols-3 gap-3">
+          <Select label="Tipo" options={beneficioPenalTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as BeneficioPenalTipo)} />
+          <Select label="Status" options={beneficioPenalStatusOptions} value={status} onChange={(e) => setStatus(e.target.value as BeneficioPenalStatus)} />
+          <Input label="Decreto" placeholder="Ex: Decreto 12.XXX/2026" value={decreto} onChange={(e) => setDecreto(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Data do requerimento" type="date" value={dataRequerimento} onChange={(e) => setDataRequerimento(e.target.value)} />
+          <Input label="Data da decisão" type="date" value={dataDecisao} onChange={(e) => setDataDecisao(e.target.value)} />
+        </div>
+        <Textarea label="Requisitos analisados" placeholder="Requisito objetivo/subjetivo, impeditivos, falta grave, lapso..." rows={4} value={requisitos} onChange={(e) => setRequisitos(e.target.value)} />
+        <Textarea label="Resultado" placeholder="Decisão, fundamento e providências..." rows={3} value={resultado} onChange={(e) => setResultado(e.target.value)} />
+        <Textarea label="Observações internas" placeholder="Notas de estratégia e pendências..." rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit">{beneficio ? "Salvar alterações" : "Criar pedido"}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function VincularInqueritoModal({
+  open, onClose, acaoPenal, processos, onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  acaoPenal: Processo;
+  processos: Processo[];
+  onSaved: () => void;
+}) {
+  const [inqueritoId, setInqueritoId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) setInqueritoId("");
+  }, [open]);
+
+  const inqueritos = processos
+    .filter((p) => isInqueritoTipo(p.tipo) && p.id !== acaoPenal.id)
+    .filter((p) => !p.processo_principal_id || p.processo_principal_id === acaoPenal.id)
+    .sort((a, b) => {
+      const sameA = mesmoCliente(a, acaoPenal) ? 0 : 1;
+      const sameB = mesmoCliente(b, acaoPenal) ? 0 : 1;
+      return sameA - sameB || a.cliente_nome.localeCompare(b.cliente_nome) || a.numero.localeCompare(b.numero);
+    });
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inqueritoId) return;
+    setSaving(true);
+    try {
+      await updateProcesso(inqueritoId, { processo_principal_id: acaoPenal.id });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vincular inquérito" size="sm">
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Selecione um inquérito policial já cadastrado para vincular a esta ação penal.
+        </p>
+        {inqueritos.length === 0 ? (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            Não há inquéritos disponíveis. Cadastre primeiro um processo do tipo Inquérito policial.
+          </p>
+        ) : (
+          <ComboBox
+            label="Inquérito"
+            placeholder="Selecione o inquérito..."
+            value={inqueritoId}
+            onChange={setInqueritoId}
+            options={inqueritos.map((p) => ({
+              value: p.id,
+              label: `${p.numero_inquerito || p.numero} · ${p.cliente_nome}${mesmoCliente(p, acaoPenal) ? "" : " · outro cliente"}`,
+            }))}
+          />
+        )}
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={!inqueritoId || saving}>{saving ? "Vinculando..." : "Vincular"}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function TransformarInqueritoModal({
+  open, onClose, inquerito, onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  inquerito: Processo;
+  onCreated: (acaoId: string) => void;
+}) {
+  const [numero, setNumero] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [tribunal, setTribunal] = useState("");
+  const [vara, setVara] = useState("");
+  const [comarca, setComarca] = useState("");
+  const [uf, setUf] = useState("");
+  const [dataDistribuicao, setDataDistribuicao] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setNumero("");
+    setTitulo(inquerito.titulo && !/inquerito/i.test(inquerito.titulo) ? inquerito.titulo : "Ação penal");
+    setTribunal(inquerito.tribunal ?? "TJRJ");
+    setVara(inquerito.vara ?? "");
+    setComarca(inquerito.comarca ?? "");
+    setUf(inquerito.uf ?? "RJ");
+    setDataDistribuicao("");
+    setDescricao([
+      `Ação penal originada do inquérito ${inquerito.numero_inquerito || inquerito.numero}.`,
+      inquerito.delegacia ? `Delegacia: ${inquerito.delegacia}.` : "",
+      inquerito.autoridade_policial ? `Autoridade policial: ${inquerito.autoridade_policial}.` : "",
+      inquerito.relatorio_final ? `\nRelatório final do inquérito:\n${inquerito.relatorio_final}` : "",
+    ].filter(Boolean).join("\n"));
+  }, [open, inquerito]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!numero.trim() || !titulo.trim()) return;
+    setSaving(true);
+    try {
+      const acao = await createProcesso({
+        numero: numero.trim(),
+        titulo: titulo.trim(),
+        descricao: cleanText(descricao),
+        status: "ativo",
+        tribunal: cleanText(tribunal),
+        vara: cleanText(vara),
+        comarca: cleanText(comarca),
+        uf: cleanText(uf),
+        tipo: "criminal",
+        fase: "Ação penal",
+        cliente_id: inquerito.cliente_id,
+        cliente_nome: inquerito.cliente_nome,
+        cliente_cpf_cnpj: inquerito.cliente_cpf_cnpj,
+        parte_contraria: inquerito.parte_contraria,
+        data_distribuicao: dataDistribuicao || undefined,
+        monitorar_datajud: true,
+      });
+      await updateProcesso(inquerito.id, {
+        processo_principal_id: acao.id,
+        situacao_inquerito: "denunciado",
+      });
+      onCreated(acao.id);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Transformar em ação penal" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          O inquérito será mantido como origem e uma nova ação penal será criada vinculada a ele.
+        </p>
+        <Input label="Número da ação penal *" placeholder="0000000-00.0000.0.00.0000" value={numero} onChange={(e) => setNumero(e.target.value)} required />
+        <Input label="Título / assunto *" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value)} />
+          <Input label="Vara" value={vara} onChange={(e) => setVara(e.target.value)} />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <Input label="Comarca" value={comarca} onChange={(e) => setComarca(e.target.value)} />
+          <Input label="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
+          <Input label="Distribuição" type="date" value={dataDistribuicao} onChange={(e) => setDataDistribuicao(e.target.value)} />
+        </div>
+        <Textarea label="Descrição inicial" rows={5} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={!numero.trim() || !titulo.trim() || saving}>
+            {saving ? "Criando..." : "Criar ação penal"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boolean; onClose: () => void; processo: Processo; onSaved: () => void }) {
   const [form, setForm] = useState({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
   const [processosRelacionaveis, setProcessosRelacionaveis] = useState<Processo[]>([]);
@@ -1445,6 +2387,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
   const permiteIntegracao = form.tipo === "inquerito_policial" || form.tipo === "bo_pm";
+  const isInqueritoForm = isInqueritoTipo(form.tipo as string);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1456,6 +2399,12 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         comarca: form.comarca || undefined, uf: form.uf || undefined,
         tipo: (form.tipo as ProcessoTipo) || undefined,
         processo_principal_id: permiteIntegracao ? form.processo_principal_id || undefined : undefined,
+        numero_inquerito: isInqueritoForm ? form.numero_inquerito || undefined : undefined,
+        delegacia: isInqueritoForm ? form.delegacia || undefined : undefined,
+        autoridade_policial: isInqueritoForm ? form.autoridade_policial || undefined : undefined,
+        data_instauracao: isInqueritoForm ? form.data_instauracao || undefined : undefined,
+        situacao_inquerito: isInqueritoForm ? (form.situacao_inquerito as InqueritoSituacao) || undefined : undefined,
+        relatorio_final: isInqueritoForm ? form.relatorio_final || undefined : undefined,
         status: form.status as any, fase: form.fase || undefined,
         valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
         descricao: form.descricao || undefined,
@@ -1489,6 +2438,29 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
               label: `${p.numero} · ${p.cliente_nome}`,
             }))}
           />
+        )}
+        {isInqueritoForm && (
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-[#21181d]" />
+              <p className="text-sm font-semibold text-gray-900">Informações do inquérito policial</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Número do inquérito" value={form.numero_inquerito ?? ""} onChange={(e) => set("numero_inquerito", e.target.value)} />
+              <Select
+                label="Situação"
+                options={inqueritoSituacaoOptions}
+                value={form.situacao_inquerito ?? "em_andamento"}
+                onChange={(e) => set("situacao_inquerito", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Delegacia" value={form.delegacia ?? ""} onChange={(e) => set("delegacia", e.target.value)} />
+              <Input label="Autoridade policial" value={form.autoridade_policial ?? ""} onChange={(e) => set("autoridade_policial", e.target.value)} />
+            </div>
+            <Input label="Data de instauração" type="date" value={form.data_instauracao ?? ""} onChange={(e) => set("data_instauracao", e.target.value)} />
+            <Textarea label="Relatório final / observações do inquérito" rows={4} value={form.relatorio_final ?? ""} onChange={(e) => set("relatorio_final", e.target.value)} />
+          </div>
         )}
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <Input label="Tribunal" value={form.tribunal ?? ""} onChange={(e) => set("tribunal", e.target.value)} />

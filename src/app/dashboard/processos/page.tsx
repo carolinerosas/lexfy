@@ -62,6 +62,28 @@ function tipoDisplay(tipo?: string): string {
   return tipoLabel[tipo] ?? tipo;
 }
 
+const situacaoInqueritoLabel: Record<string, string> = {
+  em_andamento: "Em andamento",
+  relatado: "Relatado",
+  denunciado: "Denunciado",
+  arquivado: "Arquivado",
+  baixado: "Baixado",
+  outro: "Outro",
+};
+
+function isInqueritoProcesso(processo: Processo): boolean {
+  return processo.tipo === "inquerito_policial";
+}
+
+function situacaoInqueritoDisplay(value?: string): string {
+  if (!value) return "Situação não informada";
+  return situacaoInqueritoLabel[value] ?? value;
+}
+
+function clienteHref(processo: Processo): string | undefined {
+  return processo.cliente_id ? `/dashboard/clientes/${processo.cliente_id}` : undefined;
+}
+
 type ImportState = {
   type: "success" | "error" | "info";
   message: string;
@@ -268,9 +290,11 @@ export default function ProcessosPage() {
       const matchSearch =
         !search ||
         p.numero.toLowerCase().includes(search.toLowerCase()) ||
+        (p.numero_inquerito ?? "").toLowerCase().includes(search.toLowerCase()) ||
         p.titulo.toLowerCase().includes(search.toLowerCase()) ||
         p.cliente_nome.toLowerCase().includes(search.toLowerCase()) ||
-        (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase());
+        (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.delegacia ?? "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "todos" || p.status === statusFilter;
       const matchTipo = tipoFilter === "todos" || p.tipo === tipoFilter;
       const matchTribunal = tribunalFilter === "todos" || p.tribunal === tribunalFilter;
@@ -473,7 +497,14 @@ export default function ProcessosPage() {
 
                 <div className="mt-3 space-y-1.5 text-xs text-gray-500">
                   <p className="break-words">
-                    <span className="font-medium text-gray-700">Cliente:</span> {p.cliente_nome}
+                    <span className="font-medium text-gray-700">Cliente:</span>{" "}
+                    {clienteHref(p) ? (
+                      <Link href={clienteHref(p)!} className="font-semibold text-gray-800 hover:text-blue-600 hover:underline">
+                        {p.cliente_nome}
+                      </Link>
+                    ) : (
+                      p.cliente_nome
+                    )}
                   </p>
                   {p.parte_contraria && (
                     <p className="break-words">
@@ -491,6 +522,14 @@ export default function ProcessosPage() {
                   <p>
                     <span className="font-medium text-gray-700">Tipo:</span> {tipoDisplay(p.tipo)}
                   </p>
+                  {isInqueritoProcesso(p) && (
+                    <p className="break-words rounded-lg bg-gray-50 px-2 py-1.5">
+                      <span className="font-medium text-gray-700">Inquérito:</span>{" "}
+                      {p.numero_inquerito || "nº não informado"}
+                      {p.delegacia ? ` · ${p.delegacia}` : ""}
+                      {` · ${situacaoInqueritoDisplay(p.situacao_inquerito)}`}
+                    </p>
+                  )}
                   {p.data_distribuicao && (
                     <p>
                       <span className="font-medium text-gray-700">Distribuicao:</span> {formatDate(p.data_distribuicao)}
@@ -579,9 +618,25 @@ export default function ProcessosPage() {
                       </button>
                     </div>
                     <Link href={`/dashboard/processos/${p.id}`} className="mt-0.5 block text-gray-600 line-clamp-1 hover:text-gray-900">{p.titulo}</Link>
+                    {isInqueritoProcesso(p) && (
+                      <p className="mt-1 max-w-md text-xs text-gray-400">
+                        IP {p.numero_inquerito || "nº não informado"}
+                        {p.delegacia ? ` · ${p.delegacia}` : ""}
+                        {` · ${situacaoInqueritoDisplay(p.situacao_inquerito)}`}
+                      </p>
+                    )}
                   </td>
                   <td className="px-3 py-4">
-                    <p className="text-gray-800 font-medium truncate max-w-32">{p.cliente_nome}</p>
+                    {clienteHref(p) ? (
+                      <Link
+                        href={clienteHref(p)!}
+                        className="block max-w-32 truncate font-medium text-gray-800 hover:text-blue-600 hover:underline"
+                      >
+                        {p.cliente_nome}
+                      </Link>
+                    ) : (
+                      <p className="text-gray-800 font-medium truncate max-w-32">{p.cliente_nome}</p>
+                    )}
                     {p.parte_contraria && (
                       <p className="text-gray-400 text-xs mt-0.5 truncate max-w-32">vs. {p.parte_contraria}</p>
                     )}
@@ -591,7 +646,12 @@ export default function ProcessosPage() {
                     {p.comarca && <p className="mt-0.5 max-w-36 truncate text-xs text-gray-400">{p.comarca}</p>}
                   </td>
                   <td className="px-3 py-4 hidden lg:table-cell text-gray-600">
-                    {tipoDisplay(p.tipo)}
+                    <div>{tipoDisplay(p.tipo)}</div>
+                    {isInqueritoProcesso(p) && p.processo_principal_id && (
+                      <span className="mt-1 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
+                        Vinculado
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-4">
                     <Badge variant={statusVariant[p.status]}>{statusLabel[p.status]}</Badge>

@@ -18,7 +18,7 @@ import {
   ufFromTribunalDataJud,
   type DataJudResult,
 } from "@/lib/datajud";
-import type { Cliente, ProcessoTipo } from "@/types";
+import type { Cliente, InqueritoSituacao, ProcessoTipo } from "@/types";
 
 const ufs = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -36,6 +36,15 @@ const tipoOptions = [
   { value: "previdenciario", label: "Previdenciário" },
   { value: "tributario", label: "Tributário" },
   { value: "federal", label: "Federal" },
+  { value: "outro", label: "Outro" },
+];
+
+const inqueritoSituacaoOptions: { value: InqueritoSituacao; label: string }[] = [
+  { value: "em_andamento", label: "Em andamento" },
+  { value: "relatado", label: "Relatado" },
+  { value: "denunciado", label: "Denunciado / ação penal proposta" },
+  { value: "arquivado", label: "Arquivado" },
+  { value: "baixado", label: "Baixado" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -104,6 +113,12 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     valor_causa: "",
     data_distribuicao: "",
     descricao: "",
+    numero_inquerito: "",
+    delegacia: "",
+    autoridade_policial: "",
+    data_instauracao: "",
+    situacao_inquerito: "em_andamento" as InqueritoSituacao,
+    relatorio_final: "",
     status: "ativo" as const,
   });
   const [saving, setSaving] = useState(false);
@@ -210,6 +225,7 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.numero || !form.titulo || !form.cliente_nome) return;
+    const isInquerito = form.tipo === "inquerito_policial";
     setSaving(true);
     try {
       let resolvedClienteId = clienteId;
@@ -244,6 +260,12 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
         valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
         data_distribuicao: form.data_distribuicao || undefined,
         descricao: form.descricao || undefined,
+        numero_inquerito: isInquerito ? form.numero_inquerito || undefined : undefined,
+        delegacia: isInquerito ? form.delegacia || undefined : undefined,
+        autoridade_policial: isInquerito ? form.autoridade_policial || undefined : undefined,
+        data_instauracao: isInquerito ? form.data_instauracao || undefined : undefined,
+        situacao_inquerito: isInquerito ? form.situacao_inquerito || undefined : undefined,
+        relatorio_final: isInquerito ? form.relatorio_final || undefined : undefined,
         status: "ativo",
       });
       onCreated();
@@ -297,6 +319,27 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
           onChange={(e) => set("titulo", e.target.value)}
           required
         />
+
+        {form.tipo === "inquerito_policial" && (
+          <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">Informações do inquérito policial</p>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Número do inquérito" value={form.numero_inquerito} onChange={(e) => set("numero_inquerito", e.target.value)} />
+              <Select
+                label="Situação"
+                options={inqueritoSituacaoOptions}
+                value={form.situacao_inquerito}
+                onChange={(e) => set("situacao_inquerito", e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Delegacia" value={form.delegacia} onChange={(e) => set("delegacia", e.target.value)} />
+              <Input label="Autoridade policial" value={form.autoridade_policial} onChange={(e) => set("autoridade_policial", e.target.value)} />
+            </div>
+            <Input label="Data de instauração" type="date" value={form.data_instauracao} onChange={(e) => set("data_instauracao", e.target.value)} />
+            <Textarea label="Relatório final / observações do inquérito" rows={4} value={form.relatorio_final} onChange={(e) => set("relatorio_final", e.target.value)} />
+          </div>
+        )}
 
         {clientes.length > 0 && (
           <ComboBox
