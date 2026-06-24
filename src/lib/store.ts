@@ -101,7 +101,8 @@ export async function createProcesso(
   input: Omit<Processo, "id" | "created_at" | "updated_at" | "user_id">
 ): Promise<Processo> {
   const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
-  const { data } = await supabase.from("processos").insert(novo).select().single();
+  const { data, error } = await supabase.from("processos").insert(novo).select().single();
+  if (error) throw new Error(error.message);
   return data as Processo;
 }
 

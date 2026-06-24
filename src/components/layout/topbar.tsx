@@ -65,7 +65,7 @@ export function TopBar() {
         </div>
       </header>
 
-      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {searchOpen && <SearchModal open onClose={() => setSearchOpen(false)} />}
     </>
   );
 }

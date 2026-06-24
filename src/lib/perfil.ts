@@ -4,12 +4,24 @@ const PERFIL_KEY = "justio_perfil_advogado";
 const PERFIL_KEY_OLD = "lexfy_perfil_advogado";
 const PERFIL_COOKIE = "justio_perfil_advogado";
 const USER_ID = "lexfy_shared";
-const DEFAULT_PERFIL: PerfilAdvogado = { nome: "", oab_numero: "", oab_uf: "RJ" };
+const DEFAULT_PERFIL: PerfilAdvogado = {
+  nome: "",
+  oab_numero: "",
+  oab_uf: "RJ",
+  cpf: "",
+  nacionalidade: "",
+  estado_civil: "",
+  endereco_escritorio: "",
+};
 
 export interface PerfilAdvogado {
   nome: string;
   oab_numero: string;
   oab_uf: string;
+  cpf?: string;
+  nacionalidade?: string;
+  estado_civil?: string;
+  endereco_escritorio?: string;
 }
 
 export interface PerfilSaveResult {
@@ -23,6 +35,10 @@ function normalizePerfil(perfil: Partial<PerfilAdvogado> | null | undefined): Pe
     nome: perfil?.nome?.trim() ?? "",
     oab_numero: perfil?.oab_numero?.trim() ?? "",
     oab_uf: (perfil?.oab_uf?.trim().toUpperCase() || "RJ"),
+    cpf: perfil?.cpf?.trim() ?? "",
+    nacionalidade: perfil?.nacionalidade?.trim() ?? "",
+    estado_civil: perfil?.estado_civil?.trim() ?? "",
+    endereco_escritorio: perfil?.endereco_escritorio?.trim() ?? "",
   };
 }
 
@@ -97,7 +113,7 @@ export function setPerfilAdvogado(perfil: PerfilAdvogado): void {
 export async function getPerfilAdvogadoCloud(): Promise<PerfilAdvogado | undefined> {
   const { data, error } = await supabase
     .from("perfil_advogado")
-    .select("nome,oab_numero,oab_uf")
+    .select("nome,oab_numero,oab_uf,cpf,nacionalidade,estado_civil,endereco_escritorio")
     .eq("user_id", USER_ID)
     .maybeSingle();
 

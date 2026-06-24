@@ -168,7 +168,8 @@ export default function ConfiguracoesPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-gray-600">
-            Usado para buscar automaticamente suas publicações nos Diários Oficiais (DOU e DJE-TJERJ).
+            Usado para buscar suas publicações nos Diários Oficiais (DOU e DJE-TJERJ) e para preencher
+            automaticamente sua qualificação nos documentos gerados (procurações, recibos etc.).
           </p>
           <Input
             label="Nome completo (como consta nos diários)"
@@ -189,6 +190,40 @@ export default function ConfiguracoesPage() {
               value={perfil.oab_uf}
               onChange={(e) => setPerfil((p) => ({ ...p, oab_uf: e.target.value }))}
             />
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Qualificação para documentos
+            </p>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Input
+                  label="CPF"
+                  placeholder="000.000.000-00"
+                  value={perfil.cpf ?? ""}
+                  onChange={(e) => setPerfil((p) => ({ ...p, cpf: e.target.value }))}
+                />
+                <Input
+                  label="Nacionalidade"
+                  placeholder="Ex: brasileira"
+                  value={perfil.nacionalidade ?? ""}
+                  onChange={(e) => setPerfil((p) => ({ ...p, nacionalidade: e.target.value }))}
+                />
+                <Input
+                  label="Estado civil"
+                  placeholder="Ex: casada"
+                  value={perfil.estado_civil ?? ""}
+                  onChange={(e) => setPerfil((p) => ({ ...p, estado_civil: e.target.value }))}
+                />
+              </div>
+              <Input
+                label="Endereço do escritório"
+                placeholder="Ex: Av. Rio Branco, nº 100, sala 1201, Centro, Rio de Janeiro/RJ, CEP 20040-001"
+                value={perfil.endereco_escritorio ?? ""}
+                onChange={(e) => setPerfil((p) => ({ ...p, endereco_escritorio: e.target.value }))}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button onClick={handleSavePerfil} disabled={!perfil.nome?.trim()}>

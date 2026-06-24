@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getClientesSummary, createCliente, deleteCliente, importarClientesExistentes, contarVinculosClienteNome, excluirClienteNaoCadastrado, type ClienteSummary } from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
+import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -23,6 +24,7 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Summary[]>([]);
   const [query, setQuery] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [showProcessoModal, setShowProcessoModal] = useState(false);
   const [preNome, setPreNome] = useState("");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -126,6 +128,9 @@ export default function ClientesPage() {
               Importar {naoCadastrados} dos processos
             </Button>
           )}
+          <Button variant="secondary" onClick={() => setShowProcessoModal(true)}>
+            <Plus className="w-4 h-4" /> Novo Processo
+          </Button>
           <Button onClick={() => { setPreNome(""); setShowModal(true); }}>
             <Plus className="w-4 h-4" /> Novo Cliente
           </Button>
@@ -371,13 +376,21 @@ export default function ClientesPage() {
         onClose={() => setShowModal(false)}
         onCreated={() => { load(); setShowModal(false); }}
       />
+      {showProcessoModal && (
+        <NovoProcessoModal
+          open
+          onClose={() => setShowProcessoModal(false)}
+          onCreated={() => { load(); setShowProcessoModal(false); }}
+        />
+      )}
     </div>
   );
 }
 
 function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean; preNome?: string; onClose: () => void; onCreated: () => void }) {
   const empty = {
-    nome: "", cpf: "", rg: "", email: "", celular: "",
+    nome: "", cpf: "", rg: "", sexo: "", nacionalidade: "", estado_civil: "", profissao: "",
+    email: "", celular: "",
     cep: "", logradouro: "", numero_end: "", complemento: "",
     bairro: "", cidade: "", uf: "", observacoes: "",
   };
@@ -423,6 +436,10 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
       nome: form.nome.trim(),
       cpf: form.cpf || undefined,
       rg: form.rg || undefined,
+      sexo: form.sexo || undefined,
+      nacionalidade: form.nacionalidade || undefined,
+      estado_civil: form.estado_civil || undefined,
+      profissao: form.profissao || undefined,
       email: form.email || undefined,
       celular: form.celular || undefined,
       cep: form.cep || undefined,
@@ -445,9 +462,15 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
           <div className="space-y-3">
             <Input label="Nome completo *" placeholder="Nome do cliente" value={form.nome} onChange={(e) => set("nome", e.target.value)} required />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg} onChange={(e) => set("rg", formatRG(e.target.value))} />
+              <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo} onChange={(e) => set("sexo", e.target.value)} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade} onChange={(e) => set("nacionalidade", e.target.value)} />
+              <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil} onChange={(e) => set("estado_civil", e.target.value)} />
+              <Input label="Profissão" placeholder="profissão" value={form.profissao} onChange={(e) => set("profissao", e.target.value)} />
             </div>
           </div>
         </div>

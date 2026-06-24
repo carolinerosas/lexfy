@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, FolderOpen, DollarSign, Users,
   ChevronRight, TrendingUp, TrendingDown,
-  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2,
+  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2, Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,9 @@ import {
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
 import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia } from "@/types";
+import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
+import { DocumentosPanel } from "@/components/ui/documentos-panel";
+import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -46,6 +49,8 @@ export default function ClienteDetailPage() {
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [editOpen, setEditOpen] = useState(false);
   const [vincularProcessoOpen, setVincularProcessoOpen] = useState(false);
+  const [novoProcessoOpen, setNovoProcessoOpen] = useState(false);
+  const [aba, setAba] = useState<"resumo" | "documentos" | "gerar">("resumo");
 
   const load = useCallback(async () => {
     const c = await getCliente(id);
@@ -130,6 +135,24 @@ export default function ClienteDetailPage() {
         </div>
       </div>
 
+      <div className="mb-6 flex w-full gap-1 rounded-xl bg-gray-100 p-1">
+        <button type="button" onClick={() => setAba("resumo")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "resumo" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          Visão geral
+        </button>
+        <button type="button" onClick={() => setAba("documentos")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "documentos" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          Documentos
+        </button>
+        <button type="button" onClick={() => setAba("gerar")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "gerar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          Gerar documento
+        </button>
+      </div>
+
+      {aba === "documentos" ? (
+        <DocumentosPanel contexto="clientes" registroId={cliente.id} titulo="Documentos do cliente" />
+      ) : aba === "gerar" ? (
+        <GerarDocumentoPanel cliente={cliente} />
+      ) : (
+      <>
       <div className="grid lg:grid-cols-2 gap-4 mb-8">
         <Card>
           <CardContent className="p-5 space-y-3">
@@ -227,8 +250,11 @@ export default function ClienteDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Processos</CardTitle>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <span className="text-xs text-gray-400">{processos.length} no total</span>
+                  <Button size="sm" onClick={() => setNovoProcessoOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> Novo processo
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={() => setVincularProcessoOpen(true)}>
                     <Link2 className="w-3.5 h-3.5" /> Vincular processo
                   </Button>
@@ -248,7 +274,9 @@ export default function ClienteDetailPage() {
                             <p className="text-sm font-semibold text-gray-900 truncate">{p.titulo}</p>
                             <Badge variant={statusVariant[p.status]}>{p.status.charAt(0).toUpperCase() + p.status.slice(1)}</Badge>
                           </div>
-                          <p className="text-xs text-gray-400 font-mono">{p.numero}</p>
+                          <p className="text-xs text-gray-400 font-mono">
+                            {p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Número não informado")}
+                          </p>
                           {p.tribunal && <p className="text-xs text-gray-400 mt-0.5">{p.tribunal}{p.vara ? ` · ${p.vara}` : ""}</p>}
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
@@ -386,6 +414,8 @@ export default function ClienteDetailPage() {
           </Card>
         )}
       </div>
+      </>
+      )}
 
       <EditClienteModal
         open={editOpen}
@@ -401,6 +431,14 @@ export default function ClienteDetailPage() {
         onClose={() => setVincularProcessoOpen(false)}
         onSaved={() => { load(); setVincularProcessoOpen(false); }}
       />
+      {novoProcessoOpen && (
+        <NovoProcessoModal
+          open
+          clienteInicial={cliente}
+          onClose={() => setNovoProcessoOpen(false)}
+          onCreated={() => { load(); setNovoProcessoOpen(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -520,6 +558,10 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
     e.preventDefault();
     await updateCliente(cliente.id, {
       nome: form.nome, cpf: form.cpf || undefined, rg: form.rg || undefined,
+      sexo: form.sexo || undefined,
+      nacionalidade: form.nacionalidade || undefined,
+      estado_civil: form.estado_civil || undefined,
+      profissao: form.profissao || undefined,
       email: form.email || undefined, celular: form.celular || undefined,
       cep: form.cep || undefined, logradouro: form.logradouro || undefined,
       numero_end: form.numero_end || undefined, complemento: form.complemento || undefined,
@@ -536,9 +578,15 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
           <div className="space-y-3">
             <Input label="Nome completo *" value={form.nome ?? ""} onChange={(e) => set("nome", e.target.value)} required />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf ?? ""} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg ?? ""} onChange={(e) => set("rg", formatRG(e.target.value))} />
+              <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo ?? ""} onChange={(e) => set("sexo", e.target.value)} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade ?? ""} onChange={(e) => set("nacionalidade", e.target.value)} />
+              <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil ?? ""} onChange={(e) => set("estado_civil", e.target.value)} />
+              <Input label="Profissão" placeholder="profissão" value={form.profissao ?? ""} onChange={(e) => set("profissao", e.target.value)} />
             </div>
           </div>
         </div>

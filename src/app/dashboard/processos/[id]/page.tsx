@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
+import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
   getProcesso, getProcessos, getClientes, createProcesso, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
@@ -152,6 +153,7 @@ type Tab =
   | "beneficios_penais"
   | "resultado"
   | "anotacoes"
+  | "documentos"
   | "tarefas"
   | "prazos"
   | "audiencias"
@@ -180,6 +182,12 @@ function isAcaoPenalTipo(tipo?: string): boolean {
 
 function isInqueritoTipo(tipo?: string): boolean {
   return normalizeTipo(tipo) === "inquerito_policial";
+}
+
+function identificadorProcesso(processo: Processo): string {
+  if (processo.numero.trim()) return processo.numero;
+  if (isInqueritoTipo(processo.tipo) && processo.numero_inquerito?.trim()) return `IP ${processo.numero_inquerito}`;
+  return isInqueritoTipo(processo.tipo) ? "Inquérito sem número" : "Número não informado";
 }
 
 export default function ProcessoDetailPage() {
@@ -235,8 +243,9 @@ export default function ProcessoDetailPage() {
   }
 
   async function handleCopyNumero() {
-    if (!processo?.numero) return;
-    await navigator.clipboard.writeText(processo.numero);
+    const numero = processo?.numero.trim() || processo?.numero_inquerito?.trim();
+    if (!numero) return;
+    await navigator.clipboard.writeText(numero);
     setCopiedNumero(true);
     setTimeout(() => setCopiedNumero(false), 1400);
   }
@@ -341,6 +350,7 @@ export default function ProcessoDetailPage() {
       { key: "beneficios_penais" as const, label: "Comutação/Indulto", count: beneficiosPenais.length },
     ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
+    { key: "documentos", label: "Documentos", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
@@ -361,7 +371,7 @@ export default function ProcessoDetailPage() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold tabular-nums tracking-tight text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{processo.numero}</span>
+                <span className="text-sm font-semibold tabular-nums tracking-tight text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{identificadorProcesso(processo)}</span>
                 <button
                   type="button"
                   title="Copiar número do processo"
@@ -544,6 +554,9 @@ export default function ProcessoDetailPage() {
           onEdit={(anotacao) => { setEditingAnotacao(anotacao); setAnotacaoModal(true); }}
           onDelete={async (aid) => { await deleteAnotacao(aid); load(); }}
         />
+      )}
+      {tab === "documentos" && (
+        <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
       {tab === "tarefas" && (
         <TarefasTab

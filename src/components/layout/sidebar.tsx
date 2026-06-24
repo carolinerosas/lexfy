@@ -8,6 +8,7 @@ import {
   Calendar,
   Clock,
   DollarSign,
+  FileText,
   FolderOpen,
   LayoutDashboard,
   ListTodo,
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
   { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
   { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
+  { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
   { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
 ];
 

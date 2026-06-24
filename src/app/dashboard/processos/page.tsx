@@ -75,6 +75,12 @@ function isInqueritoProcesso(processo: Processo): boolean {
   return processo.tipo === "inquerito_policial";
 }
 
+function identificadorProcesso(processo: Processo): string {
+  if (processo.numero.trim()) return processo.numero;
+  if (isInqueritoProcesso(processo) && processo.numero_inquerito?.trim()) return `IP ${processo.numero_inquerito}`;
+  return isInqueritoProcesso(processo) ? "Inquérito sem número" : "Número não informado";
+}
+
 function situacaoInqueritoDisplay(value?: string): string {
   if (!value) return "Situação não informada";
   return situacaoInqueritoLabel[value] ?? value;
@@ -226,7 +232,9 @@ export default function ProcessosPage() {
   }, [load, processos]);
 
   const copyNumero = useCallback(async (processo: Processo) => {
-    await navigator.clipboard.writeText(processo.numero);
+    const numero = processo.numero.trim() || processo.numero_inquerito?.trim();
+    if (!numero) return;
+    await navigator.clipboard.writeText(numero);
     setCopiedId(processo.id);
     setTimeout(() => setCopiedId((current) => current === processo.id ? null : current), 1400);
   }, []);
@@ -243,7 +251,7 @@ export default function ProcessosPage() {
   }, [load]);
 
   const excluirProcesso = useCallback(async (processo: Processo) => {
-    const ok = window.confirm(`Excluir o processo ${processo.numero}? Esta acao nao pode ser desfeita.`);
+    const ok = window.confirm(`Excluir ${identificadorProcesso(processo)}? Esta acao nao pode ser desfeita.`);
     if (!ok) return;
     setBusyProcessoId(processo.id);
     try {
@@ -479,7 +487,7 @@ export default function ProcessosPage() {
                         href={`/dashboard/processos/${p.id}`}
                         className="text-sm font-semibold tabular-nums tracking-tight leading-snug text-gray-900 hover:text-blue-600"
                       >
-                        {p.numero}
+                        {identificadorProcesso(p)}
                       </Link>
                       <button
                         type="button"
@@ -606,7 +614,7 @@ export default function ProcessosPage() {
                         href={`/dashboard/processos/${p.id}`}
                         className="whitespace-nowrap text-xs font-semibold tabular-nums tracking-tight text-gray-900 hover:text-blue-600 hover:underline transition-colors"
                       >
-                        {p.numero}
+                        {identificadorProcesso(p)}
                       </Link>
                       <button
                         type="button"
@@ -698,11 +706,13 @@ export default function ProcessosPage() {
         </>
       )}
 
-      <NovoProcessoModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        onCreated={() => { load(); setShowModal(false); }}
-      />
+      {showModal && (
+        <NovoProcessoModal
+          open
+          onClose={() => setShowModal(false)}
+          onCreated={() => { load(); setShowModal(false); }}
+        />
+      )}
     </div>
   );
 }

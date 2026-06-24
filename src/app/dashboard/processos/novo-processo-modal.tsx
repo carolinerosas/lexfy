@@ -93,12 +93,11 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  clienteInicial?: Pick<Cliente, "id" | "nome" | "cpf">;
 }
 
-export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [clienteId, setClienteId] = useState("");
-  const [form, setForm] = useState({
+function emptyForm() {
+  return {
     numero: "",
     titulo: "",
     cliente_nome: "",
@@ -120,20 +119,27 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
     situacao_inquerito: "em_andamento" as InqueritoSituacao,
     relatorio_final: "",
     status: "ativo" as const,
-  });
+  };
+}
+
+export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: Props) {
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clienteId, setClienteId] = useState(clienteInicial?.id ?? "");
+  const [form, setForm] = useState(() => ({
+    ...emptyForm(),
+    cliente_nome: clienteInicial?.nome ?? "",
+    cliente_cpf_cnpj: clienteInicial?.cpf ?? "",
+  }));
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [dataJudStatus, setDataJudStatus] = useState<LookupStatus>("idle");
   const [dataJudMessage, setDataJudMessage] = useState("");
   const [numeroConsultado, setNumeroConsultado] = useState("");
+  const isInquerito = form.tipo === "inquerito_policial";
 
   useEffect(() => {
-    if (open) {
-      getClientes().then(setClientes);
-    } else {
-      setDataJudStatus("idle");
-      setDataJudMessage("");
-      setNumeroConsultado("");
-    }
+    if (!open) return;
+    getClientes().then(setClientes);
   }, [open]);
 
   useEffect(() => {
@@ -224,9 +230,13 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.numero || !form.titulo || !form.cliente_nome) return;
-    const isInquerito = form.tipo === "inquerito_policial";
+    if (!isInquerito && !form.numero.trim()) {
+      setSaveError("Informe o número do processo. Para cadastrar sem esse número, selecione Inquérito policial.");
+      return;
+    }
+    if (!form.titulo.trim() || !form.cliente_nome.trim()) return;
     setSaving(true);
+    setSaveError("");
     try {
       let resolvedClienteId = clienteId;
       if (!resolvedClienteId && form.cliente_nome.trim()) {
@@ -245,7 +255,7 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
       }
 
       await createProcesso({
-        numero: form.numero,
+        numero: form.numero.trim(),
         titulo: form.titulo,
         cliente_id: resolvedClienteId || undefined,
         cliente_nome: form.cliente_nome,
@@ -269,6 +279,8 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
         status: "ativo",
       });
       onCreated();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Não foi possível salvar o cadastro.");
     } finally {
       setSaving(false);
     }
@@ -279,11 +291,11 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Número do Processo *"
-            placeholder="0000000-00.0000.0.00.0000"
+            label={isInquerito ? "Número do processo (opcional)" : "Número do Processo *"}
+            placeholder={isInquerito ? "Preencha somente se já houver processo judicial" : "0000000-00.0000.0.00.0000"}
+            hint={isInquerito ? "O inquérito pode ser cadastrado sem número de processo." : undefined}
             value={form.numero}
             onChange={(e) => set("numero", e.target.value)}
-            required
           />
           <SelectComOutro
             label="Tipo"
@@ -436,6 +448,10 @@ export function NovoProcessoModal({ open, onClose, onCreated }: Props) {
           value={form.descricao}
           onChange={(e) => set("descricao", e.target.value)}
         />
+
+        {saveError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Não foi possível salvar: {saveError}</p>
+        )}
 
         <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

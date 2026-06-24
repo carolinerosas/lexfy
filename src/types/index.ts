@@ -106,6 +106,10 @@ export interface Cliente {
   nome: string;
   cpf?: string;
   rg?: string;
+  sexo?: string;
+  nacionalidade?: string;
+  estado_civil?: string;
+  profissao?: string;
   email?: string;
   celular?: string;
   cep?: string;

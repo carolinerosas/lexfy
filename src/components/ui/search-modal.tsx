@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -17,6 +17,7 @@ import {
   getAtendimentosWithProcesso,
   getAudienciasWithProcesso,
   getHonorariosWithProcesso,
+  getClientes,
   getPrazosWithProcesso,
   getProcessos,
   getTarefasWithProcesso,
@@ -24,6 +25,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type ResultItem =
+  | { kind: "cliente"; id: string; title: string; sub: string; href: string }
   | { kind: "processo"; id: string; title: string; sub: string; href: string }
   | { kind: "prazo"; id: string; title: string; sub: string; href: string }
   | { kind: "tarefa"; id: string; title: string; sub: string; href: string }
@@ -32,6 +34,7 @@ type ResultItem =
   | { kind: "honorario"; id: string; title: string; sub: string; href: string };
 
 const kindMeta: Record<ResultItem["kind"], { label: string; icon: React.ReactNode; color: string }> = {
+  cliente: { label: "Cliente", icon: <Users className="h-3.5 w-3.5" />, color: "bg-violet-50 text-violet-700" },
   processo: { label: "Processo", icon: <FolderOpen className="h-3.5 w-3.5" />, color: "bg-gray-100 text-gray-600" },
   prazo: { label: "Prazo", icon: <Clock className="h-3.5 w-3.5" />, color: "bg-amber-50 text-amber-700" },
   tarefa: { label: "Tarefa", icon: <ListTodo className="h-3.5 w-3.5" />, color: "bg-slate-100 text-slate-700" },
@@ -53,14 +56,28 @@ async function search(query: string): Promise<ResultItem[]> {
   if (!query.trim()) return [];
 
   const results: ResultItem[] = [];
-  const [processos, prazos, tarefas, audiencias, atendimentos, honorarios] = await Promise.all([
-    getProcessos(),
-    getPrazosWithProcesso(),
-    getTarefasWithProcesso(),
-    getAudienciasWithProcesso(),
-    getAtendimentosWithProcesso(),
-    getHonorariosWithProcesso(),
+  const [clientes, processos, prazos, tarefas, audiencias, atendimentos, honorarios] = await Promise.all([
+    getClientes().catch(() => []),
+    getProcessos().catch(() => []),
+    getPrazosWithProcesso().catch(() => []),
+    getTarefasWithProcesso().catch(() => []),
+    getAudienciasWithProcesso().catch(() => []),
+    getAtendimentosWithProcesso().catch(() => []),
+    getHonorariosWithProcesso().catch(() => []),
   ]);
+
+  clientes.forEach((cliente) => {
+    if (matches(query, cliente.nome, cliente.cpf, cliente.rg, cliente.email, cliente.celular)) {
+      const contatos = [cliente.cpf, cliente.email, cliente.celular].filter(Boolean);
+      results.push({
+        kind: "cliente",
+        id: cliente.id,
+        title: cliente.nome,
+        sub: contatos.length > 0 ? contatos.join(" · ") : "Cliente cadastrado",
+        href: `/dashboard/clientes/${cliente.id}`,
+      });
+    }
+  });
 
   processos.forEach((p) => {
     if (matches(query, p.numero, p.titulo, p.cliente_nome, p.parte_contraria, p.descricao)) {
@@ -68,7 +85,7 @@ async function search(query: string): Promise<ResultItem[]> {
         kind: "processo",
         id: p.id,
         title: p.titulo || p.numero,
-        sub: `${p.cliente_nome} · ${p.numero}`,
+        sub: `${p.cliente_nome} · ${p.numero || p.numero_inquerito || "Sem número"}`,
         href: `/dashboard/processos/${p.id}`,
       });
     }
@@ -145,30 +162,28 @@ interface SearchModalProps {
 export function SearchModal({ open, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ResultItem[]>([]);
+  const [completedQuery, setCompletedQuery] = useState("");
   const [selected, setSelected] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    setResults([]);
-    setSelected(0);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  }, [open]);
+    if (!query.trim()) return;
 
-  useEffect(() => {
     let cancelled = false;
-    search(query).then((items) => {
-      if (!cancelled) {
-        setResults(items);
-        setSelected(0);
-      }
-    });
+    search(query)
+      .then((items) => {
+        if (!cancelled) {
+          setResults(items);
+          setCompletedQuery(query);
+          setSelected(0);
+        }
+      });
     return () => {
       cancelled = true;
     };
   }, [query]);
+
+  const searching = Boolean(query.trim()) && completedQuery !== query;
 
   const navigate = useCallback((item: ResultItem) => {
     router.push(item.href);
@@ -203,7 +218,7 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
         <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-3.5">
           <Search className="h-5 w-5 shrink-0 text-gray-400" />
           <input
-            ref={inputRef}
+            autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar processos, clientes, prazos, tarefas..."
@@ -219,10 +234,14 @@ export function SearchModal({ open, onClose }: SearchModalProps) {
 
         {query ? (
           <div className="max-h-[50vh] overflow-y-auto">
-            {results.length === 0 ? (
+            {searching ? (
+              <div className="py-12 text-center">
+                <p className="text-sm text-gray-400">Buscando...</p>
+              </div>
+            ) : results.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="text-sm text-gray-400">
-                  Nenhum resultado para <span className="font-medium text-gray-600">"{query}"</span>
+                  Nenhum resultado para <span className="font-medium text-gray-600">&quot;{query}&quot;</span>
                 </p>
               </div>
             ) : (
