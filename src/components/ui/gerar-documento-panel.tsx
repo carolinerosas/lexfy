@@ -165,15 +165,32 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   }
 
   function baixarPdf() {
-    const win = window.open("", "_blank", "noopener,noreferrer");
-    if (!win) {
-      alert("Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.");
+    // Imprime via iframe invisível (sem pop-up, imune a bloqueador).
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      document.body.removeChild(iframe);
+      setErroModelo("Não foi possível preparar a impressão. Use o botão Word e imprima de lá.");
       return;
     }
-    win.document.write(documentoCompleto());
-    win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 350);
+    doc.open();
+    doc.write(documentoCompleto());
+    doc.close();
+    setTimeout(() => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        setTimeout(() => document.body.removeChild(iframe), 1000);
+      }
+    }, 300);
   }
 
   function baixarWord() {

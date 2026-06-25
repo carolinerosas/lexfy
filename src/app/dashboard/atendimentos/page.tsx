@@ -208,6 +208,7 @@ export default function AtendimentosPage() {
 
         {selected && (
           <AtendimentoDetail
+            key={selected.id}
             atendimento={selected}
             onClose={() => setSelectedId(null)}
             onUpdate={() => load()}
@@ -238,6 +239,18 @@ function AtendimentoDetail({
 }) {
   const [showPrazoModal, setShowPrazoModal] = useState(false);
   const [showAudModal, setShowAudModal] = useState(false);
+  const [notas, setNotas] = useState(atendimento.notas ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function salvarNotas() {
+    setSaving(true);
+    try {
+      await updateAtendimento(atendimento.id, { notas: notas.trim() || undefined });
+      onUpdate();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function marcarRealizado() {
     await updateAtendimento(atendimento.id, { status: "realizado" });
@@ -254,27 +267,33 @@ function AtendimentoDetail({
     onDelete();
   }
 
+  const changed = notas !== (atendimento.notas ?? "");
+
   return (
-    <div className="w-80 shrink-0">
-      <Card className="sticky top-4">
+    <div>
+      <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Detalhe</CardTitle>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Detalhe do atendimento</CardTitle>
+              <p className="text-sm text-gray-400 mt-1">Abra, leia e edite as anotações completas aqui embaixo.</p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors" aria-label="Fechar detalhe">
               <X className="w-4 h-4" />
             </button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 pb-5">
-          <div>
-            <p className="text-lg font-bold text-gray-900">{atendimento.cliente_nome}</p>
+        <CardContent className="space-y-5 pb-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+            <p className="text-xl font-bold text-gray-900">{atendimento.cliente_nome}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={statusVariant[atendimento.status]}>{statusLabel[atendimento.status]}</Badge>
               {atendimento.tipo && <span className="text-xs text-gray-500">{tipoLabel[atendimento.tipo]}</span>}
             </div>
-          </div>
+            </div>
 
-          <div className="space-y-2.5 text-sm">
+          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
             <Row icon={<Calendar className="w-3.5 h-3.5" />} label="Data e hora" value={formatDateTime(atendimento.data_hora)} />
             {atendimento.duracao_min && (
               <Row icon={<Clock className="w-3.5 h-3.5" />} label="Duração" value={`${atendimento.duracao_min} min`} />
@@ -286,40 +305,55 @@ function AtendimentoDetail({
               <Row icon={<FileText className="w-3.5 h-3.5" />} label="Processo" value={`${atendimento.processo.numero}`} />
             )}
           </div>
+          </div>
 
-          {atendimento.notas && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-gray-500 mb-1">Anotações</p>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{atendimento.notas}</p>
+          <div className="space-y-2">
+            <label htmlFor={`notas-${atendimento.id}`} className="text-sm font-medium text-gray-700">
+              Anotações do atendimento
+            </label>
+            <textarea
+              id={`notas-${atendimento.id}`}
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Escreva ou edite aqui o conteúdo completo do atendimento..."
+              className="min-h-[360px] w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-7 text-gray-800 outline-none transition-colors focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/10"
+            />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-gray-400">
+                {changed ? "Há alterações ainda não salvas." : "Tudo salvo."}
+              </p>
+              <Button size="sm" onClick={salvarNotas} disabled={!changed || saving}>
+                {saving ? "Salvando..." : "Salvar alterações"}
+              </Button>
             </div>
-          )}
+          </div>
 
           {atendimento.status === "agendado" && (
-            <div className="space-y-2 pt-2 border-t border-gray-100">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Ações</p>
-              <Button className="w-full" size="sm" onClick={marcarRealizado}>
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+              <p className="w-full text-xs font-semibold text-gray-500 uppercase tracking-wide">Ações</p>
+              <Button size="sm" onClick={marcarRealizado}>
                 <CheckCircle className="w-3.5 h-3.5" /> Marcar como Realizado
               </Button>
-              <Button className="w-full" variant="outline" size="sm" onClick={marcarCancelado}>
+              <Button variant="outline" size="sm" onClick={marcarCancelado}>
                 <X className="w-3.5 h-3.5" /> Cancelar Atendimento
               </Button>
             </div>
           )}
 
           {atendimento.processo_id && (
-            <div className="space-y-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Criar para este processo</p>
-              <Button className="w-full" variant="secondary" size="sm" onClick={() => setShowPrazoModal(true)}>
+              <Button variant="secondary" size="sm" onClick={() => setShowPrazoModal(true)}>
                 <Clock className="w-3.5 h-3.5" /> Novo Prazo
               </Button>
-              <Button className="w-full" variant="secondary" size="sm" onClick={() => setShowAudModal(true)}>
+              <Button variant="secondary" size="sm" onClick={() => setShowAudModal(true)}>
                 <Calendar className="w-3.5 h-3.5" /> Nova Audiência
               </Button>
             </div>
           )}
 
-          <div className="pt-2 border-t border-gray-100">
-            <Button className="w-full" variant="danger" size="sm" onClick={handleDelete}>
+          <div className="flex justify-end pt-2 border-t border-gray-100">
+            <Button variant="danger" size="sm" onClick={handleDelete}>
               <Trash2 className="w-3.5 h-3.5" /> Excluir
             </Button>
           </div>
