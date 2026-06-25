@@ -119,9 +119,9 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   const PAGINA_CSS = `
     @page { size: A4; margin: 0; }
     html, body { margin: 0; padding: 0; }
-    .folha { position: relative; width: 21cm; min-height: 29.7cm; box-sizing: border-box; overflow: hidden; }
+    .folha { position: relative; width: 21cm; min-height: 29.7cm; box-sizing: border-box; }
     .folha .timbre { position: absolute; top: 0; left: 0; width: 21cm; height: 29.7cm; z-index: 0; }
-    .folha .conteudo { position: relative; z-index: 1; padding: 4cm 2.5cm 3.5cm 2.5cm; }
+    .folha .conteudo { position: relative; z-index: 1; padding: 5.5cm 2.5cm 4cm 2.5cm; }
   `;
 
   function documentoCompleto(): string {
