@@ -830,13 +830,13 @@ function DetalheModal({
           </div>
         </div>
 
-        <div className="bg-gray-50 rounded-xl p-4 max-h-[50vh] overflow-y-auto">
+        <div className="rounded-xl bg-gray-50 p-4">
           <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
             {publicacao.conteudo || "Sem teor disponível."}
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 pt-1">
+        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
           {publicacao.url && !publicacao.url.includes("/certidao") && (
             <a href={publicacao.url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="sm">
@@ -943,7 +943,7 @@ function PrazoModal({
           </p>
         )}
         <Input label="Título do prazo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Data do prazo *" type="date" value={dataPrazo} onChange={(e) => setDataPrazo(e.target.value)} />
           <Select label="Prioridade" options={prioridadeOptions} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)} />
         </div>
@@ -952,7 +952,7 @@ function PrazoModal({
           <p className="text-xs text-gray-500 mb-1 font-medium">Teor da publicação:</p>
           <p className="text-xs text-gray-600 whitespace-pre-line">{publicacao.conteudo?.slice(0, 400)}</p>
         </div>
-        <div className="flex justify-end gap-3">
+        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!processoId || !dataPrazo || saving}>
             {saving ? "Salvando..." : "Salvar prazo"}

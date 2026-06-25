@@ -337,19 +337,11 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
             contentEditable
             suppressContentEditableWarning
             spellCheck
-            style={timbreUrl ? {
-              backgroundImage: `url(${timbreUrl})`,
-              backgroundSize: "100% auto",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "top center",
-              paddingTop: "150px",
-              paddingBottom: "140px",
-            } : undefined}
-            className="doc-page min-h-[400px] rounded-lg border border-gray-200 bg-white px-12 py-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            className="doc-page min-h-[400px] rounded-lg border border-gray-200 bg-white px-8 py-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
           />
           {timbreUrl && (
             <p className="mt-2 text-xs text-gray-400">
-              O timbre aparece aqui só como prévia aproximada — no <strong>PDF</strong> ele sai certinho, em página A4.
+              O timbre não aparece aqui na edição (pra ficar limpo), mas <strong>sai no PDF</strong>, em folha A4.
             </p>
           )}
         </div>

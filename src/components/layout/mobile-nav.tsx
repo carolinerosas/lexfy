@@ -31,13 +31,14 @@ type MobileNavItem = {
 
 const mainItems: MobileNavItem[] = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
   { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
+  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
+  { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
   { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
-  { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
 ];
 
 const moreItems: MobileNavItem[] = [
+  { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
   { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
   { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo },
   { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
@@ -48,8 +49,24 @@ const moreItems: MobileNavItem[] = [
   { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
 ];
 
+const ordemMobile = [
+  "/dashboard",
+  "/dashboard/clientes",
+  "/dashboard/processos",
+  "/dashboard/publicacoes",
+  "/dashboard/prazos",
+  "/dashboard/audiencias",
+  "/dashboard/tarefas",
+  "/dashboard/atendimentos",
+  "/dashboard/triagem",
+  "/dashboard/modelos",
+  "/dashboard/financeiro",
+];
+
 const mainHrefs = new Set(mainItems.map((item) => item.href));
-const menuItems = moreItems.filter((item) => !mainHrefs.has(item.href));
+const menuItems = moreItems
+  .filter((item) => !mainHrefs.has(item.href))
+  .sort((a, b) => ordemMobile.indexOf(a.href) - ordemMobile.indexOf(b.href));
 
 export function MobileNav() {
   const pathname = usePathname();
