@@ -167,7 +167,16 @@ export async function preencherModeloHtml(
   };
   const mammoth = mammothMod.default ?? mammothMod;
   const result = await mammoth.convertToHtml!({ arrayBuffer });
-  return result.value;
+
+  let html = result.value;
+  // Centraliza o título (primeiro parágrafo todo em negrito).
+  html = html.replace(
+    /^\s*<p>(\s*<strong>[\s\S]*?<\/strong>\s*)<\/p>/,
+    '<p style="text-align:center;margin-bottom:24px">$1</p>'
+  );
+  // Dá espaço de assinatura antes de linhas com sublinhados.
+  html = html.replace(/<p>(_{5,})/g, '<p style="margin-top:56px;text-align:center">$1');
+  return html;
 }
 
 /**

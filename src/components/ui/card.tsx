@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 export function Card({ children, className, onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) {
   return (
-    <div className={cn("bg-white rounded-xl border border-gray-200 shadow-sm", className)} onClick={onClick}>
+    <div className={cn("min-w-0 max-w-full bg-white rounded-xl border border-gray-200 shadow-sm", className)} onClick={onClick}>
       {children}
     </div>
   );
@@ -10,7 +10,7 @@ export function Card({ children, className, onClick }: { children: React.ReactNo
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("px-6 py-4 border-b border-gray-100", className)}>{children}</div>
+    <div className={cn("px-4 py-4 border-b border-gray-100 sm:px-6", className)}>{children}</div>
   );
 }
 
@@ -19,5 +19,5 @@ export function CardTitle({ children, className }: { children: React.ReactNode; 
 }
 
 export function CardContent({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn("px-6 py-4", className)}>{children}</div>;
+  return <div className={cn("px-4 py-4 sm:px-6", className)}>{children}</div>;
 }

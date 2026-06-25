@@ -21,7 +21,7 @@ const DOC_CSS = `
   .doc-page .doc-title { text-align: center; font-size: 13pt; font-weight: bold; text-transform: uppercase; margin: 0 0 24px; letter-spacing: 0.5px; }
   .doc-page p { margin: 0 0 14px; }
   .doc-page .doc-local { text-align: right; margin: 28px 0 36px; }
-  .doc-page .doc-sign { text-align: center; margin-top: 40px; }
+  .doc-page .doc-sign { text-align: center; margin-top: 72px; }
 `;
 
 const FILL_CSS = `.doc-page .doc-fill { background: #fef3c7; color: #92400e; border-radius: 3px; padding: 0 2px; }`;

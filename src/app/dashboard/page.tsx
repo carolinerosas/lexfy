@@ -168,7 +168,7 @@ export default function DashboardPage() {
   })();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+    <div className="mx-auto w-full max-w-7xl overflow-hidden px-4 py-6 md:px-8 md:py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Painel</h1>
         <p className="mt-1 text-sm text-gray-400">
@@ -182,33 +182,33 @@ export default function DashboardPage() {
       </div>
 
       {(stats.prazosVencidos > 0 || stats.tarefasVencidas > 0 || stats.publicacoesNaoLidas > 0 || stats.movimentacoesNaoLidas > 0) && (
-        <div className="mb-6 flex flex-wrap gap-3">
+        <div className="mb-6 flex min-w-0 flex-wrap gap-3">
           {stats.prazosVencidos > 0 && (
-            <div className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              <AlertTriangle className="h-4 w-4" />
+            <div className="flex min-w-0 w-full items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:w-auto">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
               {stats.prazosVencidos} prazo{stats.prazosVencidos > 1 ? "s" : ""} vencido{stats.prazosVencidos > 1 ? "s" : ""}
             </div>
           )}
           {stats.tarefasVencidas > 0 && (
-            <Link href="/dashboard/tarefas">
-              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100">
-                <ListTodo className="h-4 w-4" />
+            <Link href="/dashboard/tarefas" className="min-w-0 w-full sm:w-auto">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-100">
+                <ListTodo className="h-4 w-4 shrink-0" />
                 {stats.tarefasVencidas} tarefa{stats.tarefasVencidas > 1 ? "s" : ""} vencida{stats.tarefasVencidas > 1 ? "s" : ""}
               </div>
             </Link>
           )}
           {stats.movimentacoesNaoLidas > 0 && (
-            <Link href="/dashboard/processos">
-              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
-                <Activity className="h-4 w-4" />
+            <Link href="/dashboard/processos" className="min-w-0 w-full sm:w-auto">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
+                <Activity className="h-4 w-4 shrink-0" />
                 {stats.movimentacoesNaoLidas} movimentaç{stats.movimentacoesNaoLidas > 1 ? "ões" : "ão"} nova{stats.movimentacoesNaoLidas > 1 ? "s" : ""}
               </div>
             </Link>
           )}
           {stats.publicacoesNaoLidas > 0 && (
-            <Link href="/dashboard/publicacoes">
-              <div className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
-                <Bell className="h-4 w-4" />
+            <Link href="/dashboard/publicacoes" className="min-w-0 w-full sm:w-auto">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
+                <Bell className="h-4 w-4 shrink-0" />
                 {stats.publicacoesNaoLidas} publicaç{stats.publicacoesNaoLidas > 1 ? "ões" : "ão"} não {stats.publicacoesNaoLidas > 1 ? "lidas" : "lida"}
               </div>
             </Link>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-5">
+      <div className="mb-8 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard icon={<FolderOpen className="h-5 w-5 text-gray-600" />} label="Processos Ativos" value={stats.processosAtivos} sub={`${stats.totalProcessos} total`} href="/dashboard/processos" />
         <StatCard icon={<ListTodo className="h-5 w-5 text-gray-600" />} label="Tarefas" value={stats.tarefasPendentes} sub={stats.tarefasProximas > 0 ? `${stats.tarefasProximas} nos próximos 7 dias` : "pendentes"} href="/dashboard/tarefas" />
         <StatCard icon={<Clock className="h-5 w-5 text-gray-600" />} label="Prazos Próximos" value={stats.prazosProximos} sub={stats.prazosVencidos > 0 ? `${stats.prazosVencidos} vencidos` : "próximos 7 dias"} subColor={stats.prazosVencidos > 0 ? "text-red-500" : undefined} href="/dashboard/prazos" />
@@ -259,8 +259,8 @@ export default function DashboardPage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[560px] grid-cols-7 divide-x divide-gray-100 border-t border-gray-100">
+          <div>
+            <div className="grid grid-cols-1 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-7 sm:divide-x sm:divide-y-0">
               {weekDays.map((day) => {
                 const isToday = isSameDay(day, today);
                 const isWeekend = day.getDay() === 0 || day.getDay() === 6;
@@ -269,7 +269,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={dateKey(day)}
-                    className={`flex min-h-[180px] flex-col p-3 ${isToday ? "bg-[#21181d]" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}
+                    className={`flex min-w-0 flex-col p-3 sm:min-h-[180px] ${isToday ? "bg-[#21181d]" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}
                   >
                     <div className="mb-2.5">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
@@ -365,7 +365,7 @@ function EventoChip({ evento, isOnDark }: { evento: Evento; isOnDark: boolean })
 
 function StatCard({ icon, label, value, sub, subColor, href }: { icon: React.ReactNode; label: string; value: string | number; sub: string; subColor?: string; href: string }) {
   return (
-    <Link href={href}>
+    <Link href={href} className="min-w-0">
       <Card className="cursor-pointer transition-all hover:border-gray-300 hover:shadow-md">
         <CardContent className="p-5">
           <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">{icon}</div>
@@ -382,9 +382,9 @@ function ListCard({ title, href, empty, icon, children }: { title: string; href:
   const items = Children.toArray(children);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <CardTitle>{title}</CardTitle>
           <Link href={href}>
             <Button variant="ghost" size="sm" className="text-xs text-gray-500 hover:text-gray-900">
