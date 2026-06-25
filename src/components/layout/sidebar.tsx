@@ -14,15 +14,17 @@ import {
   ListTodo,
   MessageSquare,
   Newspaper,
+  Sparkles,
   UserRound,
   Users,
 } from "lucide-react";
 import { JustioLogo } from "@/components/ui/justio-logo";
-import { getPublicacoes, getTriagemNovosCount } from "@/lib/store";
+import { getPublicacoes, getTriagemNovosCount, getBriefingsNaoLidos } from "@/lib/store";
 import { useDatajudSync } from "@/hooks/useDatajudSync";
 
 const navItems = [
   { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
+  { href: "/dashboard/briefing", label: "Briefing", icon: Sparkles, badge: "briefing" },
   { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
   { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
   { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
@@ -39,14 +41,17 @@ export function Sidebar() {
   const pathname = usePathname();
   const [pubNaoLidas, setPubNaoLidas] = useState(0);
   const [triagemNovos, setTriagemNovos] = useState(0);
+  const [briefingNaoLidos, setBriefingNaoLidos] = useState(0);
 
   async function refreshBadges() {
-    const [pubs, triagem] = await Promise.all([
+    const [pubs, triagem, briefings] = await Promise.all([
       getPublicacoes(),
       getTriagemNovosCount(),
+      getBriefingsNaoLidos(),
     ]);
     setPubNaoLidas(pubs.filter((p) => !p.lida).length);
     setTriagemNovos(triagem);
+    setBriefingNaoLidos(briefings);
   }
 
   useEffect(() => {
@@ -60,6 +65,7 @@ export function Sidebar() {
   function getBadge(key?: string): number {
     if (key === "publicacoes") return pubNaoLidas;
     if (key === "triagem") return triagemNovos;
+    if (key === "briefing") return briefingNaoLidos;
     return 0;
   }
 

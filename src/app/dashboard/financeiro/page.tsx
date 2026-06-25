@@ -287,7 +287,7 @@ export default function FinanceiroPage() {
                       {vencida && <span className="ml-1 font-semibold text-red-600">(vencida)</span>}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
+                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
                   <Button size="sm" onClick={() => { setRecebendo(h); setDataRecebida(todayISO()); }}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Recebido
                   </Button>
@@ -440,7 +440,7 @@ export default function FinanceiroPage() {
                         {h.categoria === "pagamento" && ` · ${formatDate(h.data_recebimento ?? h.created_at)}`}
                       </p>
                     </div>
-                    <span className={`shrink-0 text-xs font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
+                    <span className={`shrink-0 text-[11px] font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
                       {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
                     </span>
                     <div className="flex shrink-0 items-center gap-0.5">
@@ -536,7 +536,7 @@ function SummaryCard({ icon, dark, highlight, label, value }: { icon: React.Reac
     <Card className={dark ? "bg-[#21181d] border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : ""}>
       <CardContent className="p-4">
         <div className={`w-9 h-9 rounded-xl ${dark ? "bg-white/10" : "bg-white"} flex items-center justify-center mb-2 border ${dark ? "border-white/10" : "border-gray-100"}`}>{icon}</div>
-        <p className={`text-xs font-black tracking-tight tabular-nums sm:text-sm ${dark ? "text-white" : "text-gray-900"}`}>{value}</p>
+        <p className={`text-[11px] font-black tracking-tight tabular-nums sm:text-xs ${dark ? "text-white" : "text-gray-900"}`}>{value}</p>
         <p className={`text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
       </CardContent>
     </Card>

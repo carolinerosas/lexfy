@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import {
   getAtendimentosWithProcesso,
   getProcessos,
@@ -308,13 +309,11 @@ function AtendimentoDetail({
           </div>
 
           <div className="space-y-2">
-            <label htmlFor={`notas-${atendimento.id}`} className="text-sm font-medium text-gray-700">
-              Anotações do atendimento
-            </label>
-            <textarea
+            <VoiceTextarea
               id={`notas-${atendimento.id}`}
+              label="Anotações do atendimento"
               value={notas}
-              onChange={(e) => setNotas(e.target.value)}
+              onChange={setNotas}
               placeholder="Escreva ou edite aqui o conteúdo completo do atendimento..."
               className="min-h-[360px] w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm leading-7 text-gray-800 outline-none transition-colors focus:border-gray-900 focus:bg-white focus:ring-2 focus:ring-gray-900/10"
             />

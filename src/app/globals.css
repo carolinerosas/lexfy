@@ -29,7 +29,6 @@ body {
 
 * {
   box-sizing: border-box;
-  min-width: 0;
 }
 
 button,
@@ -38,10 +37,6 @@ input,
 select,
 textarea {
   max-width: 100%;
-}
-
-main {
-  overflow-wrap: anywhere;
 }
 
 ::-webkit-scrollbar {

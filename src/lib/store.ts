@@ -16,6 +16,7 @@ import type {
   BeneficioPenal,
   TriagemLead,
   TriagemImportacao,
+  Briefing,
 } from "@/types";
 
 const USER_ID = "lexfy_shared";
@@ -541,6 +542,56 @@ export async function registrarCoworkImportacao(input: {
       { onConflict: "conversa_id,marcador", ignoreDuplicates: true }
     );
   if (error && !isMissingTable(error)) throw new Error(error.message);
+}
+
+// --- Briefings (resumos diários do agente) ---
+
+export async function getBriefings(): Promise<Briefing[]> {
+  const { data, error } = await supabase
+    .from("briefings")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as Briefing[];
+}
+
+export async function createBriefing(input: {
+  data?: string;
+  conteudo: string;
+  origem?: string;
+}): Promise<Briefing> {
+  const novo = {
+    id: generateId(),
+    data: input.data ?? null,
+    conteudo: input.conteudo,
+    origem: input.origem ?? null,
+    lida: false,
+    created_at: now(),
+    user_id: USER_ID,
+  };
+  const { data, error } = await supabase.from("briefings").insert(novo).select().single();
+  if (error) throw new Error(error.message);
+  return data as Briefing;
+}
+
+export async function marcarBriefingLido(id: string): Promise<void> {
+  await supabase.from("briefings").update({ lida: true }).eq("id", id);
+}
+
+export async function deleteBriefing(id: string): Promise<void> {
+  const { error } = await supabase.from("briefings").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function getBriefingsNaoLidos(): Promise<number> {
+  const { count } = await supabase
+    .from("briefings")
+    .select("*", { count: "exact", head: true })
+    .eq("lida", false);
+  return count ?? 0;
 }
 
 // --- Atendimentos ---

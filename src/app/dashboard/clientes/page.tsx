@@ -27,6 +27,7 @@ export default function ClientesPage() {
   const [showProcessoModal, setShowProcessoModal] = useState(false);
   const [preNome, setPreNome] = useState("");
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const naoCadastrados = clientes.filter((c) => !c.cadastrado).length;
@@ -44,6 +45,11 @@ export default function ClientesPage() {
 
   function limparSelecao() {
     setSelecionados(new Set());
+  }
+
+  function encerrarSelecao() {
+    limparSelecao();
+    setSelectionMode(false);
   }
 
   async function handleImportar() {
@@ -107,7 +113,7 @@ export default function ClientesPage() {
         else await excluirClienteNaoCadastrado(c.nome);
       }
       await load();
-      limparSelecao();
+      encerrarSelecao();
     } finally {
       setBulkBusy(false);
     }
@@ -150,24 +156,32 @@ export default function ClientesPage() {
 
       {filtered.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              checked={todosSelecionados}
-              onChange={toggleTodos}
-              className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
-            />
-            Selecionar todos
-          </label>
-          {algumSelecionado && (
+          {!selectionMode ? (
+            <Button variant="secondary" size="sm" onClick={() => setSelectionMode(true)}>
+              Selecionar
+            </Button>
+          ) : (
             <>
-              <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={todosSelecionados}
+                  onChange={toggleTodos}
+                  className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+                />
+                Selecionar todos
+              </label>
+              {algumSelecionado && (
+                <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              )}
               <div className="ml-auto flex flex-wrap gap-2">
-                <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
-                  <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
-                </Button>
-                <Button variant="ghost" size="sm" onClick={limparSelecao} disabled={bulkBusy}>
-                  Limpar
+                {algumSelecionado && (
+                  <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir selecionados
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={encerrarSelecao} disabled={bulkBusy}>
+                  Cancelar
                 </Button>
               </div>
             </>
@@ -186,14 +200,16 @@ export default function ClientesPage() {
         <>
         <div className="space-y-3 md:hidden">
           {filtered.map((c) => (
-            <Card key={c.id ?? c.nome} className={`p-4 ${selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
+            <Card key={c.id ?? c.nome} className={`p-4 ${selectionMode && selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
               <div className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={selecionados.has(keyOf(c))}
-                  onChange={() => toggleSelecionado(keyOf(c))}
-                  className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
-                />
+                {selectionMode && (
+                  <input
+                    type="checkbox"
+                    checked={selecionados.has(keyOf(c))}
+                    onChange={() => toggleSelecionado(keyOf(c))}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                  />
+                )}
                 <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>
                   {c.nome.charAt(0).toUpperCase()}
                 </div>
@@ -265,14 +281,16 @@ export default function ClientesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
-                <th className="w-10 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleTodos}
-                    className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
-                  />
-                </th>
+                {selectionMode && (
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={todosSelecionados}
+                      onChange={toggleTodos}
+                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-6 py-3">Cliente</th>
                 <th className="text-center px-4 py-3">Processos</th>
                 <th className="px-4 py-3" />
@@ -280,15 +298,17 @@ export default function ClientesPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((c) => (
-                  <tr key={c.id ?? c.nome} className={`transition-colors ${selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
-                    <td className="px-4 py-4">
-                      <input
-                        type="checkbox"
-                        checked={selecionados.has(keyOf(c))}
-                        onChange={() => toggleSelecionado(keyOf(c))}
-                        className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
-                      />
-                    </td>
+                  <tr key={c.id ?? c.nome} className={`transition-colors ${selectionMode && selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                    {selectionMode && (
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selecionados.has(keyOf(c))}
+                          onChange={() => toggleSelecionado(keyOf(c))}
+                          className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>

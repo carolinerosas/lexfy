@@ -994,17 +994,17 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
-          <p className="text-xs text-gray-500 mb-1">Cobrado</p>
-          <p className="text-xs font-black text-gray-900 tabular-nums sm:text-sm">{formatCurrency(totalCobrado)}</p>
+        <div className="bg-gray-50 rounded-xl px-2 py-3 text-center sm:px-4">
+          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Cobrado</p>
+          <p className="text-[10px] font-black text-gray-900 tabular-nums sm:text-xs">{formatCurrency(totalCobrado)}</p>
         </div>
-        <div className="bg-green-50 rounded-xl px-4 py-3 text-center">
-          <p className="text-xs text-gray-500 mb-1">Recebido</p>
-          <p className="text-xs font-black text-green-700 tabular-nums sm:text-sm">{formatCurrency(totalPago)}</p>
+        <div className="bg-green-50 rounded-xl px-2 py-3 text-center sm:px-4">
+          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Recebido</p>
+          <p className="text-[10px] font-black text-green-700 tabular-nums sm:text-xs">{formatCurrency(totalPago)}</p>
         </div>
-        <div className={`rounded-xl px-4 py-3 text-center ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
-          <p className="text-xs text-gray-500 mb-1">Saldo a receber</p>
-          <p className={`text-xs font-black tabular-nums sm:text-sm ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
+        <div className={`rounded-xl px-2 py-3 text-center sm:px-4 ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
+          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Saldo a receber</p>
+          <p className={`text-[10px] font-black tabular-nums sm:text-xs ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
         </div>
       </div>
 
@@ -1040,7 +1040,7 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
                               : (h.tipo ?? "Honorário")}
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
+                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
                       {!recebida && (
                         <Button size="sm" onClick={() => onReceber(h)}>
                           <CheckCircle className="w-3.5 h-3.5" /> Recebido

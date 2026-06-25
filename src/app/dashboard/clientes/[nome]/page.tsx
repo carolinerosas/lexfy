@@ -119,7 +119,7 @@ export default function ClienteDetailPage() {
             </div>
             <div className="min-w-0">
               <h1 className="break-words text-2xl font-bold text-gray-900">{cliente.nome}</h1>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <p className="mt-0.5 text-sm text-gray-500 break-normal">
                 {processos.length} processo{processos.length !== 1 ? "s" : ""} · {atendimentos.length} atendimento{atendimentos.length !== 1 ? "s" : ""}
               </p>
             </div>
@@ -214,32 +214,32 @@ export default function ClienteDetailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
+      <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
-          <CardContent className="p-5">
-            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-              <DollarSign className="w-4 h-4 text-gray-600" />
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 sm:h-9 sm:w-9">
+              <DollarSign className="h-3.5 w-3.5 text-gray-600 sm:h-4 sm:w-4" />
             </div>
-            <p className="text-sm font-black tracking-tight text-gray-900 sm:text-base">{formatCurrency(totalCobrado)}</p>
-            <p className="text-sm text-gray-500 mt-0.5">Total Cobrado</p>
+            <p className="whitespace-nowrap text-[10px] font-black tracking-tight text-gray-900 sm:text-sm">{formatCurrency(totalCobrado)}</p>
+            <p className="mt-0.5 text-[10px] leading-tight text-gray-500 sm:text-xs">Cobrado</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-5">
-            <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
-              <TrendingUp className="w-4 h-4 text-gray-600" />
+          <CardContent className="p-2.5 sm:p-4">
+            <div className="mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 sm:h-9 sm:w-9">
+              <TrendingUp className="h-3.5 w-3.5 text-gray-600 sm:h-4 sm:w-4" />
             </div>
-            <p className="text-sm font-black tracking-tight text-green-700 sm:text-base">{formatCurrency(totalPago)}</p>
-            <p className="text-sm text-gray-500 mt-0.5">Total Recebido</p>
+            <p className="whitespace-nowrap text-[10px] font-black tracking-tight text-green-700 sm:text-sm">{formatCurrency(totalPago)}</p>
+            <p className="mt-0.5 text-[10px] leading-tight text-gray-500 sm:text-xs">Recebido</p>
           </CardContent>
         </Card>
-        <Card className={saldo > 0 ? "bg-[#21181d] border-[#2b2027]" : ""}>
-          <CardContent className="p-5">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${saldo > 0 ? "bg-white/10" : "bg-gray-100"}`}>
-              <TrendingDown className={`w-4 h-4 ${saldo > 0 ? "text-gray-300" : "text-gray-400"}`} />
+        <Card>
+          <CardContent className="p-2.5 sm:p-4">
+            <div className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg sm:h-9 sm:w-9 ${saldo > 0 ? "bg-amber-50" : "bg-gray-100"}`}>
+              <TrendingDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${saldo > 0 ? "text-amber-600" : "text-gray-400"}`} />
             </div>
-            <p className={`text-sm font-black tracking-tight sm:text-base ${saldo > 0 ? "text-white" : "text-gray-400"}`}>{formatCurrency(saldo)}</p>
-            <p className={`text-sm mt-0.5 ${saldo > 0 ? "text-gray-400" : "text-gray-500"}`}>Saldo Devedor</p>
+            <p className={`whitespace-nowrap text-[10px] font-black tracking-tight sm:text-sm ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(saldo)}</p>
+            <p className="mt-0.5 text-[10px] leading-tight text-gray-500 sm:text-xs">Saldo</p>
           </CardContent>
         </Card>
       </div>
@@ -248,7 +248,7 @@ export default function ClienteDetailPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle>Processos</CardTitle>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <span className="text-xs text-gray-400">{processos.length} no total</span>
@@ -268,16 +268,16 @@ export default function ClienteDetailPage() {
                 <ul className="divide-y divide-gray-50">
                   {processos.map((p) => (
                     <li key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                      <Link href={`/dashboard/processos/${p.id}`} className="flex items-center gap-3 px-6 py-3.5">
+                      <Link href={`/dashboard/processos/${p.id}`} className="flex items-start gap-3 px-4 py-3.5 sm:px-6">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{p.titulo}</p>
+                          <div className="flex flex-wrap items-start gap-2 mb-0.5">
+                            <p className="min-w-0 break-words text-sm font-semibold leading-snug text-gray-900">{p.titulo}</p>
                             <Badge variant={statusVariant[p.status]}>{p.status.charAt(0).toUpperCase() + p.status.slice(1)}</Badge>
                           </div>
-                          <p className="text-xs text-gray-400 font-mono">
+                          <p className="break-all text-xs text-gray-400 font-mono">
                             {p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Número não informado")}
                           </p>
-                          {p.tribunal && <p className="text-xs text-gray-400 mt-0.5">{p.tribunal}{p.vara ? ` · ${p.vara}` : ""}</p>}
+                          {p.tribunal && <p className="text-xs text-gray-400 mt-0.5 break-words">{p.tribunal}{p.vara ? ` · ${p.vara}` : ""}</p>}
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
                       </Link>

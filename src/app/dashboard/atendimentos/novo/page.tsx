@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ComboBox } from "@/components/ui/combobox";
+import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { createAtendimento, getProcessos, getClientes } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
 
@@ -148,14 +149,12 @@ export default function NovoAtendimentoPage() {
 
         <Card>
           <CardContent className="py-6">
-            <label htmlFor="notas-atendimento" className="text-sm font-medium text-gray-700">
-              Anotações do atendimento
-            </label>
-            <p className="text-xs text-gray-400 mb-2">Tudo que foi tratado, orientações dadas, próximos passos, documentos pendentes…</p>
-            <textarea
+            <VoiceTextarea
               id="notas-atendimento"
+              label="Anotações do atendimento"
+              description="Tudo que foi tratado, orientações dadas, próximos passos, documentos pendentes…"
               value={form.notas}
-              onChange={(e) => set("notas", e.target.value)}
+              onChange={(value) => set("notas", value)}
               placeholder="Escreva aqui as anotações completas do atendimento..."
               className="w-full min-h-[320px] rounded-lg border border-gray-200 px-4 py-3 text-sm leading-relaxed text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900 transition-colors resize-y"
             />

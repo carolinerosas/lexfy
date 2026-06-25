@@ -16,17 +16,18 @@ import {
   MessageSquare,
   MoreHorizontal,
   Newspaper,
+  Sparkles,
   UserRound,
   Users,
   X,
 } from "lucide-react";
-import { getPublicacoes, getTriagemNovosCount } from "@/lib/store";
+import { getPublicacoes, getTriagemNovosCount, getBriefingsNaoLidos } from "@/lib/store";
 
 type MobileNavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  badge?: "triagem" | "publicacoes";
+  badge?: "triagem" | "publicacoes" | "briefing";
 };
 
 const mainItems: MobileNavItem[] = [
@@ -38,6 +39,7 @@ const mainItems: MobileNavItem[] = [
 ];
 
 const moreItems: MobileNavItem[] = [
+  { href: "/dashboard/briefing", label: "Briefing", icon: Sparkles, badge: "briefing" },
   { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
   { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
   { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo },
@@ -51,6 +53,7 @@ const moreItems: MobileNavItem[] = [
 
 const ordemMobile = [
   "/dashboard",
+  "/dashboard/briefing",
   "/dashboard/clientes",
   "/dashboard/processos",
   "/dashboard/publicacoes",
@@ -73,14 +76,17 @@ export function MobileNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [pubNaoLidas, setPubNaoLidas] = useState(0);
   const [triagemNovos, setTriagemNovos] = useState(0);
+  const [briefingNaoLidos, setBriefingNaoLidos] = useState(0);
 
   async function refreshBadges() {
-    const [pubs, triagem] = await Promise.all([
+    const [pubs, triagem, briefings] = await Promise.all([
       getPublicacoes(),
       getTriagemNovosCount(),
+      getBriefingsNaoLidos(),
     ]);
     setPubNaoLidas(pubs.filter((p) => !p.lida).length);
     setTriagemNovos(triagem);
+    setBriefingNaoLidos(briefings);
   }
 
   useEffect(() => {
@@ -96,11 +102,12 @@ export function MobileNav() {
   function getBadge(key?: string): number {
     if (key === "publicacoes") return pubNaoLidas;
     if (key === "triagem") return triagemNovos;
+    if (key === "briefing") return briefingNaoLidos;
     return 0;
   }
 
   const isMoreActive = menuItems.some((item) => pathname.startsWith(item.href));
-  const totalMoreBadge = getBadge("publicacoes");
+  const totalMoreBadge = getBadge("triagem") + getBadge("briefing");
 
   return (
     <>

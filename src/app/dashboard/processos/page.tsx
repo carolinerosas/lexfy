@@ -157,6 +157,7 @@ export default function ProcessosPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [busyProcessoId, setBusyProcessoId] = useState<string | null>(null);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -174,6 +175,11 @@ export default function ProcessosPage() {
 
   function limparSelecao() {
     setSelecionados(new Set());
+  }
+
+  function encerrarSelecao() {
+    limparSelecao();
+    setSelectionMode(false);
   }
 
   useEffect(() => { load(); }, [load]);
@@ -270,7 +276,7 @@ export default function ProcessosPage() {
     try {
       for (const id of ids) await deleteProcesso(id);
       await load();
-      limparSelecao();
+      encerrarSelecao();
     } finally {
       setBulkBusy(false);
     }
@@ -283,7 +289,7 @@ export default function ProcessosPage() {
     try {
       for (const id of ids) await updateProcesso(id, { status: "arquivado" });
       await load();
-      limparSelecao();
+      encerrarSelecao();
     } finally {
       setBulkBusy(false);
     }
@@ -426,27 +432,37 @@ export default function ProcessosPage() {
 
       {filtered.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2.5">
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
-            <input
-              type="checkbox"
-              checked={todosSelecionados}
-              onChange={toggleTodos}
-              className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
-            />
-            Selecionar todos
-          </label>
-          {algumSelecionado && (
+          {!selectionMode ? (
+            <Button variant="secondary" size="sm" onClick={() => setSelectionMode(true)}>
+              Selecionar
+            </Button>
+          ) : (
             <>
-              <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={todosSelecionados}
+                  onChange={toggleTodos}
+                  className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+                />
+                Selecionar todos
+              </label>
+              {algumSelecionado && (
+                <span className="text-sm text-gray-500">{selecionados.size} selecionado{selecionados.size !== 1 ? "s" : ""}</span>
+              )}
               <div className="ml-auto flex flex-wrap gap-2">
-                <Button variant="secondary" size="sm" onClick={arquivarSelecionados} disabled={bulkBusy}>
-                  <Archive className="w-3.5 h-3.5" /> Arquivar
-                </Button>
-                <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
-                  <Trash2 className="w-3.5 h-3.5" /> Excluir
-                </Button>
-                <Button variant="ghost" size="sm" onClick={limparSelecao} disabled={bulkBusy}>
-                  Limpar
+                {algumSelecionado && (
+                  <>
+                    <Button variant="secondary" size="sm" onClick={arquivarSelecionados} disabled={bulkBusy}>
+                      <Archive className="w-3.5 h-3.5" /> Arquivar
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={excluirSelecionados} disabled={bulkBusy}>
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </Button>
+                  </>
+                )}
+                <Button variant="ghost" size="sm" onClick={encerrarSelecao} disabled={bulkBusy}>
+                  Cancelar
                 </Button>
               </div>
             </>
@@ -473,14 +489,16 @@ export default function ProcessosPage() {
         <>
           <div className="space-y-3 md:hidden">
             {filtered.map((p) => (
-              <Card key={p.id} className={`p-4 ${selecionados.has(p.id) ? "ring-2 ring-[#21181d]" : ""}`}>
+              <Card key={p.id} className={`p-4 ${selectionMode && selecionados.has(p.id) ? "ring-2 ring-[#21181d]" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selecionados.has(p.id)}
-                    onChange={() => toggleSelecionado(p.id)}
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
-                  />
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selecionados.has(p.id)}
+                      onChange={() => toggleSelecionado(p.id)}
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <Link
@@ -580,14 +598,16 @@ export default function ProcessosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">
-                <th className="w-10 px-3 py-3">
-                  <input
-                    type="checkbox"
-                    checked={todosSelecionados}
-                    onChange={toggleTodos}
-                    className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
-                  />
-                </th>
+                {selectionMode && (
+                  <th className="w-10 px-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={todosSelecionados}
+                      onChange={toggleTodos}
+                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-3 py-3">Número / Título</th>
                 <th className="text-left px-3 py-3">Cliente</th>
                 <th className="text-left px-3 py-3 hidden md:table-cell">Tribunal</th>
@@ -599,15 +619,17 @@ export default function ProcessosPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => (
-                <tr key={p.id} className={`transition-colors group ${selecionados.has(p.id) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
-                  <td className="px-3 py-4">
-                    <input
-                      type="checkbox"
-                      checked={selecionados.has(p.id)}
-                      onChange={() => toggleSelecionado(p.id)}
-                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
-                    />
-                  </td>
+                <tr key={p.id} className={`transition-colors group ${selectionMode && selecionados.has(p.id) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                  {selectionMode && (
+                    <td className="px-3 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selecionados.has(p.id)}
+                        onChange={() => toggleSelecionado(p.id)}
+                        className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                      />
+                    </td>
+                  )}
                   <td className="px-3 py-4">
                     <div className="flex items-center gap-2">
                       <Link

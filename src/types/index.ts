@@ -374,6 +374,16 @@ export interface TriagemImportacao {
   user_id: string;
 }
 
+export interface Briefing {
+  id: string;
+  data?: string;
+  conteudo: string;
+  origem?: string;
+  lida?: boolean;
+  created_at: string;
+  user_id?: string;
+}
+
 export interface Publicacao {
   id: string;
   processo_id?: string;
