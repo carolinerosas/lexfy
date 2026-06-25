@@ -11,7 +11,10 @@
     "sync:local:install": "npm install --prefix sync-local",
     "sync:local:start-bg": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/start-if-needed.ps1",
     "sync:local:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/install-windows-task.ps1",
-    "sync:local:task:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/uninstall-windows-task.ps1"
+    "sync:local:task:uninstall": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/uninstall-windows-task.ps1",
+    "bridge:test": "node sync-local/justio-bridge.js --watch",
+    "bridge:once": "node sync-local/justio-bridge.js",
+    "bridge:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/install-bridge-task.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
