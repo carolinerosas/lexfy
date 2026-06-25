@@ -82,11 +82,23 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   const [modalGerar, setModalGerar] = useState<{ modelo: ModeloCustom; tokens: string[] } | null>(null);
   const [valores, setValores] = useState<Record<string, string>>({});
   const [processos, setProcessos] = useState<Processo[]>([]);
+  const [timbreUrl, setTimbreUrl] = useState("");
 
   useEffect(() => {
     loadPerfilAdvogado().then(setPerfil).catch(() => { /* perfil local já carregado */ });
     listarModelos().then(setMeusModelos).catch(() => { /* sem modelos ou tabela ausente */ });
     carregarProcessos();
+    // Carrega o papel timbrado e converte em dataURL (pra embutir no PDF/Word).
+    fetch("/timbre.png")
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((b) => new Promise<string>((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result as string);
+        fr.onerror = rej;
+        fr.readAsDataURL(b);
+      }))
+      .then(setTimbreUrl)
+      .catch(() => { /* sem timbre disponível */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -160,8 +172,20 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
     return editorRef.current?.innerHTML ?? "";
   }
 
+  const PAGINA_CSS = `
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; padding: 0; }
+    .folha { position: relative; width: 21cm; min-height: 29.7cm; box-sizing: border-box; overflow: hidden; }
+    .folha .timbre { position: absolute; top: 0; left: 0; width: 21cm; height: 29.7cm; z-index: 0; }
+    .folha .conteudo { position: relative; z-index: 1; padding: 4cm 2.5cm 3.5cm 2.5cm; }
+  `;
+
   function documentoCompleto(): string {
-    return `<!doctype html><html><head><meta charset="utf-8"><title>Documento</title><style>${DOC_CSS}</style></head><body><div class="doc-page">${htmlAtual()}</div></body></html>`;
+    const timbre = timbreUrl
+      ? `<img class="timbre" src="${timbreUrl}" alt="" />`
+      : "";
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Documento</title><style>${DOC_CSS}${PAGINA_CSS}</style></head>` +
+      `<body><div class="folha">${timbre}<div class="conteudo doc-page">${htmlAtual()}</div></div></body></html>`;
   }
 
   function baixarPdf() {
@@ -309,8 +333,21 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
             contentEditable
             suppressContentEditableWarning
             spellCheck
-            className="doc-page min-h-[400px] rounded-lg border border-gray-200 bg-white px-8 py-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            style={timbreUrl ? {
+              backgroundImage: `url(${timbreUrl})`,
+              backgroundSize: "100% auto",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "top center",
+              paddingTop: "150px",
+              paddingBottom: "140px",
+            } : undefined}
+            className="doc-page min-h-[400px] rounded-lg border border-gray-200 bg-white px-12 py-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
           />
+          {timbreUrl && (
+            <p className="mt-2 text-xs text-gray-400">
+              O timbre aparece aqui só como prévia aproximada — no <strong>PDF</strong> ele sai certinho, em página A4.
+            </p>
+          )}
         </div>
       </div>
 
@@ -365,7 +402,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
               )
             )}
             {erroModelo && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroModelo}</p>}
-            <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <div className="sticky bottom-0 -mx-4 flex justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-4 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
               <Button variant="secondary" onClick={() => setModalGerar(null)}>Cancelar</Button>
               <Button onClick={() => baixarPreenchido(modalGerar.modelo, valores)} disabled={gerandoId === modalGerar.modelo.id}>
                 {gerandoId === modalGerar.modelo.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}

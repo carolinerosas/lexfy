@@ -28,6 +28,39 @@ function now(): string {
   return new Date().toISOString();
 }
 
+const PARTICULAS_NOME = new Set(["de", "da", "do", "das", "dos", "e"]);
+
+function formatarNomeCliente(nome: string): string {
+  return nome
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR")
+    .split(" ")
+    .map((palavra, index) => {
+      if (index > 0 && PARTICULAS_NOME.has(palavra)) return palavra;
+      return palavra
+        .split("-")
+        .map((parte) => {
+          if (!parte) return parte;
+          if (index > 0 && PARTICULAS_NOME.has(parte)) return parte;
+          return parte.charAt(0).toLocaleUpperCase("pt-BR") + parte.slice(1);
+        })
+        .join("-");
+    })
+    .join(" ");
+}
+
+function normalizarNomeCliente<T extends { nome?: string; cliente_nome?: string }>(input: T): T {
+  const normalizado = { ...input };
+  if (typeof normalizado.nome === "string") {
+    normalizado.nome = formatarNomeCliente(normalizado.nome);
+  }
+  if (typeof normalizado.cliente_nome === "string") {
+    normalizado.cliente_nome = formatarNomeCliente(normalizado.cliente_nome);
+  }
+  return normalizado;
+}
+
 type LocalTable = "anotacoes" | "tarefas" | "contas_escritorio" | "incidentes_execucao" | "calculos_pena" | "beneficios_penais";
 
 function isMissingTable(error: unknown): boolean {
@@ -100,14 +133,14 @@ export async function getProcesso(id: string): Promise<Processo | undefined> {
 export async function createProcesso(
   input: Omit<Processo, "id" | "created_at" | "updated_at" | "user_id">
 ): Promise<Processo> {
-  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const novo = { ...normalizarNomeCliente(input), id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
   const { data, error } = await supabase.from("processos").insert(novo).select().single();
   if (error) throw new Error(error.message);
   return data as Processo;
 }
 
 export async function updateProcesso(id: string, input: Partial<Processo>): Promise<void> {
-  const { error } = await supabase.from("processos").update({ ...input, updated_at: now() }).eq("id", id);
+  const { error } = await supabase.from("processos").update({ ...normalizarNomeCliente(input), updated_at: now() }).eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -496,13 +529,13 @@ export async function getAtendimentosByProcesso(processoId: string): Promise<Ate
 export async function createAtendimento(
   input: Omit<Atendimento, "id" | "created_at" | "user_id" | "processo">
 ): Promise<Atendimento> {
-  const novo = { ...input, id: generateId(), created_at: now(), user_id: USER_ID };
+  const novo = { ...normalizarNomeCliente(input), id: generateId(), created_at: now(), user_id: USER_ID };
   const { data } = await supabase.from("atendimentos").insert(novo).select().single();
   return data as Atendimento;
 }
 
 export async function updateAtendimento(id: string, input: Partial<Atendimento>): Promise<void> {
-  await supabase.from("atendimentos").update(input).eq("id", id);
+  await supabase.from("atendimentos").update(normalizarNomeCliente(input)).eq("id", id);
 }
 
 export async function deleteAtendimento(id: string): Promise<void> {
@@ -839,14 +872,14 @@ export async function getCliente(id: string): Promise<Cliente | undefined> {
 export async function createCliente(
   input: Omit<Cliente, "id" | "created_at" | "updated_at" | "user_id">
 ): Promise<Cliente> {
-  const novo = { ...input, id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const novo = { ...normalizarNomeCliente(input), id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
   const { data, error } = await supabase.from("clientes").insert(novo).select().single();
   if (error) throw new Error(error.message);
   return data as Cliente;
 }
 
 export async function updateCliente(id: string, input: Partial<Cliente>): Promise<void> {
-  await supabase.from("clientes").update({ ...input, updated_at: now() }).eq("id", id);
+  await supabase.from("clientes").update({ ...normalizarNomeCliente(input), updated_at: now() }).eq("id", id);
 }
 
 export async function deleteCliente(id: string): Promise<void> {

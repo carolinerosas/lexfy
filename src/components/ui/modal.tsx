@@ -32,19 +32,19 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center p-2 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-[#171216]/60 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
         className={cn(
-          "relative w-full bg-white shadow-2xl flex flex-col rounded-t-2xl sm:rounded-2xl",
-          "max-h-[92dvh] sm:max-h-[88dvh]",
+          "relative flex min-h-0 w-full flex-col bg-white shadow-2xl rounded-2xl",
+          "h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] sm:h-auto sm:max-h-[88dvh]",
           sizes[size]
         )}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
           <h2 className="text-base font-bold text-gray-900 tracking-tight">{title}</h2>
           <button
             onClick={onClose}
@@ -53,7 +53,9 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 px-6 py-5 overscroll-contain">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:px-6">
+          {children}
+        </div>
       </div>
     </div>
   );
