@@ -4,50 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { FileDown, FileText, Loader2, Printer, RefreshCw, Settings2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { loadPerfilAdvogado, getPerfilAdvogado, type PerfilAdvogado } from "@/lib/perfil";
 import { MODELOS, getModelo, type ModeloId } from "@/lib/modelos-documentos";
-import { listarModelos, preencherModelo, inspecionarModelo, type ModeloCustom } from "@/lib/modelos-custom";
+import { listarModelos, preencherModeloHtml, type ModeloCustom } from "@/lib/modelos-custom";
 import { montarDadosDocumento } from "@/lib/tokens-documento";
 import { getProcessosByCliente } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
-
-const LABELS_TOKEN: Record<string, string> = {
-  processo: "Número do processo",
-  acao: "Nome da ação",
-  valor: "Valor",
-  objeto: "Objeto",
-  // Execução penal — declarante (familiar que acolhe)
-  declarante_nome: "Declarante — nome completo",
-  declarante_nacionalidade: "Declarante — nacionalidade",
-  declarante_estado_civil: "Declarante — estado civil",
-  declarante_profissao: "Declarante — profissão",
-  declarante_rg: "Declarante — RG",
-  declarante_cpf: "Declarante — CPF",
-  declarante_endereco: "Declarante — endereço completo",
-  vinculo_parentesco: "Vínculo/parentesco com o apenado",
-  municipio_assinatura: "Município da assinatura",
-  // Trabalho extramuros — empregador
-  empregador_nome: "Empregador — nome / razão social",
-  empregador_qualificacao: "Empregador — qualificação",
-  empregador_doc: "Empregador — CPF/CNPJ",
-  empregador_endereco: "Empregador — endereço",
-  empregador_telefone: "Empregador — telefone",
-  empregador_representante: "Empregador — representante",
-  representante_cargo: "Representante — cargo",
-  representante_rg: "Representante — RG",
-  representante_cpf: "Representante — CPF",
-  funcao: "Função oferecida",
-  local_trabalho: "Local de trabalho",
-  jornada: "Jornada de trabalho",
-  remuneracao: "Remuneração (R$)",
-  remuneracao_extenso: "Remuneração por extenso",
-};
-
-function labelToken(t: string): string {
-  return LABELS_TOKEN[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, " ");
-}
 
 interface GerarDocumentoPanelProps {
   cliente: Cliente;
@@ -79,10 +41,10 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   const [meusModelos, setMeusModelos] = useState<ModeloCustom[]>([]);
   const [gerandoId, setGerandoId] = useState("");
   const [erroModelo, setErroModelo] = useState("");
-  const [modalGerar, setModalGerar] = useState<{ modelo: ModeloCustom; tokens: string[] } | null>(null);
-  const [valores, setValores] = useState<Record<string, string>>({});
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [timbreUrl, setTimbreUrl] = useState("");
+  const [fonteCustom, setFonteCustom] = useState("");
+  const [nomeDocAtual, setNomeDocAtual] = useState("Procuração");
 
   useEffect(() => {
     loadPerfilAdvogado().then(setPerfil).catch(() => { /* perfil local já carregado */ });
@@ -115,44 +77,25 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
     } catch { /* sem processos */ }
   }
 
-  // Ao clicar em gerar: vê se o modelo tem marcadores que precisam ser perguntados.
-  async function iniciarGeracao(modelo: ModeloCustom) {
+  // Clicar num modelo SEU: preenche e abre no editor abaixo (com timbre), para editar e exportar.
+  async function abrirCustomNoEditor(modelo: ModeloCustom) {
     setErroModelo("");
     setGerandoId(modelo.id);
     try {
-      const tokens = await inspecionarModelo(modelo.caminho);
-      if (tokens.length === 0) {
-        await baixarPreenchido(modelo, {});
-      } else {
-        setValores({});
-        setModalGerar({ modelo, tokens });
-        if (tokens.includes("processo")) carregarProcessos();
-      }
+      const html = await preencherModeloHtml(modelo.caminho, montarDadosDocumento(cliente, perfil));
+      setFonteCustom(modelo.id);
+      setNomeDocAtual(modelo.nome);
+      if (editorRef.current) editorRef.current.innerHTML = html;
     } catch (err) {
-      setErroModelo(err instanceof Error ? err.message : "Não foi possível ler o modelo.");
+      setErroModelo(err instanceof Error ? err.message : "Não foi possível abrir o modelo.");
     } finally {
       setGerandoId("");
     }
   }
 
-  async function baixarPreenchido(modelo: ModeloCustom, extras: Record<string, string>) {
-    setGerandoId(modelo.id);
-    setErroModelo("");
-    try {
-      const dados = { ...montarDadosDocumento(cliente, perfil), ...extras };
-      const blob = await preencherModelo(modelo.caminho, dados);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${nomeArquivo(modelo.nome, cliente.nome)}.docx`;
-      a.click();
-      URL.revokeObjectURL(url);
-      setModalGerar(null);
-    } catch (err) {
-      setErroModelo(err instanceof Error ? err.message : "Não foi possível gerar o documento.");
-    } finally {
-      setGerandoId("");
-    }
+  function abrirBuiltIn(id: ModeloId) {
+    setFonteCustom("");
+    setModeloId(id);
   }
 
   function render(id: ModeloId, p: PerfilAdvogado) {
@@ -160,13 +103,14 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
     if (!modelo || !editorRef.current) return;
     const { titulo, corpoHtml } = modelo.gerar({ cliente, perfil: p, processos });
     editorRef.current.innerHTML = `<h1 class="doc-title" contenteditable="false">${titulo}</h1>${corpoHtml}`;
+    setNomeDocAtual(modelo.nome);
   }
 
-  // Regera o documento quando o modelo muda, o perfil/processos carregam.
+  // Regera o modelo pronto quando muda; não mexe quando há um modelo seu aberto.
   useEffect(() => {
-    render(modeloId, perfil);
+    if (!fonteCustom) render(modeloId, perfil);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeloId, perfil, processos, cliente.id]);
+  }, [modeloId, perfil, processos, cliente.id, fonteCustom]);
 
   function htmlAtual(): string {
     return editorRef.current?.innerHTML ?? "";
@@ -218,7 +162,6 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   }
 
   function baixarWord() {
-    const modelo = getModelo(modeloId);
     const header =
       `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">` +
       `<head><meta charset="utf-8"><style>${DOC_CSS} @page { margin: 2.5cm 2.5cm 2.5cm 3cm; }</style></head>` +
@@ -228,7 +171,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${nomeArquivo(modelo?.nome ?? "documento", cliente.nome)}.doc`;
+    a.download = `${nomeArquivo(nomeDocAtual || "documento", cliente.nome)}.doc`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -266,9 +209,9 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
                   <FileText className="h-4 w-4" />
                 </div>
                 <p className="min-w-40 flex-1 truncate text-sm font-semibold text-gray-900">{m.nome}</p>
-                <Button size="sm" onClick={() => iniciarGeracao(m)} disabled={gerandoId === m.id}>
+                <Button size="sm" onClick={() => abrirCustomNoEditor(m)} disabled={gerandoId === m.id}>
                   {gerandoId === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                  {gerandoId === m.id ? "Gerando..." : "Gerar .docx"}
+                  {gerandoId === m.id ? "Abrindo..." : "Abrir e editar"}
                 </Button>
               </li>
             ))}
@@ -285,7 +228,14 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={() => render(modeloId, perfil)} title="Restaurar o modelo original">
+            <Button variant="secondary" size="sm" title="Restaurar o modelo original" onClick={() => {
+              if (fonteCustom) {
+                const m = meusModelos.find((x) => x.id === fonteCustom);
+                if (m) abrirCustomNoEditor(m);
+              } else {
+                render(modeloId, perfil);
+              }
+            }}>
               <RefreshCw className="h-4 w-4" /> Restaurar
             </Button>
             <Button variant="secondary" size="sm" onClick={baixarWord}>
@@ -302,10 +252,10 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
             <button
               key={m.id}
               type="button"
-              onClick={() => setModeloId(m.id)}
+              onClick={() => abrirBuiltIn(m.id)}
               title={m.descricao}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                modeloId === m.id
+                !fonteCustom && modeloId === m.id
                   ? "bg-[#21181d] text-white"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
               }`}
@@ -355,63 +305,6 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
         <Loader2 className="mr-1 inline h-3 w-3 align-[-2px]" />
         Dica: o botão <strong>PDF</strong> abre a janela de impressão — escolha “Salvar como PDF”. O <strong>Word</strong> baixa um arquivo que abre no Word/Google Docs para ajustes finais.
       </p>
-
-      {modalGerar && (
-        <Modal open onClose={() => setModalGerar(null)} title={`Gerar: ${modalGerar.modelo.nome}`} size="md">
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Complete os campos que não vêm do cadastro de {cliente.nome}:
-            </p>
-            {modalGerar.tokens.map((t) =>
-              t === "processo" ? (
-                <div key={t} className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">Número do processo</label>
-                  {processos.length > 0 && (
-                    <div className="space-y-1.5">
-                      {processos.map((p) => (
-                        <button
-                          type="button"
-                          key={p.id}
-                          onClick={() => setValores((v) => ({ ...v, processo: p.numero }))}
-                          className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                            valores.processo === p.numero && p.numero
-                              ? "border-[#21181d] bg-gray-50"
-                              : "border-gray-200 hover:bg-gray-50"
-                          }`}
-                        >
-                          <span className="shrink-0 font-mono text-xs text-gray-500">{p.numero || "sem número"}</span>
-                          <span className="truncate text-gray-800">{p.titulo}</span>
-                        </button>
-                      ))}
-                      <p className="text-xs text-gray-400">ou digite manualmente:</p>
-                    </div>
-                  )}
-                  <Input
-                    placeholder="0000000-00.0000.0.00.0000"
-                    value={valores[t] ?? ""}
-                    onChange={(e) => setValores((v) => ({ ...v, [t]: e.target.value }))}
-                  />
-                </div>
-              ) : (
-                <Input
-                  key={t}
-                  label={labelToken(t)}
-                  value={valores[t] ?? ""}
-                  onChange={(e) => setValores((v) => ({ ...v, [t]: e.target.value }))}
-                />
-              )
-            )}
-            {erroModelo && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroModelo}</p>}
-            <div className="sticky bottom-0 -mx-4 flex justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-4 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
-              <Button variant="secondary" onClick={() => setModalGerar(null)}>Cancelar</Button>
-              <Button onClick={() => baixarPreenchido(modalGerar.modelo, valores)} disabled={gerandoId === modalGerar.modelo.id}>
-                {gerandoId === modalGerar.modelo.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                Gerar .docx
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

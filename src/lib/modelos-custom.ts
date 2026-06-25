@@ -128,6 +128,49 @@ export async function inspecionarModelo(caminho: string): Promise<string[]> {
 }
 
 /**
+ * Preenche o modelo e devolve o conteúdo como HTML editável (para o editor na tela).
+ * Marcadores não reconhecidos viram [marcador] para a Carol completar na tela.
+ */
+export async function preencherModeloHtml(
+  caminho: string,
+  dados: Record<string, string>
+): Promise<string> {
+  const { data, error } = await supabase.storage.from(BUCKET).download(caminho);
+  if (error || !data) throw modeloError(error?.message ?? "Não consegui baixar o modelo.");
+  const buffer = await data.arrayBuffer();
+
+  const PizZip = (await import("pizzip")).default;
+  const Docxtemplater = (await import("docxtemplater")).default;
+
+  let zip: InstanceType<typeof PizZip>;
+  try {
+    zip = new PizZip(buffer);
+  } catch {
+    throw new Error("Arquivo de modelo inválido — verifique se é um .docx do Word.");
+  }
+
+  const doc = new Docxtemplater(zip, {
+    delimiters: { start: "{{", end: "}}" },
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: (part) => {
+      const value = (part as { value?: string }).value;
+      return value ? `[${value}]` : "";
+    },
+  });
+  doc.render(dados);
+  const arrayBuffer = doc.getZip().generate({ type: "arraybuffer" });
+
+  const mammothMod = (await import("mammoth")) as unknown as {
+    default?: { convertToHtml: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> };
+    convertToHtml?: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
+  };
+  const mammoth = mammothMod.default ?? mammothMod;
+  const result = await mammoth.convertToHtml!({ arrayBuffer });
+  return result.value;
+}
+
+/**
  * Baixa o modelo .docx, substitui os {{marcadores}} pelos dados e devolve o documento pronto.
  * Marcadores não reconhecidos são mantidos no texto, para a Carol completar manualmente.
  */
