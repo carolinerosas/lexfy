@@ -18,6 +18,31 @@ const LABELS_TOKEN: Record<string, string> = {
   acao: "Nome da ação",
   valor: "Valor",
   objeto: "Objeto",
+  // Execução penal — declarante (familiar que acolhe)
+  declarante_nome: "Declarante — nome completo",
+  declarante_nacionalidade: "Declarante — nacionalidade",
+  declarante_estado_civil: "Declarante — estado civil",
+  declarante_profissao: "Declarante — profissão",
+  declarante_rg: "Declarante — RG",
+  declarante_cpf: "Declarante — CPF",
+  declarante_endereco: "Declarante — endereço completo",
+  vinculo_parentesco: "Vínculo/parentesco com o apenado",
+  municipio_assinatura: "Município da assinatura",
+  // Trabalho extramuros — empregador
+  empregador_nome: "Empregador — nome / razão social",
+  empregador_qualificacao: "Empregador — qualificação",
+  empregador_doc: "Empregador — CPF/CNPJ",
+  empregador_endereco: "Empregador — endereço",
+  empregador_telefone: "Empregador — telefone",
+  empregador_representante: "Empregador — representante",
+  representante_cargo: "Representante — cargo",
+  representante_rg: "Representante — RG",
+  representante_cpf: "Representante — CPF",
+  funcao: "Função oferecida",
+  local_trabalho: "Local de trabalho",
+  jornada: "Jornada de trabalho",
+  remuneracao: "Remuneração (R$)",
+  remuneracao_extenso: "Remuneração por extenso",
 };
 
 function labelToken(t: string): string {

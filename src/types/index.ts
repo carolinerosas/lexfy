@@ -119,6 +119,7 @@ export interface Cliente {
   bairro?: string;
   cidade?: string;
   uf?: string;
+  unidade_prisional?: string;
   observacoes?: string;
   created_at: string;
   updated_at: string;

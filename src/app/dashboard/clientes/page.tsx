@@ -390,7 +390,7 @@ export default function ClientesPage() {
 function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean; preNome?: string; onClose: () => void; onCreated: () => void }) {
   const empty = {
     nome: "", cpf: "", rg: "", sexo: "", nacionalidade: "", estado_civil: "", profissao: "",
-    email: "", celular: "",
+    unidade_prisional: "", email: "", celular: "",
     cep: "", logradouro: "", numero_end: "", complemento: "",
     bairro: "", cidade: "", uf: "", observacoes: "",
   };
@@ -440,6 +440,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
       nacionalidade: form.nacionalidade || undefined,
       estado_civil: form.estado_civil || undefined,
       profissao: form.profissao || undefined,
+      unidade_prisional: form.unidade_prisional || undefined,
       email: form.email || undefined,
       celular: form.celular || undefined,
       cep: form.cep || undefined,
@@ -472,6 +473,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
               <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil} onChange={(e) => set("estado_civil", e.target.value)} />
               <Input label="Profissão" placeholder="profissão" value={form.profissao} onChange={(e) => set("profissao", e.target.value)} />
             </div>
+            <Input label="Unidade prisional (execução penal)" placeholder="Ex.: Cadeia Pública de Barra Mansa" value={form.unidade_prisional} onChange={(e) => set("unidade_prisional", e.target.value)} />
           </div>
         </div>
 

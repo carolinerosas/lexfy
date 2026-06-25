@@ -59,6 +59,7 @@ export function montarDadosDocumento(cliente: Cliente, perfil: PerfilAdvogado): 
     cidade,
     uf,
     cep: cliente.cep ?? "",
+    unidade_prisional: cliente.unidade_prisional ?? "",
 
     // Advogada
     adv_nome: perfil.nome ?? "",
@@ -79,6 +80,7 @@ export function montarDadosDocumento(cliente: Cliente, perfil: PerfilAdvogado): 
     // Data e local
     cidade_data: `${cidade || "____"}${uf ? `/${uf}` : ""}, ${dataPorExtenso()}`,
     data: dataPorExtenso(),
+    data_assinatura: dataPorExtenso(),
     data_curta: dataCurta(),
   };
 }

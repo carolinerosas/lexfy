@@ -562,6 +562,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
       nacionalidade: form.nacionalidade || undefined,
       estado_civil: form.estado_civil || undefined,
       profissao: form.profissao || undefined,
+      unidade_prisional: form.unidade_prisional || undefined,
       email: form.email || undefined, celular: form.celular || undefined,
       cep: form.cep || undefined, logradouro: form.logradouro || undefined,
       numero_end: form.numero_end || undefined, complemento: form.complemento || undefined,
@@ -588,6 +589,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
               <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil ?? ""} onChange={(e) => set("estado_civil", e.target.value)} />
               <Input label="Profissão" placeholder="profissão" value={form.profissao ?? ""} onChange={(e) => set("profissao", e.target.value)} />
             </div>
+            <Input label="Unidade prisional (execução penal)" placeholder="Ex.: Cadeia Pública de Barra Mansa" value={form.unidade_prisional ?? ""} onChange={(e) => set("unidade_prisional", e.target.value)} />
           </div>
         </div>
         <div>
