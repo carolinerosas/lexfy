@@ -44,10 +44,10 @@ export default function PrazosPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Prazos</h1>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex flex-wrap items-center gap-3 mt-1">
             {vencidos > 0 && (
               <span className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
                 <AlertTriangle className="w-3.5 h-3.5" />{vencidos} vencido{vencidos > 1 ? "s" : ""}
@@ -63,12 +63,12 @@ export default function PrazosPage() {
         </Button>
       </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 sm:w-fit">
         {(["pendentes", "todos", "concluidos"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+            className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
           >
             {f === "pendentes" ? "Pendentes" : f === "concluidos" ? "Concluídos" : "Todos"}
           </button>
@@ -89,7 +89,7 @@ export default function PrazosPage() {
             return (
               <Card key={p.id} className={p.concluido ? "opacity-60" : ""}>
                 <CardContent className="py-3.5 px-5">
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
                     <button
                       onClick={async () => { await updatePrazo(p.id, { concluido: !p.concluido }); load(); }}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${p.concluido ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
@@ -97,13 +97,13 @@ export default function PrazosPage() {
                       {p.concluido && <CheckCircle className="w-3 h-3 text-white" />}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${p.concluido ? "line-through text-gray-400" : "text-gray-900"}`}>{p.titulo}</p>
+                      <p className={`break-words text-sm font-semibold ${p.concluido ? "line-through text-gray-400" : "text-gray-900"}`}>{p.titulo}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {p.processo?.cliente_nome ?? "—"} · <span className="font-mono">{p.processo?.numero ?? "—"}</span>
                         {p.tipo ? ` · ${p.tipo}` : ""}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="ml-auto shrink-0 text-right">
                       {!p.concluido ? (
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-lg ${prazoColor(days)}`}>
                           {days < 0 ? `${Math.abs(days)}d atrasado` : days === 0 ? "Hoje" : `em ${days}d`}
@@ -113,7 +113,7 @@ export default function PrazosPage() {
                       )}
                       <p className="text-xs text-gray-400 mt-1">{formatDate(p.data_prazo)}</p>
                     </div>
-                    <button onClick={async () => { await deletePrazo(p.id); load(); }} className="text-gray-300 hover:text-red-500 transition-colors">
+                    <button onClick={async () => { await deletePrazo(p.id); load(); }} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>

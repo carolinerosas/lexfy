@@ -153,7 +153,7 @@ export default function TarefasPage() {
             className="w-full rounded-xl border border-gray-200 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-200"
           />
         </div>
-        <div className="flex rounded-xl bg-gray-100 p-1">
+        <div className="flex w-full overflow-x-auto rounded-xl bg-gray-100 p-1 lg:w-auto">
           {([
             ["pendentes", "Pendentes"],
             ["concluidas", "Concluídas"],
@@ -164,7 +164,7 @@ export default function TarefasPage() {
               type="button"
               onClick={() => setFilter(key)}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+                "shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
                 filter === key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               )}
             >
@@ -233,7 +233,7 @@ export default function TarefasPage() {
               ]}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t border-gray-100 bg-white px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
             <Button type="button" variant="secondary" onClick={() => { setModalOpen(false); setEditingTarefa(null); }}>
               Cancelar
             </Button>
@@ -295,7 +295,7 @@ function TarefaRow({ tarefa, onToggle, onEdit, onDelete }: {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 md:justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-3 md:justify-end">
         <div className="text-right">
           <span className={`rounded-lg px-2 py-1 text-xs font-bold ${prazoClass}`}>
             {days === undefined ? "Sem data" : days < 0 ? `${Math.abs(days)}d atrasada` : days === 0 ? "Hoje" : `${days}d`}

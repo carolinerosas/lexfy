@@ -13,6 +13,8 @@
 
 html {
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
@@ -21,10 +23,25 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 * {
   box-sizing: border-box;
+  min-width: 0;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+main {
+  overflow-wrap: anywhere;
 }
 
 ::-webkit-scrollbar {

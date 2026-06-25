@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTriagemImportacao } from "@/lib/store";
+import { createTriagemImportacao, registrarCoworkImportacao } from "@/lib/store";
 import type { TriagemImportDraft } from "@/types";
 
 export const runtime = "nodejs";
@@ -177,12 +177,24 @@ function assertAgentAuthorized(req: NextRequest): NextResponse | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const { texto, persistir, origem } = (await req.json()) as {
+    const { texto, persistir, origem, cowork } = (await req.json()) as {
       texto?: string;
       persistir?: boolean;
       origem?: string;
+      cowork?: { conversa_id?: string; projeto?: string; marcador?: string };
     };
     const input = texto?.trim();
+
+    async function registrarDedup(importacaoId: string): Promise<void> {
+      if (cowork?.conversa_id && cowork?.marcador) {
+        await registrarCoworkImportacao({
+          conversa_id: cowork.conversa_id,
+          projeto: cowork.projeto,
+          marcador: cowork.marcador,
+          importacao_id: importacaoId,
+        });
+      }
+    }
 
     if (!input) {
       return NextResponse.json({ error: "Texto vazio." }, { status: 400 });
@@ -202,6 +214,7 @@ export async function POST(req: NextRequest) {
           draft,
           origem: origem || "agente",
         });
+        await registrarDedup(importacao.id);
         return NextResponse.json({ draft, source: "fallback", importacao });
       }
       return NextResponse.json({ draft, source: "fallback" });
@@ -269,6 +282,7 @@ Não invente dados. Se faltar algo, omita ou deixe vazio.`;
           draft,
           origem: origem || "agente",
         });
+        await registrarDedup(importacao.id);
         return NextResponse.json({ draft, source: "fallback", error: `IA HTTP ${res.status}`, importacao });
       }
       return NextResponse.json({ draft, source: "fallback", error: `IA HTTP ${res.status}` });

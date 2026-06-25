@@ -237,7 +237,7 @@ export default function FinanceiroPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Financeiro</h1>
           <p className="text-gray-500 text-sm mt-1">Honorários, recebíveis e parcelas</p>
@@ -256,7 +256,7 @@ export default function FinanceiroPage() {
       </div>
 
       {/* Recebíveis do mês */}
-      <Card className="mb-6 overflow-hidden">
+      <Card className="mb-6">
         <div className="flex items-center gap-2 border-b border-gray-100 bg-blue-50/50 px-5 py-3">
           <CalendarClock className="w-4 h-4 text-blue-600" />
           <h2 className="text-sm font-bold text-gray-900">A receber este mês</h2>
@@ -275,7 +275,7 @@ export default function FinanceiroPage() {
               const venc = new Date((h.data_vencimento ?? "") + "T00:00:00");
               const vencida = !isNaN(venc.getTime()) && venc < new Date(new Date().toDateString());
               return (
-                <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
+                <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50 sm:flex-nowrap">
                   <div className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg ${vencida ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
                     <CalendarClock className="w-4 h-4" />
                   </div>
@@ -287,7 +287,7 @@ export default function FinanceiroPage() {
                       {vencida && <span className="ml-1 font-semibold text-red-600">(vencida)</span>}
                     </p>
                   </div>
-                  <span className="text-sm font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
+                  <span className="shrink-0 text-xs font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
                   <Button size="sm" onClick={() => { setRecebendo(h); setDataRecebida(todayISO()); }}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Recebido
                   </Button>
@@ -298,7 +298,7 @@ export default function FinanceiroPage() {
         )}
       </Card>
 
-      <Card className="mb-6 overflow-hidden">
+      <Card className="mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-[#2a2027]/[0.04] px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2a2027] text-white">
@@ -385,7 +385,7 @@ export default function FinanceiroPage() {
       ) : (
         <div className="space-y-4">
           {grupos.map((g) => (
-            <Card key={g.processoId} className="overflow-hidden">
+            <Card key={g.processoId}>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3.5">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -407,7 +407,7 @@ export default function FinanceiroPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right mr-1">
-                    <p className={`text-base font-black tabular-nums ${g.saldo > 0 ? "text-amber-600" : "text-green-700"}`}>{formatCurrency(Math.max(0, g.saldo))}</p>
+                    <p className={`text-sm font-black tabular-nums ${g.saldo > 0 ? "text-amber-600" : "text-green-700"}`}>{formatCurrency(Math.max(0, g.saldo))}</p>
                     <p className="text-[10px] uppercase tracking-wide text-gray-400">{g.saldo > 0 ? "a receber" : "quitado"}</p>
                   </div>
                   {g.saldo > 0 && (
@@ -423,7 +423,7 @@ export default function FinanceiroPage() {
 
               <ul className="divide-y divide-gray-50">
                 {g.itens.map((h) => (
-                  <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
+                  <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50 sm:flex-nowrap">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${h.categoria === "pagamento" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"}`}>
                       {h.categoria === "pagamento" ? <ArrowDownCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
                     </div>
@@ -440,10 +440,10 @@ export default function FinanceiroPage() {
                         {h.categoria === "pagamento" && ` · ${formatDate(h.data_recebimento ?? h.created_at)}`}
                       </p>
                     </div>
-                    <span className={`ml-11 w-full text-sm font-bold tabular-nums sm:ml-0 sm:w-auto sm:shrink-0 ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
+                    <span className={`shrink-0 text-xs font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
                       {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
                     </span>
-                    <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -536,7 +536,7 @@ function SummaryCard({ icon, dark, highlight, label, value }: { icon: React.Reac
     <Card className={dark ? "bg-[#21181d] border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : ""}>
       <CardContent className="p-4">
         <div className={`w-9 h-9 rounded-xl ${dark ? "bg-white/10" : "bg-white"} flex items-center justify-center mb-2 border ${dark ? "border-white/10" : "border-gray-100"}`}>{icon}</div>
-        <p className={`text-lg font-black tracking-tight tabular-nums ${dark ? "text-white" : "text-gray-900"}`}>{value}</p>
+        <p className={`text-xs font-black tracking-tight tabular-nums sm:text-sm ${dark ? "text-white" : "text-gray-900"}`}>{value}</p>
         <p className={`text-xs mt-0.5 ${dark ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
       </CardContent>
     </Card>

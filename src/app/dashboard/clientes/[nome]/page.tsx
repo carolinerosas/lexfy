@@ -107,24 +107,24 @@ export default function ClienteDetailPage() {
   }
 
   return (
-    <div className="px-8 py-8 max-w-5xl mx-auto">
+    <div className="px-4 py-6 md:px-8 md:py-8 max-w-5xl mx-auto">
       <div className="mb-8">
         <Link href="/dashboard/clientes" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4">
           <ArrowLeft className="w-3.5 h-3.5" /> Clientes
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
             <div className="w-14 h-14 rounded-full bg-[#21181d] text-white text-xl font-bold flex items-center justify-center shrink-0">
               {cliente.nome.charAt(0).toUpperCase()}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{cliente.nome}</h1>
+            <div className="min-w-0">
+              <h1 className="break-words text-2xl font-bold text-gray-900">{cliente.nome}</h1>
               <p className="text-gray-500 text-sm mt-0.5">
                 {processos.length} processo{processos.length !== 1 ? "s" : ""} · {atendimentos.length} atendimento{atendimentos.length !== 1 ? "s" : ""}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => setEditOpen(true)}>
               <Pencil className="w-4 h-4" /> Editar
             </Button>
@@ -135,14 +135,14 @@ export default function ClienteDetailPage() {
         </div>
       </div>
 
-      <div className="mb-6 flex w-full gap-1 rounded-xl bg-gray-100 p-1">
-        <button type="button" onClick={() => setAba("resumo")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "resumo" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
+        <button type="button" onClick={() => setAba("resumo")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "resumo" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Visão geral
         </button>
-        <button type="button" onClick={() => setAba("documentos")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "documentos" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+        <button type="button" onClick={() => setAba("documentos")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "documentos" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Documentos
         </button>
-        <button type="button" onClick={() => setAba("gerar")} className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "gerar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+        <button type="button" onClick={() => setAba("gerar")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "gerar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Gerar documento
         </button>
       </div>
@@ -220,7 +220,7 @@ export default function ClienteDetailPage() {
             <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
               <DollarSign className="w-4 h-4 text-gray-600" />
             </div>
-            <p className="text-xl font-black tracking-tight text-gray-900">{formatCurrency(totalCobrado)}</p>
+            <p className="text-sm font-black tracking-tight text-gray-900 sm:text-base">{formatCurrency(totalCobrado)}</p>
             <p className="text-sm text-gray-500 mt-0.5">Total Cobrado</p>
           </CardContent>
         </Card>
@@ -229,7 +229,7 @@ export default function ClienteDetailPage() {
             <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
               <TrendingUp className="w-4 h-4 text-gray-600" />
             </div>
-            <p className="text-xl font-black tracking-tight text-green-700">{formatCurrency(totalPago)}</p>
+            <p className="text-sm font-black tracking-tight text-green-700 sm:text-base">{formatCurrency(totalPago)}</p>
             <p className="text-sm text-gray-500 mt-0.5">Total Recebido</p>
           </CardContent>
         </Card>
@@ -238,7 +238,7 @@ export default function ClienteDetailPage() {
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${saldo > 0 ? "bg-white/10" : "bg-gray-100"}`}>
               <TrendingDown className={`w-4 h-4 ${saldo > 0 ? "text-gray-300" : "text-gray-400"}`} />
             </div>
-            <p className={`text-xl font-black tracking-tight ${saldo > 0 ? "text-white" : "text-gray-400"}`}>{formatCurrency(saldo)}</p>
+            <p className={`text-sm font-black tracking-tight sm:text-base ${saldo > 0 ? "text-white" : "text-gray-400"}`}>{formatCurrency(saldo)}</p>
             <p className={`text-sm mt-0.5 ${saldo > 0 ? "text-gray-400" : "text-gray-500"}`}>Saldo Devedor</p>
           </CardContent>
         </Card>
@@ -302,7 +302,7 @@ export default function ClienteDetailPage() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {honorarios.slice(0, 6).map((h) => (
-                  <li key={h.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+                  <li key={h.id} className="px-5 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">{h.descricao}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -311,8 +311,8 @@ export default function ClienteDetailPage() {
                           : h.data_lancamento ? formatDate(h.data_lancamento) : "—"}
                       </p>
                     </div>
-                    <div className="ml-auto text-right shrink-0">
-                      <p className={`text-sm font-bold ${h.categoria === "pagamento" ? "text-green-700" : "text-blue-700"}`}>
+                    <div className="text-right shrink-0">
+                      <p className={`text-xs font-bold ${h.categoria === "pagamento" ? "text-green-700" : "text-blue-700"}`}>
                         {formatCurrency(h.valor)}
                       </p>
                       <Badge variant={h.categoria === "pagamento" ? "success" : "info"} className="mt-0.5">

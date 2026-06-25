@@ -92,7 +92,7 @@ export default function AtendimentosPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Atendimentos</h1>
           <p className="text-gray-400 text-sm mt-1">
@@ -111,8 +111,8 @@ export default function AtendimentosPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="relative flex-1 min-w-48 max-w-xs">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:flex-wrap">
+        <div className="relative w-full sm:min-w-48 sm:max-w-xs sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
@@ -122,12 +122,12 @@ export default function AtendimentosPage() {
             className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-900/20 focus:border-gray-900"
           />
         </div>
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+        <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 sm:w-auto">
           {(["agendados", "todos", "realizados"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+              className={`shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
             >
               {f === "agendados" ? "Agendados" : f === "realizados" ? "Realizados" : "Todos"}
             </button>
@@ -163,7 +163,7 @@ export default function AtendimentosPage() {
                     onClick={() => setSelectedId(isSelected ? null : a.id)}
                   >
                     <CardContent className="py-3.5 px-5">
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
                         <div className={`shrink-0 w-12 h-12 rounded-xl flex flex-col items-center justify-center ${a.status === "realizado" ? "bg-gray-100" : isToday ? "bg-[#21181d]" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                           <span className={`text-base font-black leading-none ${a.status === "realizado" ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                             {new Date(a.data_hora).getDate()}
@@ -174,11 +174,11 @@ export default function AtendimentosPage() {
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-gray-900 truncate">{a.cliente_nome}</p>
                             {isToday && a.status === "agendado" && <Badge variant="default">Hoje</Badge>}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
                             {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo]}</span>}
                             {a.processo && (
                               <>
@@ -189,14 +189,14 @@ export default function AtendimentosPage() {
                           </div>
                         </div>
 
-                        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                        <div className="ml-auto flex shrink-0 flex-col items-end gap-1 text-right">
                           <Badge variant={statusVariant[a.status]}>{statusLabel[a.status]}</Badge>
                           <span className="text-xs text-gray-400 tabular-nums">
                             {formatDateTime(a.data_hora).split(" ")[1]}h
                           </span>
                         </div>
 
-                        <ChevronRight className={`w-4 h-4 text-gray-300 transition-transform ${isSelected ? "rotate-90" : ""}`} />
+                        <ChevronRight className={`w-4 h-4 shrink-0 text-gray-300 transition-transform ${isSelected ? "rotate-90" : ""}`} />
                       </div>
                     </CardContent>
                   </Card>

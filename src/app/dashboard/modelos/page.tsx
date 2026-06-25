@@ -183,11 +183,11 @@ export default function ModelosPage() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {modelos.map((m) => (
-                <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 hover:bg-gray-50/60">
+                <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 hover:bg-gray-50/60 sm:flex-nowrap">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                     <FileText className="h-4 w-4" />
                   </div>
-                  <div className="min-w-48 flex-1">
+                  <div className="min-w-0 flex-1 basis-[11rem]">
                     <p className="truncate text-sm font-semibold text-gray-900">{m.nome}</p>
                     <p className="mt-0.5 truncate text-xs text-gray-400">
                       {m.arquivoNome}
@@ -199,7 +199,7 @@ export default function ModelosPage() {
                     title="Excluir modelo"
                     onClick={() => remover(m)}
                     disabled={busyId === m.id}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    className="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   >
                     {busyId === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </button>

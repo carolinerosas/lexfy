@@ -124,7 +124,7 @@ export function DocumentosPanel({ contexto, registroId, titulo = "Documentos" }:
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
             <h2 className="font-semibold text-gray-900">{titulo}</h2>
@@ -156,7 +156,7 @@ export function DocumentosPanel({ contexto, registroId, titulo = "Documentos" }:
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600">
                     <FileText className="h-4 w-4" />
                   </div>
-                  <div className="min-w-48 flex-1">
+                  <div className="min-w-0 flex-1 basis-[11rem]">
                     <button
                       type="button"
                       onClick={() => abrir(documento)}
@@ -168,14 +168,14 @@ export function DocumentosPanel({ contexto, registroId, titulo = "Documentos" }:
                     </button>
                     <p className="mt-0.5 truncate text-xs text-gray-500">Referência: {documento.referencia}</p>
                   </div>
-                  <div className="min-w-40 text-xs text-gray-400">
+                  <div className="w-full text-xs text-gray-400 sm:w-auto sm:min-w-40">
                     <p className="truncate">{documento.nomeOriginal}</p>
                     <p className="mt-0.5">
                       {formatBytes(documento.tamanho)}
                       {documento.criadoEm ? ` · ${formatDateTime(documento.criadoEm)}` : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
                     <button type="button" title="Abrir PDF" onClick={() => abrir(documento)} disabled={busy} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50">
                       <Eye className="h-4 w-4" />
                     </button>

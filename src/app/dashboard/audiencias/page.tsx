@@ -50,7 +50,7 @@ export default function AudienciasPage() {
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Audiências</h1>
           <p className="text-gray-500 text-sm mt-1">
@@ -62,9 +62,9 @@ export default function AudienciasPage() {
         </Button>
       </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+      <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 sm:w-fit">
         {(["proximas", "todas", "realizadas"] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          <button key={f} onClick={() => setFilter(f)} className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
             {f === "proximas" ? "Próximas" : f === "realizadas" ? "Realizadas" : "Todas"}
           </button>
         ))}
@@ -86,7 +86,7 @@ export default function AudienciasPage() {
             return (
               <Card key={a.id} className={`transition-all ${a.realizada ? "opacity-60" : isToday ? "ring-2 ring-gray-400" : ""}`}>
                 <CardContent className="py-4 px-5">
-                  <div className="flex items-start gap-4">
+                  <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-4">
                     <div className={`shrink-0 w-14 h-14 rounded-xl flex flex-col items-center justify-center text-center ${a.realizada ? "bg-gray-100" : isToday ? "bg-[#21181d]" : isPast ? "bg-red-50" : "bg-gray-100"}`}>
                       <span className={`text-lg font-bold leading-none ${a.realizada ? "text-gray-400" : isToday ? "text-white" : isPast ? "text-red-600" : "text-gray-900"}`}>
                         {new Date(a.data_hora).getDate()}
@@ -96,18 +96,18 @@ export default function AudienciasPage() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className={`text-sm font-semibold ${a.realizada ? "line-through text-gray-400" : "text-gray-900"}`}>{a.titulo}</p>
+                      <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        <p className={`break-words text-sm font-semibold ${a.realizada ? "line-through text-gray-400" : "text-gray-900"}`}>{a.titulo}</p>
                         {a.tipo && <Badge variant="neutral">{tipoLabel[a.tipo] ?? a.tipo}</Badge>}
                         {isToday && !a.realizada && <Badge variant="default">Hoje</Badge>}
                       </div>
                       <p className="text-xs text-gray-500 truncate">{a.processo?.cliente_nome ?? "—"} · {a.processo?.numero ?? "—"}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
+                      <div className="flex flex-wrap items-center gap-3 mt-1.5">
                         <span className="flex items-center gap-1 text-xs text-gray-400"><Clock className="w-3 h-3" />{formatDateTime(a.data_hora).split(" ")[1]}h</span>
                         {a.local && <span className="flex items-center gap-1 text-xs text-gray-400"><MapPin className="w-3 h-3" />{a.local}</span>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
                       <button
                         onClick={async () => { await updateAudiencia(a.id, { realizada: !a.realizada }); load(); }}
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${a.realizada ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}

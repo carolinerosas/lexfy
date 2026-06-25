@@ -360,7 +360,7 @@ export default function ProcessoDetailPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-6 md:px-8 md:py-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">
       <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <Link href="/dashboard/processos">
@@ -399,7 +399,7 @@ export default function ProcessoDetailPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="flex min-w-0 items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex min-w-0 items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando…" : "Sincronizar"}
@@ -922,20 +922,20 @@ function PrazosTab({ prazos, onAdd, onToggle, onDelete }: { prazos: Prazo[]; onA
             return (
               <Card key={p.id} className={p.concluido ? "opacity-60" : ""}>
                 <CardContent className="py-3 px-5">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                     <button onClick={() => onToggle(p.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${p.concluido ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}>
                       {p.concluido && <CheckCircle className="w-3 h-3 text-white" />}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${p.concluido ? "line-through text-gray-400" : "text-gray-900"}`}>{p.titulo}</p>
+                      <p className={`break-words text-sm font-medium ${p.concluido ? "line-through text-gray-400" : "text-gray-900"}`}>{p.titulo}</p>
                       <p className="text-xs text-gray-400 mt-0.5">{p.tipo ?? "Prazo"} · {formatDate(p.data_prazo)}</p>
                     </div>
                     {!p.concluido && (
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${prazoColor(days)}`}>
+                      <span className={`shrink-0 text-xs font-semibold px-2 py-1 rounded-lg ${prazoColor(days)}`}>
                         {days < 0 ? `${Math.abs(days)}d atrasado` : days === 0 ? "Hoje" : `${days}d`}
                       </span>
                     )}
-                    <button onClick={() => onDelete(p.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => onDelete(p.id)} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </CardContent>
               </Card>
@@ -958,15 +958,15 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete }: { audiencias: 
           {audiencias.sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()).map((a) => (
             <Card key={a.id} className={a.realizada ? "opacity-60" : ""}>
               <CardContent className="py-3 px-5">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                   <button onClick={() => onToggle(a.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${a.realizada ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}>
                     {a.realizada && <CheckCircle className="w-3 h-3 text-white" />}
                   </button>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${a.realizada ? "line-through text-gray-400" : "text-gray-900"}`}>{a.titulo}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className={`break-words text-sm font-medium ${a.realizada ? "line-through text-gray-400" : "text-gray-900"}`}>{a.titulo}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(a.data_hora)}{a.local ? ` · ${a.local}` : ""}</p>
                   </div>
-                  <button onClick={() => onDelete(a.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => onDelete(a.id)} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </CardContent>
             </Card>
@@ -996,15 +996,15 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Cobrado</p>
-          <p className="text-[11px] font-black text-gray-900 tabular-nums sm:text-lg">{formatCurrency(totalCobrado)}</p>
+          <p className="text-xs font-black text-gray-900 tabular-nums sm:text-sm">{formatCurrency(totalCobrado)}</p>
         </div>
         <div className="bg-green-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Recebido</p>
-          <p className="text-[11px] font-black text-green-700 tabular-nums sm:text-lg">{formatCurrency(totalPago)}</p>
+          <p className="text-xs font-black text-green-700 tabular-nums sm:text-sm">{formatCurrency(totalPago)}</p>
         </div>
         <div className={`rounded-xl px-4 py-3 text-center ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
           <p className="text-xs text-gray-500 mb-1">Saldo a receber</p>
-          <p className={`text-[11px] font-black tabular-nums sm:text-lg ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
+          <p className={`text-xs font-black tabular-nums sm:text-sm ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
         </div>
       </div>
 
@@ -1026,7 +1026,7 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
               return (
                 <Card key={h.id}>
                   <CardContent className="py-3 px-5">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${recebida ? "bg-green-50 text-green-600" : vencida ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
                         {recebida ? <CheckCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
                       </div>
@@ -1040,7 +1040,7 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
                               : (h.tipo ?? "Honorário")}
                         </p>
                       </div>
-                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900 sm:text-sm">{formatCurrency(h.valor)}</span>
+                      <span className="shrink-0 text-xs font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
                       {!recebida && (
                         <Button size="sm" onClick={() => onReceber(h)}>
                           <CheckCircle className="w-3.5 h-3.5" /> Recebido
@@ -1260,7 +1260,7 @@ function TarefasTab({
             return (
               <Card key={t.id} className={t.concluida ? "opacity-60" : ""}>
                 <CardContent className="py-3 px-5">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                     <button
                       onClick={() => onToggle(t.id)}
                       className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${t.concluida ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
@@ -1268,7 +1268,7 @@ function TarefasTab({
                       {t.concluida && <CheckCircle className="w-3 h-3 text-white" />}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <ListTodo className="w-4 h-4 text-gray-400 shrink-0" />
                         <p className={`text-sm font-medium truncate ${t.concluida ? "line-through text-gray-400" : "text-gray-900"}`}>{t.titulo}</p>
                       </div>
@@ -1283,7 +1283,7 @@ function TarefasTab({
                         {days < 0 ? `${Math.abs(days)}d atrasada` : days === 0 ? "Hoje" : `${days}d`}
                       </span>
                     )}
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="ml-auto flex shrink-0 items-center gap-1">
                       <button onClick={() => onEdit(t)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar tarefa">
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -1512,15 +1512,15 @@ function AtendimentosTab({
           {atendimentos.map((a) => (
             <Card key={a.id} className={a.status === "cancelado" ? "opacity-50" : ""}>
               <CardContent className="py-3 px-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900">{formatDateTime(a.data_hora)}</p>
                       {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo]}</span>}
                     </div>
                     {a.notas && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{a.notas}</p>}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
                     {a.status === "agendado" && (
                       <button
                         onClick={() => onUpdate(a.id, { status: "realizado" })}

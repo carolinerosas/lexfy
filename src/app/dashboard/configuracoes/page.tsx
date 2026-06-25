@@ -177,7 +177,7 @@ export default function ConfiguracoesPage() {
             value={perfil.nome}
             onChange={(e) => setPerfil((p) => ({ ...p, nome: e.target.value }))}
           />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input
               label="Número OAB"
               placeholder="Ex: 123456"
@@ -225,7 +225,7 @@ export default function ConfiguracoesPage() {
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button onClick={handleSavePerfil} disabled={!perfil.nome?.trim()}>
               Salvar perfil
             </Button>
@@ -251,7 +251,7 @@ export default function ConfiguracoesPage() {
             Os dados ficam salvos no seu navegador. Use o backup para transferi-los entre dispositivos ou navegadores diferentes (ex: do computador para o site).
           </p>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="bg-gray-50 rounded-xl p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Download className="w-4 h-4 text-gray-500" />
@@ -396,7 +396,7 @@ export default function ConfiguracoesPage() {
             <p className="text-xs text-gray-400">A chave é armazenada apenas neste navegador e nunca enviada a terceiros.</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button onClick={handleSave} disabled={!apiKey.trim()}>
               Salvar chave
             </Button>

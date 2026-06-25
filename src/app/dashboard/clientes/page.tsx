@@ -261,7 +261,7 @@ export default function ClientesPage() {
           ))}
         </div>
 
-        <Card className="hidden overflow-hidden md:block">
+        <Card className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase tracking-wide border-b border-gray-100">

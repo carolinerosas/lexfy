@@ -241,7 +241,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
     <div className="space-y-4">
       <style>{DOC_CSS + FILL_CSS}</style>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
             <h2 className="font-semibold text-gray-900">Seus modelos</h2>
@@ -249,7 +249,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
               Ele pergunta os dados que faltam e gera o <strong>.docx</strong> com a sua formatação do Word (versalete etc.).
             </p>
           </div>
-          <Link href="/dashboard/modelos" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          <Link href="/dashboard/modelos" className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
             <Settings2 className="h-4 w-4" /> Gerenciar modelos
           </Link>
         </div>
@@ -265,11 +265,11 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
         ) : (
           <ul className="divide-y divide-gray-100">
             {meusModelos.map((m) => (
-              <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 hover:bg-gray-50/60">
+              <li key={m.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 hover:bg-gray-50/60 sm:flex-nowrap">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                   <FileText className="h-4 w-4" />
                 </div>
-                <p className="min-w-40 flex-1 truncate text-sm font-semibold text-gray-900">{m.nome}</p>
+                <p className="min-w-0 flex-1 basis-[10rem] truncate text-sm font-semibold text-gray-900">{m.nome}</p>
                 <Button size="sm" onClick={() => iniciarGeracao(m)} disabled={gerandoId === m.id}>
                   {gerandoId === m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                   {gerandoId === m.id ? "Gerando..." : "Gerar .docx"}
@@ -280,7 +280,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+      <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4">
           <div>
             <h2 className="font-semibold text-gray-900">Modelos prontos</h2>
@@ -288,7 +288,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
               Preenchido com os dados de {cliente.nome}. Edite na tela e exporte (PDF com timbre).
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" title="Restaurar o modelo original" onClick={() => render(modeloId, perfil)}>
               <RefreshCw className="h-4 w-4" /> Restaurar
             </Button>
@@ -337,7 +337,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
             contentEditable
             suppressContentEditableWarning
             spellCheck
-            className="doc-page min-h-[400px] rounded-lg border border-gray-200 bg-white px-8 py-8 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+            className="doc-page min-h-[400px] max-w-full overflow-x-auto rounded-lg border border-gray-200 bg-white px-4 py-6 shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-900/10 sm:px-8 sm:py-8"
           />
           {timbreUrl && (
             <p className="mt-2 text-xs text-gray-400">
@@ -399,7 +399,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
               )
             )}
             {erroModelo && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erroModelo}</p>}
-            <div className="sticky bottom-0 -mx-4 flex justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-4 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
+            <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
               <Button variant="secondary" onClick={() => setModalGerar(null)}>Cancelar</Button>
               <Button onClick={() => baixarPreenchido(modalGerar.modelo, valores)} disabled={gerandoId === modalGerar.modelo.id}>
                 {gerandoId === modalGerar.modelo.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}

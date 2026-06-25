@@ -502,6 +502,47 @@ export async function deleteTriagemImportacao(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+// --- Dedup das importações vindas do Cowork ---
+
+export interface CoworkImportado {
+  conversa_id: string;
+  marcador: string;
+}
+
+export async function listarCoworkImportados(): Promise<CoworkImportado[]> {
+  const { data, error } = await supabase
+    .from("cowork_importacoes")
+    .select("conversa_id, marcador")
+    .eq("user_id", USER_ID);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CoworkImportado[];
+}
+
+export async function registrarCoworkImportacao(input: {
+  conversa_id: string;
+  projeto?: string;
+  marcador: string;
+  importacao_id?: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("cowork_importacoes")
+    .upsert(
+      {
+        id: generateId(),
+        conversa_id: input.conversa_id,
+        projeto: input.projeto ?? null,
+        marcador: input.marcador,
+        importacao_id: input.importacao_id ?? null,
+        user_id: USER_ID,
+      },
+      { onConflict: "conversa_id,marcador", ignoreDuplicates: true }
+    );
+  if (error && !isMissingTable(error)) throw new Error(error.message);
+}
+
 // --- Atendimentos ---
 
 export async function getAtendimentos(): Promise<Atendimento[]> {
