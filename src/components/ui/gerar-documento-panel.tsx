@@ -86,6 +86,8 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   useEffect(() => {
     loadPerfilAdvogado().then(setPerfil).catch(() => { /* perfil local já carregado */ });
     listarModelos().then(setMeusModelos).catch(() => { /* sem modelos ou tabela ausente */ });
+    carregarProcessos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function carregarProcessos() {
@@ -144,15 +146,15 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   function render(id: ModeloId, p: PerfilAdvogado) {
     const modelo = getModelo(id);
     if (!modelo || !editorRef.current) return;
-    const { titulo, corpoHtml } = modelo.gerar({ cliente, perfil: p });
+    const { titulo, corpoHtml } = modelo.gerar({ cliente, perfil: p, processos });
     editorRef.current.innerHTML = `<h1 class="doc-title" contenteditable="false">${titulo}</h1>${corpoHtml}`;
   }
 
-  // Regera o documento quando o modelo muda ou o perfil termina de carregar.
+  // Regera o documento quando o modelo muda, o perfil/processos carregam.
   useEffect(() => {
     render(modeloId, perfil);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeloId, perfil, cliente.id]);
+  }, [modeloId, perfil, processos, cliente.id]);
 
   function htmlAtual(): string {
     return editorRef.current?.innerHTML ?? "";

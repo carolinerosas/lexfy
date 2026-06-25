@@ -135,8 +135,8 @@ export default function AtendimentosPage() {
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <div className={`flex-1 ${selected ? "max-w-xl" : ""}`}>
+      <div className="space-y-6">
+        <div>
           {filtered.length === 0 ? (
             <Card>
               <div className="flex flex-col items-center py-16 text-center">

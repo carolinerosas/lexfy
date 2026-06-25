@@ -1,4 +1,4 @@
-import type { Cliente } from "@/types";
+import type { Cliente, Processo } from "@/types";
 import type { PerfilAdvogado } from "./perfil";
 
 export type ModeloId = "procuracao" | "hipossuficiencia" | "recibo" | "declaracao";
@@ -14,6 +14,24 @@ export interface ModeloDocumento {
 export interface ModeloContexto {
   cliente: Cliente;
   perfil: PerfilAdvogado;
+  /** Processos do cliente — usados para montar a referência do caso (processo nº ou inquérito + delegacia). */
+  processos?: Processo[];
+}
+
+/** Monta a referência do caso: "nos autos do processo nº X" ou "no inquérito policial ... na Delegacia Y". */
+function referenciaCaso(processos?: Processo[]): string {
+  const ps = processos ?? [];
+  if (ps.length === 1) {
+    const p = ps[0];
+    const ehInquerito = p.tipo === "inquerito_policial" || (!(p.numero ?? "").trim() && !!(p.numero_inquerito || p.delegacia));
+    if (ehInquerito) {
+      const num = (p.numero_inquerito ?? "").trim();
+      const deleg = (p.delegacia ?? "").trim();
+      return `no inquérito policial${num ? ` nº ${escapeHtml(num)}` : ""}${deleg ? `, em trâmite na ${escapeHtml(deleg)}` : `, em trâmite na ${fill("Delegacia")}`}`;
+    }
+    if ((p.numero ?? "").trim()) return `nos autos do processo nº ${escapeHtml(p.numero.trim())}`;
+  }
+  return fill("nº do processo, ou: no inquérito policial em trâmite na Delegacia ___");
 }
 
 const MESES = [
@@ -110,20 +128,21 @@ function assinaturaAdvogada(p: PerfilAdvogado): string {
 export const MODELOS: ModeloDocumento[] = [
   {
     id: "procuracao",
-    nome: "Procuração ad judicia",
-    descricao: "Outorga poderes da cláusula ad judicia et extra (art. 105 do CPC).",
-    gerar: ({ cliente, perfil }) => ({
-      titulo: "PROCURAÇÃO AD JUDICIA ET EXTRA",
+    nome: "Procuração",
+    descricao: "Procuração ad judicia et extra (art. 105 do CPC).",
+    gerar: ({ cliente, perfil, processos }) => ({
+      titulo: "PROCURAÇÃO",
       corpoHtml:
-        `<p><strong>OUTORGANTE:</strong> ${qualificacaoCliente(cliente)}.</p>` +
-        `<p><strong>OUTORGADA:</strong> ${qualificacaoAdvogada(perfil)}.</p>` +
-        `<p><strong>PODERES:</strong> Pelo presente instrumento particular de procuração, a outorgante nomeia e ` +
-        `constitui sua bastante procuradora a advogada acima qualificada, a quem confere os poderes da cláusula ` +
-        `<em>ad judicia et extra</em>, previstos no art. 105 do Código de Processo Civil, para o foro em geral, ` +
-        `em qualquer Juízo, Instância ou Tribunal, podendo propor e contestar ações, requerer, recorrer, ` +
-        `arrazoar, juntar e retirar documentos, dar e receber quitação, e praticar todos os demais atos ` +
-        `necessários ao fiel cumprimento deste mandato, bem como os poderes especiais para ` +
-        `${fill("poderes especiais: receber e dar quitação, transigir, firmar acordo, substabelecer etc.")}.</p>` +
+        `<p>Pelo presente instrumento particular de mandato, ${qualificacaoCliente(cliente)}, ` +
+        `<strong>Nomeia e Constitui</strong> como sua procuradora <strong>Caroline Fraga Rosas Marinho</strong>, ` +
+        `brasileira, advogada, inscrita na OAB/RJ sob o n° 165955, e-mail caroline@carolinefraga.com.br, ` +
+        `WhatsApp (24) 99279-1034, outorgando-lhe amplos poderes, inerentes ao bom e fiel cumprimento deste mandato, ` +
+        `bem como para o foro em geral, conforme estabelecido no artigo 105 do Código de Processo Civil, e os especiais para ` +
+        `requerer, desistir, transacionar, conciliar, firmar compromisso, renunciar, substabelecer, com ou sem reserva de poderes, ` +
+        `acessar quaisquer documentos, reconhecer a procedência do pedido, receber intimações, receber valores e dar quitação, ` +
+        `firmar declaração de hipossuficiência econômica, recorrer a quaisquer instâncias e tribunais, em juízo ou fora dele, ` +
+        `podendo atuar em conjunto ou separadamente, dando tudo por bom e valioso, ` +
+        `especialmente para defender seus interesses ${referenciaCaso(processos)}.</p>` +
         `<p class="doc-local">${localEData(cliente, perfil)}</p>` +
         assinaturaCliente(cliente),
     }),
