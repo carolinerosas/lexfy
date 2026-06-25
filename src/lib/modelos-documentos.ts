@@ -57,12 +57,19 @@ function enderecoCliente(c: Cliente): string {
 
 /** Qualificação do cliente (outorgante / declarante). */
 function qualificacaoCliente(c: Cliente): string {
+  const s = (c.sexo ?? "").trim().toUpperCase();
+  const flex = (m: string, f: string) => (s === "M" ? m : s === "F" ? f : `${m}(a)`);
   const nome = `<strong>${ou(c.nome, "nome do cliente")}</strong>`;
+  const rg = (c.rg ?? "").trim();
+  // Suprime a parte do RG quando o cliente só tem CPF (nova CIN).
+  const rgParte = rg
+    ? `${flex("portador", "portadora")} da cédula de identidade RG nº ${escapeHtml(rg)}, `
+    : "";
   return (
-    `${nome}, ${fill("nacionalidade")}, ${fill("estado civil")}, ${fill("profissão")}, ` +
-    `portador(a) da cédula de identidade RG nº ${ou(c.rg, "RG")}, ` +
-    `inscrito(a) no CPF sob o nº ${ou(c.cpf, "CPF")}, ` +
-    `residente e domiciliado(a) em ${enderecoCliente(c)}`
+    `${nome}, ${ou(c.nacionalidade, "nacionalidade")}, ${ou(c.estado_civil, "estado civil")}, ${ou(c.profissao, "profissão")}, ` +
+    rgParte +
+    `${flex("inscrito", "inscrita")} no CPF sob o nº ${ou(c.cpf, "CPF")}, ` +
+    `residente e ${flex("domiciliado", "domiciliada")} em ${enderecoCliente(c)}`
   );
 }
 
