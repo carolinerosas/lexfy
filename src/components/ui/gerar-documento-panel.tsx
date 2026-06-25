@@ -47,6 +47,12 @@ function labelToken(t: string): string {
   return LABELS_TOKEN[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, " ");
 }
 
+/** Número do caso: para inquérito usa numero_inquerito; senão, o número do processo. */
+function numeroProcesso(p: Processo): string {
+  if (p.tipo === "inquerito_policial") return (p.numero_inquerito ?? "").trim();
+  return (p.numero ?? "").trim();
+}
+
 interface GerarDocumentoPanelProps {
   cliente: Cliente;
 }
@@ -370,15 +376,16 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
                         <button
                           type="button"
                           key={p.id}
-                          onClick={() => setValores((v) => ({ ...v, processo: p.numero }))}
+                          onClick={() => setValores((v) => ({ ...v, processo: numeroProcesso(p) }))}
                           className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                            valores.processo === p.numero && p.numero
+                            numeroProcesso(p) && valores.processo === numeroProcesso(p)
                               ? "border-[#21181d] bg-gray-50"
                               : "border-gray-200 hover:bg-gray-50"
                           }`}
                         >
-                          <span className="shrink-0 font-mono text-xs text-gray-500">{p.numero || "sem número"}</span>
+                          <span className="shrink-0 font-mono text-xs text-gray-500">{numeroProcesso(p) || "sem número"}</span>
                           <span className="truncate text-gray-800">{p.titulo}</span>
+                          {p.tipo === "inquerito_policial" && <span className="shrink-0 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700">inquérito</span>}
                         </button>
                       ))}
                       <p className="text-xs text-gray-400">ou digite manualmente:</p>
