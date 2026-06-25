@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-stretch justify-center p-2 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-[80] flex items-stretch justify-center p-2 sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-[#171216]/60 backdrop-blur-sm"
         onClick={onClose}
@@ -53,7 +53,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:px-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-5">
           {children}
         </div>
       </div>

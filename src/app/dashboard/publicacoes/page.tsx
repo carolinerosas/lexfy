@@ -836,7 +836,7 @@ function DetalheModal({
           </p>
         </div>
 
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-2 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
+        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-end gap-2 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgba(255,255,255,0.95)] sm:-mx-6 sm:px-6 sm:pb-1">
           {publicacao.url && !publicacao.url.includes("/certidao") && (
             <a href={publicacao.url} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="sm">
@@ -952,7 +952,7 @@ function PrazoModal({
           <p className="text-xs text-gray-500 mb-1 font-medium">Teor da publicação:</p>
           <p className="text-xs text-gray-600 whitespace-pre-line">{publicacao.conteudo?.slice(0, 400)}</p>
         </div>
-        <div className="sticky bottom-0 -mx-4 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(0.25rem+env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
+        <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-12px_24px_rgba(255,255,255,0.95)] sm:-mx-6 sm:px-6 sm:pb-1">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!processoId || !dataPrazo || saving}>
             {saving ? "Salvando..." : "Salvar prazo"}
@@ -1070,7 +1070,7 @@ function AdicionarProcessoModal({
         )}
         <Input label="Número do processo *" value={numero} onChange={(e) => setNumero(e.target.value)} />
         <Input label="Título / Classe" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value)} />
           <Select label="Tipo" options={processoTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as ProcessoTipo)} />
         </div>
@@ -1126,7 +1126,7 @@ function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: 
       <form onSubmit={submit} className="space-y-4">
         <ComboBox label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={setProcessoId} />
         <Input label="Título / Resumo" placeholder="Ex: Despacho — intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Select label="Diário / Fonte" options={diarioOptions} placeholder="Selecione..." value={diario} onChange={(e) => setDiario(e.target.value)} />
           <Input label="Data de Publicação" type="date" value={dataPub} onChange={(e) => setDataPub(e.target.value)} />
         </div>

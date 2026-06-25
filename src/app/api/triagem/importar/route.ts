@@ -241,6 +241,7 @@ Responda SOMENTE JSON válido, sem markdown, neste formato:
   "movimentacoes": [{ "processo_numero": "", "data_movimentacao": "YYYY-MM-DD", "descricao": "", "tipo": "", "fonte": "" }],
   "avisos": []
 }
+Sempre que o texto descrever um andamento, movimentação, decisão, despacho, intimação ou evento de um processo, gere uma entrada correspondente em "movimentacoes", com "processo_numero" igual ao número do processo — MESMO que esse processo também apareça em "processos" como novo cadastro. A "descricao" da movimentação deve conter o andamento em si.
 Não invente dados. Se faltar algo, omita ou deixe vazio.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {

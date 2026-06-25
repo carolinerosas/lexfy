@@ -215,16 +215,19 @@ export default function TriagemPage() {
         await preencherClienteExistente(clienteExistente, dadosCliente);
       }
 
+      const hoje = new Date().toISOString().slice(0, 10);
       let criados = 0;
-      let ignorados = 0;
+      let reusados = 0;
       const processosPorNumero = new Map<string, Processo>();
       processos.forEach((p) => processosPorNumero.set(digits(p.numero), p));
+      const comMovimentacao = new Set<string>();
 
+      // 1) Resolve cada processo: cria se for novo, reaproveita se já existe.
       for (const proc of draft.processos) {
         const existente = processos.find((p) => sameProcess(p.numero, proc.numero));
         if (existente) {
           processosPorNumero.set(digits(existente.numero), existente);
-          ignorados += 1;
+          reusados += 1;
           continue;
         }
 
@@ -250,21 +253,42 @@ export default function TriagemPage() {
       }
 
       let movs = 0;
+      // 2) Movimentações explícitas detectadas pela IA.
       for (const mov of draft.movimentacoes ?? []) {
         const alvo = mov.processo_numero
           ? processosPorNumero.get(digits(mov.processo_numero))
           : draft.processos.length === 1
             ? processosPorNumero.get(digits(draft.processos[0].numero))
             : undefined;
-        if (!alvo) continue;
+        if (!alvo || !mov.descricao?.trim()) continue;
         await createMovimentacao({
           processo_id: alvo.id,
           descricao: mov.descricao,
-          data_movimentacao: mov.data_movimentacao || new Date().toISOString().slice(0, 10),
-          tipo: mov.tipo || "Importada",
+          data_movimentacao: mov.data_movimentacao || hoje,
+          tipo: mov.tipo || "Andamento",
           fonte: mov.fonte || "Triagem assistida",
           lida: false,
         });
+        comMovimentacao.add(alvo.id);
+        movs += 1;
+      }
+
+      // 3) Garante uma movimentação por processo (novo OU existente), com o andamento
+      //    do import — sem duplicar quando a IA já gerou uma para o mesmo processo.
+      for (const proc of draft.processos) {
+        const alvo = processosPorNumero.get(digits(proc.numero));
+        if (!alvo || comMovimentacao.has(alvo.id)) continue;
+        const conteudo = buildProcessoDescricao(proc, observacoesCaso);
+        if (!conteudo.trim() || conteudo === "Importado pela triagem assistida.") continue;
+        await createMovimentacao({
+          processo_id: alvo.id,
+          descricao: conteudo,
+          data_movimentacao: proc.data_distribuicao || hoje,
+          tipo: "Andamento",
+          fonte: "Triagem assistida",
+          lida: false,
+        });
+        comMovimentacao.add(alvo.id);
         movs += 1;
       }
 
@@ -276,7 +300,7 @@ export default function TriagemPage() {
       setDraft(null);
       setImportacaoAtiva(null);
       setTextoImportacao("");
-      setImportMsg(`Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) criado(s), ${ignorados} já existente(s), ${movs} movimentação(ões).`);
+      setImportMsg(`Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s).`);
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Erro ao salvar importação.");
     } finally {
@@ -697,7 +721,7 @@ function ImportacaoAssistida({
                     <div key={index} className="rounded-xl border border-gray-100 p-4">
                       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Processo {index + 1}</p>
-                        {existente ? <Badge variant="neutral">já existe</Badge> : <Badge variant="success">novo</Badge>}
+                        {existente ? <Badge variant="neutral">já existe → movimentação</Badge> : <Badge variant="success">novo + movimentação</Badge>}
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
                         <Input label="Número CNJ" value={proc.numero ?? ""} onChange={(e) => setProcessoField(index, "numero", e.target.value)} />

@@ -360,18 +360,18 @@ export default function ProcessoDetailPage() {
   ];
 
   return (
-    <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-start gap-4">
+    <div className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-6 md:px-8 md:py-8">
+      <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <Link href="/dashboard/processos">
             <button className="mt-1 p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </button>
           </Link>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold tabular-nums tracking-tight text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{identificadorProcesso(processo)}</span>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 break-all rounded bg-gray-100 px-2 py-0.5 text-sm font-semibold tabular-nums tracking-tight text-gray-700">{identificadorProcesso(processo)}</span>
                 <button
                   type="button"
                   title="Copiar número do processo"
@@ -384,11 +384,11 @@ export default function ProcessoDetailPage() {
               <Badge variant={statusVariantMap[processo.status]}>{processo.status}</Badge>
               {processo.tipo && <Badge variant="neutral">{processoTipoLabels[processo.tipo] ?? processo.tipo}</Badge>}
             </div>
-            <h1 className="text-xl font-bold text-gray-900">{processo.titulo}</h1>
+            <h1 className="break-words text-xl font-bold text-gray-900">{processo.titulo}</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-stretch rounded-lg border border-gray-200 overflow-hidden bg-white shadow-sm">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+          <div className="inline-flex min-w-0 max-w-full items-stretch overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <button
               onClick={toggleMonitorar}
               title={processo.monitorar_datajud ? "Monitoramento ativo — clique para desativar" : "Ativar monitoramento automático"}
@@ -399,7 +399,7 @@ export default function ProcessoDetailPage() {
             <button
               onClick={handleSync}
               disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex min-w-0 items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando…" : "Sincronizar"}
@@ -415,7 +415,7 @@ export default function ProcessoDetailPage() {
             )}
           </div>
           {syncMsg && (
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{syncMsg}</span>
+            <span className="rounded bg-gray-100 px-2 py-1 text-xs text-gray-500">{syncMsg}</span>
           )}
           {isInquerito && (
             <Button variant="secondary" size="sm" onClick={() => setTransformarInqueritoModal(true)}>
@@ -996,15 +996,15 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Cobrado</p>
-          <p className="text-lg font-black text-gray-900 tabular-nums">{formatCurrency(totalCobrado)}</p>
+          <p className="text-[11px] font-black text-gray-900 tabular-nums sm:text-lg">{formatCurrency(totalCobrado)}</p>
         </div>
         <div className="bg-green-50 rounded-xl px-4 py-3 text-center">
           <p className="text-xs text-gray-500 mb-1">Recebido</p>
-          <p className="text-lg font-black text-green-700 tabular-nums">{formatCurrency(totalPago)}</p>
+          <p className="text-[11px] font-black text-green-700 tabular-nums sm:text-lg">{formatCurrency(totalPago)}</p>
         </div>
         <div className={`rounded-xl px-4 py-3 text-center ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
           <p className="text-xs text-gray-500 mb-1">Saldo a receber</p>
-          <p className={`text-lg font-black tabular-nums ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
+          <p className={`text-[11px] font-black tabular-nums sm:text-lg ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
         </div>
       </div>
 
@@ -1040,7 +1040,7 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
                               : (h.tipo ?? "Honorário")}
                         </p>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 tabular-nums shrink-0">{formatCurrency(h.valor)}</span>
+                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900 sm:text-sm">{formatCurrency(h.valor)}</span>
                       {!recebida && (
                         <Button size="sm" onClick={() => onReceber(h)}>
                           <CheckCircle className="w-3.5 h-3.5" /> Recebido
@@ -1614,12 +1614,12 @@ function NovoPrazoModal({ open, onClose, processoId, onCreated }: { open: boolea
     <Modal open={open} onClose={onClose} title="Novo Prazo" size="sm">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Recurso de Apelação" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select label="Tipo" options={prazoTipoOptions} placeholder="Selecione..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
           <Select label="Prioridade" options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]} value={prioridade} onChange={(e) => setPrioridade(e.target.value)} />
         </div>
         <Input label="Data Limite *" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );
@@ -1645,7 +1645,7 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
         <Select label="Tipo" options={audienciaTipoOptions} placeholder="Selecione..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <Input label="Local" placeholder="Fórum, sala, online..." value={local} onChange={(e) => setLocal(e.target.value)} />
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );
@@ -1759,7 +1759,7 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
           onChange={(e) => setDescricao(e.target.value)}
           required
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label={isCobranca && (nParcelas > 1 || entradaVal > 0) ? "Valor total (R$) *" : "Valor (R$) *"}
             type="number" min="0" step="0.01" placeholder="0,00"
@@ -1772,7 +1772,7 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
 
         {isCobranca ? (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Entrada (R$)" type="number" min="0" step="0.01" inputMode="decimal" placeholder="opcional" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
               <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
             </div>
@@ -1836,7 +1836,7 @@ function NovoAtendimentoModal({ open, onClose, processoId, clienteNome, onCreate
       <p className="text-xs text-gray-500 mb-4">Cliente: <strong className="text-gray-800">{clienteNome}</strong></p>
       <form onSubmit={submit} className="space-y-4">
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select label="Tipo" options={tipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
           <Input label="Duração (min)" type="number" min="15" step="15" value={duracao} onChange={(e) => setDuracao(e.target.value)} />
         </div>
@@ -1954,7 +1954,7 @@ function TarefaModal({
       <form onSubmit={submit} className="space-y-4">
         <Input label="Tarefa *" placeholder="Ex: Conferir intimação, ligar para cliente..." value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <Textarea label="Descrição" placeholder="Detalhes, próximos passos, documentos..." rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Data limite" type="date" value={dataLimite} onChange={(e) => setDataLimite(e.target.value)} />
           <Select
             label="Prioridade"
@@ -2028,11 +2028,11 @@ function IncidenteModal({
     <Modal open={open} onClose={onClose} title={incidente ? "Editar incidente" : "Novo incidente"} size="md">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Pedido de trabalho extramuros" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select label="Tipo" options={incidenteTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as IncidenteExecucaoTipo)} />
           <Select label="Status" options={incidenteStatusOptions} value={status} onChange={(e) => setStatus(e.target.value as IncidenteExecucaoStatus)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Data do pedido" type="date" value={dataPedido} onChange={(e) => setDataPedido(e.target.value)} />
           <Input label="Data da decisão" type="date" value={dataDecisao} onChange={(e) => setDataDecisao(e.target.value)} />
         </div>
@@ -2113,17 +2113,17 @@ function CalculoPenaModal({
     <Modal open={open} onClose={onClose} title={calculo ? "Editar cálculo de pena" : "Novo cálculo de pena"} size="md">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Cálculo para trabalho extramuros" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="Anos" type="number" min="0" step="1" value={penaAnos} onChange={(e) => setPenaAnos(e.target.value)} />
           <Input label="Meses" type="number" min="0" step="1" value={penaMeses} onChange={(e) => setPenaMeses(e.target.value)} />
           <Input label="Dias" type="number" min="0" step="1" value={penaDias} onChange={(e) => setPenaDias(e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="Data de início" type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
           <Input label="Dias de detração" type="number" min="0" step="1" value={diasDetracao} onChange={(e) => setDiasDetracao(e.target.value)} />
           <Input label="Dias de remição" type="number" min="0" step="1" value={diasRemicao} onChange={(e) => setDiasRemicao(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Regime atual" placeholder="Ex: semiaberto" value={regimeAtual} onChange={(e) => setRegimeAtual(e.target.value)} />
           <Input label="Marco-base" placeholder="Ex: guia definitiva, prisão, unificação..." value={marcoBase} onChange={(e) => setMarcoBase(e.target.value)} />
         </div>
@@ -2197,12 +2197,12 @@ function BeneficioPenalModal({
     <Modal open={open} onClose={onClose} title={beneficio ? "Editar comutação/indulto" : "Novo pedido de comutação/indulto"} size="md">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Pedido de comutação - Decreto 2026" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Select label="Tipo" options={beneficioPenalTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as BeneficioPenalTipo)} />
           <Select label="Status" options={beneficioPenalStatusOptions} value={status} onChange={(e) => setStatus(e.target.value as BeneficioPenalStatus)} />
           <Input label="Decreto" placeholder="Ex: Decreto 12.XXX/2026" value={decreto} onChange={(e) => setDecreto(e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Data do requerimento" type="date" value={dataRequerimento} onChange={(e) => setDataRequerimento(e.target.value)} />
           <Input label="Data da decisão" type="date" value={dataDecisao} onChange={(e) => setDataDecisao(e.target.value)} />
         </div>
@@ -2362,11 +2362,11 @@ function TransformarInqueritoModal({
         </p>
         <Input label="Número da ação penal *" placeholder="0000000-00.0000.0.00.0000" value={numero} onChange={(e) => setNumero(e.target.value)} required />
         <Input label="Título / assunto *" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value)} />
           <Input label="Vara" value={vara} onChange={(e) => setVara(e.target.value)} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="Comarca" value={comarca} onChange={(e) => setComarca(e.target.value)} />
           <Input label="UF" value={uf} onChange={(e) => setUf(e.target.value)} />
           <Input label="Distribuição" type="date" value={dataDistribuicao} onChange={(e) => setDataDistribuicao(e.target.value)} />
@@ -2432,11 +2432,11 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
     <Modal open={open} onClose={onClose} title="Editar Processo" size="lg">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" value={form.titulo} onChange={(e) => set("titulo", e.target.value)} required />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Cliente *" value={form.cliente_nome} onChange={(e) => set("cliente_nome", e.target.value)} required />
           <Input label="Parte Contrária" value={form.parte_contraria ?? ""} onChange={(e) => set("parte_contraria", e.target.value)} />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectComOutro label="Classificação" category="processo_tipo" baseOptions={processoTipoOptions} value={form.tipo ?? "outro"} onChange={(v) => set("tipo", v)} />
           <Select label="Status" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />
         </div>
@@ -2458,7 +2458,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
               <Shield className="w-4 h-4 text-[#21181d]" />
               <p className="text-sm font-semibold text-gray-900">Informações do inquérito policial</p>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Número do inquérito" value={form.numero_inquerito ?? ""} onChange={(e) => set("numero_inquerito", e.target.value)} />
               <Select
                 label="Situação"
@@ -2467,7 +2467,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
                 onChange={(e) => set("situacao_inquerito", e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Delegacia" value={form.delegacia ?? ""} onChange={(e) => set("delegacia", e.target.value)} />
               <Input label="Autoridade policial" value={form.autoridade_policial ?? ""} onChange={(e) => set("autoridade_policial", e.target.value)} />
             </div>
@@ -2475,14 +2475,14 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
             <Textarea label="Relatório final / observações do inquérito" rows={4} value={form.relatorio_final ?? ""} onChange={(e) => set("relatorio_final", e.target.value)} />
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           <Input label="Tribunal" value={form.tribunal ?? ""} onChange={(e) => set("tribunal", e.target.value)} />
           <Input label="Vara" value={form.vara ?? ""} onChange={(e) => set("vara", e.target.value)} />
           <Input label="Comarca" value={form.comarca ?? ""} onChange={(e) => set("comarca", e.target.value)} />
           <Input label="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
         </div>
         <Textarea label="Descrição" value={form.descricao ?? ""} onChange={(e) => set("descricao", e.target.value)} />
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
   );

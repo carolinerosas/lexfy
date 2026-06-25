@@ -463,12 +463,12 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
           <div className="space-y-3">
             <Input label="Nome completo *" placeholder="Nome do cliente" value={form.nome} onChange={(e) => set("nome", e.target.value)} required />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg} onChange={(e) => set("rg", formatRG(e.target.value))} />
               <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo} onChange={(e) => set("sexo", e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade} onChange={(e) => set("nacionalidade", e.target.value)} />
               <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil} onChange={(e) => set("estado_civil", e.target.value)} />
               <Input label="Profissão" placeholder="profissão" value={form.profissao} onChange={(e) => set("profissao", e.target.value)} />
@@ -479,7 +479,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
 
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contato</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="E-mail" type="email" placeholder="email@exemplo.com" value={form.email} onChange={(e) => set("email", e.target.value)} />
             <Input label="Celular" placeholder="(21) 99999-9999" value={form.celular} onChange={(e) => set("celular", e.target.value)} />
           </div>
@@ -488,7 +488,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Endereço</p>
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <Input
                   label="CEP"
@@ -502,17 +502,17 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
                 {cepStatus === "erro" && <p className="mt-1 text-xs text-amber-600">CEP não encontrado. Preencha manualmente.</p>}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="col-span-2">
                 <Input label="Logradouro" placeholder="Rua, Av., Travessa..." value={form.logradouro} onChange={(e) => set("logradouro", e.target.value)} />
               </div>
               <Input label="Número" placeholder="123" value={form.numero_end} onChange={(e) => set("numero_end", e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Complemento" placeholder="Apto, Bloco..." value={form.complemento} onChange={(e) => set("complemento", e.target.value)} />
               <Input label="Bairro" placeholder="Bairro" value={form.bairro} onChange={(e) => set("bairro", e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Cidade" placeholder="Rio de Janeiro" value={form.cidade} onChange={(e) => set("cidade", e.target.value)} />
               <Select label="UF" options={ufs} placeholder="UF" value={form.uf} onChange={(e) => set("uf", e.target.value)} />
             </div>
@@ -521,7 +521,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
 
         <Textarea label="Observações" placeholder="Informações adicionais sobre o cliente..." rows={3} value={form.observacoes} onChange={(e) => set("observacoes", e.target.value)} />
 
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!form.nome.trim()}>Salvar Cliente</Button>
         </div>

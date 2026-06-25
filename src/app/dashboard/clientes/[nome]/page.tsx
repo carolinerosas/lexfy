@@ -214,7 +214,7 @@ export default function ClienteDetailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-6">
         <Card>
           <CardContent className="p-5">
             <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center mb-3">
@@ -302,7 +302,7 @@ export default function ClienteDetailPage() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {honorarios.slice(0, 6).map((h) => (
-                  <li key={h.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <li key={h.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">{h.descricao}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -311,7 +311,7 @@ export default function ClienteDetailPage() {
                           : h.data_lancamento ? formatDate(h.data_lancamento) : "—"}
                       </p>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="ml-auto text-right shrink-0">
                       <p className={`text-sm font-bold ${h.categoria === "pagamento" ? "text-green-700" : "text-blue-700"}`}>
                         {formatCurrency(h.valor)}
                       </p>
@@ -339,12 +339,12 @@ export default function ClienteDetailPage() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {atendimentos.slice(0, 5).map((a) => (
-                  <li key={a.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                  <li key={a.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900">{formatDateTime(a.data_hora)}</p>
                       {a.notas && <p className="text-xs text-gray-400 truncate mt-0.5">{a.notas}</p>}
                     </div>
-                    <Badge variant={a.status === "realizado" ? "success" : a.status === "cancelado" ? "danger" : "warning"}>
+                    <Badge className="ml-auto" variant={a.status === "realizado" ? "success" : a.status === "cancelado" ? "danger" : "warning"}>
                       {a.status === "agendado" ? "Agendado" : a.status === "realizado" ? "Realizado" : "Cancelado"}
                     </Badge>
                   </li>
@@ -362,12 +362,12 @@ export default function ClienteDetailPage() {
                 {prazosAbertos.slice(0, 5).map((p) => {
                   const days = daysUntil(p.data_prazo);
                   return (
-                    <li key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <li key={p.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-900 truncate">{p.titulo}</p>
                         <p className="text-xs text-gray-400 font-mono mt-0.5">{p.processo?.numero ?? "—"}</p>
                       </div>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-lg shrink-0 ${prazoColor(days)}`}>
+                      <span className={`ml-auto text-xs font-bold px-2 py-1 rounded-lg shrink-0 ${prazoColor(days)}`}>
                         {days < 0 ? `${Math.abs(days)}d atraso` : days === 0 ? "Hoje" : `${days}d`}
                       </span>
                     </li>
@@ -579,12 +579,12 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
           <div className="space-y-3">
             <Input label="Nome completo *" value={form.nome ?? ""} onChange={(e) => set("nome", e.target.value)} required />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf ?? ""} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg ?? ""} onChange={(e) => set("rg", formatRG(e.target.value))} />
               <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo ?? ""} onChange={(e) => set("sexo", e.target.value)} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade ?? ""} onChange={(e) => set("nacionalidade", e.target.value)} />
               <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil ?? ""} onChange={(e) => set("estado_civil", e.target.value)} />
               <Input label="Profissão" placeholder="profissão" value={form.profissao ?? ""} onChange={(e) => set("profissao", e.target.value)} />
@@ -594,7 +594,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
         </div>
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Contato</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="E-mail" type="email" value={form.email ?? ""} onChange={(e) => set("email", e.target.value)} />
             <Input label="Celular" value={form.celular ?? ""} onChange={(e) => set("celular", e.target.value)} />
           </div>
@@ -602,7 +602,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Endereço</p>
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
                 <Input label="CEP" placeholder="00000-000" inputMode="numeric" value={form.cep ?? ""} onChange={(e) => handleCepChange(e.target.value)} />
                 {cepStatus === "loading" && <p className="mt-1 text-xs text-gray-400">Buscando endereço…</p>}
@@ -610,24 +610,24 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
                 {cepStatus === "erro" && <p className="mt-1 text-xs text-amber-600">CEP não encontrado. Preencha manualmente.</p>}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="col-span-2">
                 <Input label="Logradouro" value={form.logradouro ?? ""} onChange={(e) => set("logradouro", e.target.value)} />
               </div>
               <Input label="Número" value={form.numero_end ?? ""} onChange={(e) => set("numero_end", e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Complemento" value={form.complemento ?? ""} onChange={(e) => set("complemento", e.target.value)} />
               <Input label="Bairro" value={form.bairro ?? ""} onChange={(e) => set("bairro", e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label="Cidade" value={form.cidade ?? ""} onChange={(e) => set("cidade", e.target.value)} />
               <Select label="UF" options={ufs} placeholder="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
             </div>
           </div>
         </div>
         <Textarea label="Observações" rows={3} value={form.observacoes ?? ""} onChange={(e) => set("observacoes", e.target.value)} />
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit">Salvar</Button>
         </div>

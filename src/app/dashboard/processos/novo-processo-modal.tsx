@@ -289,7 +289,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
   return (
     <Modal open={open} onClose={onClose} title="Novo Processo" size="lg">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label={isInquerito ? "Número do processo (opcional)" : "Número do Processo *"}
             placeholder={isInquerito ? "Preencha somente se já houver processo judicial" : "0000000-00.0000.0.00.0000"}
@@ -335,7 +335,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         {form.tipo === "inquerito_policial" && (
           <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <p className="text-sm font-semibold text-gray-900">Informações do inquérito policial</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Número do inquérito" value={form.numero_inquerito} onChange={(e) => set("numero_inquerito", e.target.value)} />
               <Select
                 label="Situação"
@@ -344,7 +344,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
                 onChange={(e) => set("situacao_inquerito", e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Delegacia" value={form.delegacia} onChange={(e) => set("delegacia", e.target.value)} />
               <Input label="Autoridade policial" value={form.autoridade_policial} onChange={(e) => set("autoridade_policial", e.target.value)} />
             </div>
@@ -363,7 +363,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           />
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Nome do Cliente *"
             placeholder="Nome completo"
@@ -386,7 +386,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           onChange={(e) => set("parte_contraria", e.target.value)}
         />
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Input
             label="Tribunal"
             placeholder="TJERJ, TRT, TRF..."
@@ -408,7 +408,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Comarca"
             placeholder="Rio de Janeiro"
@@ -423,7 +423,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
             label="Valor da Causa (R$)"
             type="number"
@@ -453,7 +453,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Não foi possível salvar: {saveError}</p>
         )}
 
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={saving}>
             {saving ? "Salvando..." : "Salvar Processo"}

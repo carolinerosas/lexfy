@@ -314,7 +314,7 @@ export default function FinanceiroPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-b border-gray-100 px-5 py-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 border-b border-gray-100 px-5 py-4 md:grid-cols-4">
           <MiniMetric label="Pendente" value={formatCurrency(totalContasPendentes)} icon={<Wallet className="w-4 h-4" />} />
           <MiniMetric label="Vencidas" value={formatCurrency(totalContasVencidas)} icon={<AlertTriangle className="w-4 h-4" />} danger={contasVencidas.length > 0} />
           <MiniMetric label="Este mês" value={formatCurrency(totalContasMes)} icon={<CalendarClock className="w-4 h-4" />} />
@@ -351,8 +351,8 @@ export default function FinanceiroPage() {
                       {conta.data_pagamento && ` · paga em ${formatDate(conta.data_pagamento)}`}
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-black tabular-nums text-gray-900">{formatCurrency(Number(conta.valor || 0))}</span>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <span className="ml-12 w-full text-sm font-black tabular-nums text-gray-900 sm:ml-0 sm:w-auto sm:shrink-0">{formatCurrency(Number(conta.valor || 0))}</span>
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
                     {conta.status === "pendente" && (
                       <Button size="sm" onClick={() => { setPagandoConta(conta); setDataPagamentoConta(todayISO()); }}>
                         <CheckCircle2 className="w-3.5 h-3.5" /> Pagar
@@ -423,7 +423,7 @@ export default function FinanceiroPage() {
 
               <ul className="divide-y divide-gray-50">
                 {g.itens.map((h) => (
-                  <li key={h.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
+                  <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50">
                     <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${h.categoria === "pagamento" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"}`}>
                       {h.categoria === "pagamento" ? <ArrowDownCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
                     </div>
@@ -440,10 +440,10 @@ export default function FinanceiroPage() {
                         {h.categoria === "pagamento" && ` · ${formatDate(h.data_recebimento ?? h.created_at)}`}
                       </p>
                     </div>
-                    <span className={`shrink-0 text-sm font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
+                    <span className={`ml-11 w-full text-sm font-bold tabular-nums sm:ml-0 sm:w-auto sm:shrink-0 ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
                       {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
                     </span>
-                    <div className="flex shrink-0 items-center gap-0.5">
+                    <div className="ml-auto flex shrink-0 items-center gap-0.5">
                       <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -612,7 +612,7 @@ function ContaEscritorioModal({
           onChange={(e) => setDescricao(e.target.value)}
           required
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label="Valor (R$) *"
             type="number"
@@ -631,7 +631,7 @@ function ContaEscritorioModal({
             required
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Select
             label="Categoria"
             options={contaCategoriaOptions}
@@ -650,7 +650,7 @@ function ContaEscritorioModal({
           />
         </div>
         {status === "paga" && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label="Data do pagamento"
               type="date"
@@ -680,7 +680,7 @@ function ContaEscritorioModal({
           value={observacoes}
           onChange={(e) => setObservacoes(e.target.value)}
         />
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!descricao || !valor || !vencimento || saving}>
             {saving ? "Salvando..." : "Salvar conta"}
@@ -839,7 +839,7 @@ function HonorarioModal({
           onChange={(e) => setDescricao(e.target.value)}
           required
         />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
             label={podeParcelar && (nParcelas > 1 || entradaVal > 0) ? "Valor total (R$) *" : "Valor (R$) *"}
             type="number" min="0" step="0.01" inputMode="decimal"
@@ -859,7 +859,7 @@ function HonorarioModal({
             {!editing && (
               <Input label="Entrada (R$)" type="number" min="0" step="0.01" inputMode="decimal" placeholder="opcional" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Input label={nParcelas > 1 ? "1º vencimento das parcelas" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
               <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
             </div>
@@ -875,7 +875,7 @@ function HonorarioModal({
           </p>
         )}
 
-        <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex justify-end gap-3 border-t border-gray-100 bg-white px-6 py-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" disabled={!processoId || !descricao || !valor || saving}>
             {saving ? "Salvando..." : editing ? "Salvar alterações" : qtdLanc > 1 ? `Lançar ${qtdLanc} lançamentos` : "Salvar"}
