@@ -7,9 +7,14 @@ if (-not (Test-Path -LiteralPath $scriptPath)) {
   throw "Script nao encontrado: $scriptPath"
 }
 
+# Roda via wscript + run-hidden.vbs para NAO abrir nenhuma janela do PowerShell.
+$vbsPath = Join-Path $PSScriptRoot "run-hidden.vbs"
+if (-not (Test-Path -LiteralPath $vbsPath)) {
+  throw "Lancador escondido nao encontrado: $vbsPath"
+}
 $action = New-ScheduledTaskAction `
-  -Execute "powershell.exe" `
-  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+  -Execute "wscript.exe" `
+  -Argument "`"$vbsPath`" `"$scriptPath`""
 
 # Roda no logon e repete a cada 15 minutos, indefinidamente.
 $trigger = New-ScheduledTaskTrigger -AtLogOn
@@ -36,7 +41,7 @@ try {
   Write-Host "Tarefa '$taskName' instalada. Roda no logon e a cada 15 minutos."
 } catch {
   Write-Host "Register-ScheduledTask falhou; tentando com schtasks.exe..."
-  $taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+  $taskCommand = "wscript.exe `"$vbsPath`" `"$scriptPath`""
   & schtasks.exe /Create /TN $taskName /TR $taskCommand /SC MINUTE /MO 15 /F | Out-Host
   if ($LASTEXITCODE -ne 0) {
     throw "Nao foi possivel instalar a tarefa do Windows."
