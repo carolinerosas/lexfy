@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Fragment, useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Users, ChevronRight, Search, Plus, Trash2, FileText, Calendar, Loader2, AlertTriangle, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -67,9 +67,16 @@ export default function ClientesPage() {
   const [deleteActionBusy, setDeleteActionBusy] = useState(false);
   const [deleteOptions, setDeleteOptions] = useState({ atendimentos: true, processos: false });
   const [linkTarget, setLinkTarget] = useState<Summary | null>(null);
-  const [letra, setLetra] = useState("");
 
   const naoCadastrados = clientes.filter((c) => !c.cadastrado).length;
+
+  // Rola a lista até o primeiro cliente da letra, sem filtrar nem trocar de página.
+  function irParaLetra(l: string) {
+    if (typeof document === "undefined") return;
+    const candidatos = [document.getElementById(`cli-m-${l}`), document.getElementById(`cli-d-${l}`)];
+    const alvo = candidatos.find((el) => el && el.offsetParent !== null) ?? candidatos.find(Boolean);
+    alvo?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const keyOf = (c: Summary) => c.id ?? c.nome;
 
@@ -183,14 +190,20 @@ export default function ClientesPage() {
 
   const filtered = clientes
     .filter((c) => c.nome.toLowerCase().includes(query.toLowerCase()))
-    .filter((c) => !letra || primeiraLetra(c.nome) === letra)
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
 
-  const letrasDisponiveis = new Set(
-    clientes
-      .filter((c) => c.nome.toLowerCase().includes(query.toLowerCase()))
-      .map((c) => primeiraLetra(c.nome))
-  );
+  const letrasDisponiveis = new Set(filtered.map((c) => primeiraLetra(c.nome)));
+
+  // key do primeiro cliente de cada letra (ponto de ancoragem para o scroll).
+  const ancoraPorLetra = new Map<string, string>();
+  for (const c of filtered) {
+    const l = primeiraLetra(c.nome);
+    if (!ancoraPorLetra.has(l)) ancoraPorLetra.set(l, keyOf(c));
+  }
+  const letraDaAncora = (c: Summary): string | null => {
+    const l = primeiraLetra(c.nome);
+    return ancoraPorLetra.get(l) === keyOf(c) ? l : null;
+  };
 
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
 
@@ -262,14 +275,7 @@ export default function ClientesPage() {
         />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setLetra("")}
-          className={`h-7 min-w-7 rounded-md px-1.5 text-xs font-semibold transition-colors ${letra === "" ? "bg-[#21181d] text-white" : "text-gray-500 hover:bg-gray-100"}`}
-        >
-          Todas
-        </button>
+      <div className="mb-4 flex flex-wrap items-center gap-x-0.5 gap-y-1">
         {ALFABETO.map((l) => {
           const disponivel = letrasDisponiveis.has(l);
           return (
@@ -277,13 +283,9 @@ export default function ClientesPage() {
               key={l}
               type="button"
               disabled={!disponivel}
-              onClick={() => setLetra((atual) => (atual === l ? "" : l))}
-              className={`h-7 w-7 rounded-md text-xs font-semibold transition-colors ${
-                letra === l
-                  ? "bg-[#21181d] text-white"
-                  : disponivel
-                    ? "text-gray-600 hover:bg-gray-100"
-                    : "cursor-not-allowed text-gray-300"
+              onClick={() => irParaLetra(l)}
+              className={`h-6 w-6 rounded text-xs font-semibold transition-colors ${
+                disponivel ? "text-gray-500 hover:bg-gray-100 hover:text-gray-900" : "cursor-default text-gray-200"
               }`}
             >
               {l}
@@ -293,8 +295,8 @@ export default function ClientesPage() {
         {letrasDisponiveis.has("#") && (
           <button
             type="button"
-            onClick={() => setLetra((atual) => (atual === "#" ? "" : "#"))}
-            className={`h-7 w-7 rounded-md text-xs font-semibold transition-colors ${letra === "#" ? "bg-[#21181d] text-white" : "text-gray-600 hover:bg-gray-100"}`}
+            onClick={() => irParaLetra("#")}
+            className="h-6 w-6 rounded text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
             title="Outros (números/símbolos)"
           >
             #
@@ -347,8 +349,12 @@ export default function ClientesPage() {
       ) : (
         <>
         <div className="space-y-3 md:hidden">
-          {filtered.map((c) => (
-            <Card key={c.id ?? c.nome} className={`p-4 ${selectionMode && selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
+          {filtered.map((c) => {
+            const ancora = letraDaAncora(c);
+            return (
+            <Fragment key={c.id ?? c.nome}>
+              {ancora && <span id={`cli-m-${ancora}`} aria-hidden className="block scroll-mt-24" />}
+            <Card className={`p-4 ${selectionMode && selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
               <div className="flex items-start gap-3">
                 {selectionMode && (
                   <input
@@ -429,7 +435,9 @@ export default function ClientesPage() {
                 </div>
               )}
             </Card>
-          ))}
+            </Fragment>
+            );
+          })}
         </div>
 
         <Card className="hidden overflow-x-auto md:block">
@@ -452,8 +460,10 @@ export default function ClientesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filtered.map((c) => (
-                  <tr key={c.id ?? c.nome} className={`transition-colors ${selectionMode && selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+              {filtered.map((c) => {
+                const ancora = letraDaAncora(c);
+                return (
+                  <tr key={c.id ?? c.nome} id={ancora ? `cli-d-${ancora}` : undefined} className={`scroll-mt-24 transition-colors ${selectionMode && selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
                     {selectionMode && (
                       <td className="px-4 py-4">
                         <input
@@ -545,7 +555,8 @@ export default function ClientesPage() {
                       )}
                     </td>
                   </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </Card>
