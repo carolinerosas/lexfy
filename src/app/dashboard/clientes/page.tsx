@@ -188,6 +188,21 @@ export default function ClientesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Apertar uma letra no teclado rola até os clientes daquela inicial (sem precisar clicar).
+  // Ignora quando você está digitando num campo (busca, formulários, etc.).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      const tag = alvo?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || alvo?.isContentEditable) return;
+      if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) irParaLetra(e.key.toUpperCase());
+      else if (e.key.length === 1 && /[0-9]/.test(e.key)) irParaLetra("#");
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   const filtered = clientes
     .filter((c) => c.nome.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
@@ -276,6 +291,7 @@ export default function ClientesPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-x-0.5 gap-y-1">
+        <span className="mr-1.5 text-[11px] text-gray-400">Digite uma letra:</span>
         {ALFABETO.map((l) => {
           const disponivel = letrasDisponiveis.has(l);
           return (
