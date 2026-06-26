@@ -57,6 +57,7 @@ function inferTipo(texto: string): string {
   const t = texto.toLowerCase();
   if (/(fam[ií]lia|guarda|alimentos|div[oó]rcio|interdi[cç][aã]o|curatela)/.test(t)) return "familia";
   if (/(execu[cç][aã]o penal|seeu|pena|livramento|regime aberto|regime semiaberto)/.test(t)) return "execucao_penal";
+  if (/(j[uú]ri|tribunal do j[uú]ri)/.test(t)) return "juri";
   if (/(inqu[eé]rito|flagrante|den[uú]ncia|audi[eê]ncia de cust[oó]dia|criminal)/.test(t)) return "criminal";
   if (/(trabalhista|reclama[cç][aã]o trabalhista|verbas rescis[oó]rias)/.test(t)) return "trabalhista";
   return "civel";
@@ -85,6 +86,7 @@ function fallbackImport(texto: string): ImportDraft {
   const parteContraria = extractLabeled(texto, ["parte contrária", "parte contraria", "réu", "reu", "ré", "re", "polo passivo"]);
   const comarca = extractLabeled(texto, ["comarca", "foro"]);
   const vara = extractLabeled(texto, ["vara", "cartório", "cartorio", "juízo", "juizo"]);
+  const unidadePrisional = extractLabeled(texto, ["unidade prisional", "presidio", "presídio", "cadeia", "penitenciaria", "penitenciária"]);
   const tipo = inferTipo(texto);
 
   return {
@@ -104,7 +106,7 @@ function fallbackImport(texto: string): ImportDraft {
     },
     processos: numeros.map((numero) => ({
       numero,
-      titulo: tipo === "familia" ? "Processo de família" : tipo === "criminal" ? "Processo criminal" : "Processo importado",
+      titulo: tipo === "familia" ? "Processo de família" : tipo === "juri" ? "Processo do júri" : tipo === "criminal" ? "Processo criminal" : "Processo importado",
       descricao: texto.slice(0, 4000),
       ...inferTribunal(numero),
       comarca,
@@ -113,6 +115,7 @@ function fallbackImport(texto: string): ImportDraft {
       parte_contraria: parteContraria,
       cliente_nome: nome,
       cliente_cpf_cnpj: cpf,
+      unidade_prisional: unidadePrisional,
     })),
     movimentacoes: [],
     avisos: numeros.length === 0 ? ["Não encontrei número CNJ no texto. Confira os dados antes de salvar."] : [],
@@ -245,10 +248,12 @@ Responda SOMENTE JSON válido, sem markdown, neste formato:
     "uf": "",
     "comarca": "",
     "vara": "",
-    "tipo": "civel|familia|criminal|execucao_penal|inquerito_policial|bo_pm|trabalhista|outro",
+    "tipo": "civel|familia|criminal|juri|execucao_penal|inquerito_policial|bo_pm|trabalhista|outro",
     "parte_contraria": "",
     "cliente_nome": "",
     "cliente_cpf_cnpj": "",
+    "unidade_prisional": "",
+    "tipo_penal": "crime imputado, só para processos criminais/júri/execução penal (ex.: Tráfico de drogas (art. 33, Lei 11.343/06))",
     "data_distribuicao": "YYYY-MM-DD"
   }],
   "movimentacoes": [{ "processo_numero": "", "data_movimentacao": "YYYY-MM-DD", "descricao": "", "tipo": "", "fonte": "" }],

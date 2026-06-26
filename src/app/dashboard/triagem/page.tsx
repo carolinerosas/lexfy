@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Modal } from "@/components/ui/modal";
+import { ComboBox } from "@/components/ui/combobox";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 import {
   getTriagemLeads, updateTriagemLead, deleteTriagemLead,
   getTriagemImportacoes, updateTriagemImportacao, deleteTriagemImportacao,
   createCliente, updateCliente, createAtendimento, getClientes, getProcessos,
-  createProcesso, createMovimentacao,
+  createProcesso, createMovimentacao, updateProcesso,
 } from "@/lib/store";
+import { mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions } from "@/lib/cadastro-options";
 import { formatDateTime } from "@/lib/utils";
 import type { Cliente, Processo, TriagemImportacao, TriagemImportDraft, TriagemLead } from "@/types";
 
@@ -23,6 +27,21 @@ const urgenciaVariant: Record<string, "danger" | "warning" | "neutral"> = {
 };
 
 type ImportDraft = TriagemImportDraft;
+
+const processoTipoLabels: Record<string, string> = {
+  civel: "Cível",
+  familia: "Família",
+  criminal: "Criminal",
+  juri: "Júri",
+  execucao_penal: "Execução penal",
+  inquerito_policial: "Inquérito policial",
+  bo_pm: "BO PM",
+  trabalhista: "Trabalhista",
+  previdenciario: "Previdenciário",
+  tributario: "Tributário",
+  federal: "Federal",
+  outro: "Outro",
+};
 
 function normalize(value?: string): string {
   return (value ?? "")
@@ -93,6 +112,22 @@ async function preencherClienteExistente(cliente: Cliente, dados: Partial<Client
   }
 }
 
+function processoLabel(processo: Processo): string {
+  const numero = processo.numero || (processo.tipo === "inquerito_policial" ? processo.numero_inquerito || "Inquérito sem número" : "Sem número");
+  const classe = processo.tipo ? processoTipoLabels[processo.tipo] ?? processo.tipo : "Sem classificação";
+  const penal = isPenalTipo(processo.tipo) && processo.tipo_penal ? ` — ${processo.tipo_penal}` : "";
+  return `${numero} — ${classe}${penal} — ${processo.titulo || "Processo sem título"} — ${processo.cliente_nome || "sem cliente"}`;
+}
+
+function isPenalTipo(tipo?: string): boolean {
+  const normalized = (tipo ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[\s-]+/g, "_");
+  return ["criminal", "juri", "execucao_penal"].includes(normalized);
+}
+
 export default function TriagemPage() {
   const [leads, setLeads] = useState<TriagemLead[]>([]);
   const [importacoes, setImportacoes] = useState<TriagemImportacao[]>([]);
@@ -106,6 +141,7 @@ export default function TriagemPage() {
   const [textoImportacao, setTextoImportacao] = useState("");
   const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [importacaoAtiva, setImportacaoAtiva] = useState<TriagemImportacao | null>(null);
+  const [leadParaAprovar, setLeadParaAprovar] = useState<TriagemLead | null>(null);
   const [importando, setImportando] = useState(false);
   const [salvandoImportacao, setSalvandoImportacao] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -131,21 +167,30 @@ export default function TriagemPage() {
 
   const linkTriagem = typeof window !== "undefined" ? `${window.location.origin}/triagem` : "/triagem";
 
-  async function aprovar(l: TriagemLead) {
+  async function aprovar(l: TriagemLead, vinculos: { clienteId?: string; processoId?: string } = {}) {
     setBusy(l.id);
     try {
       const contato = l.contato ?? l.telefone ?? "";
       const email = contato.includes("@") ? contato : undefined;
       const celular = !email ? contato : undefined;
-      const cli = await createCliente({
-        nome: l.nome?.trim() || "Cliente (triagem)",
+      const processo = vinculos.processoId ? processos.find((p) => p.id === vinculos.processoId) : undefined;
+      const clienteExistente = vinculos.clienteId ? clientes.find((c) => c.id === vinculos.clienteId) : undefined;
+      const cli = clienteExistente ?? await createCliente({
+        nome: l.nome?.trim() || processo?.cliente_nome || "Cliente (triagem)",
         email,
         celular,
         observacoes: [l.area ? `Área: ${l.area}` : "", l.resumo ? `Resumo: ${l.resumo}` : "", l.detalhes ? `Detalhes: ${l.detalhes}` : ""].filter(Boolean).join("\n"),
       });
+      if (clienteExistente) {
+        await preencherClienteExistente(clienteExistente, { email, celular });
+      }
+      if (processo && (processo.cliente_id !== cli.id || processo.cliente_nome !== cli.nome)) {
+        await updateProcesso(processo.id, { cliente_id: cli.id, cliente_nome: cli.nome });
+      }
       await createAtendimento({
         cliente_id: cli.id,
         cliente_nome: cli.nome,
+        processo_id: processo?.id,
         data_hora: new Date().toISOString(),
         tipo: "consulta_inicial",
         status: "agendado",
@@ -153,6 +198,7 @@ export default function TriagemPage() {
       });
       await updateTriagemLead(l.id, { status: "aprovado" });
       await load();
+      setLeadParaAprovar(null);
     } finally {
       setBusy(null);
     }
@@ -200,7 +246,10 @@ export default function TriagemPage() {
     setImportMsg(null);
     try {
       const primeiroProcesso = draft.processos[0];
-      const clienteExistente = findClienteMatch(clientes, draft.cliente, primeiroProcesso?.cliente_nome);
+      const clienteEscolhido = draft.cliente_id ? clientes.find((c) => c.id === draft.cliente_id) : undefined;
+      const clienteExistente = draft.cliente_id === ""
+        ? undefined
+        : clienteEscolhido ?? findClienteMatch(clientes, draft.cliente, primeiroProcesso?.cliente_nome);
       const nomeCliente = draft.cliente?.nome || primeiroProcesso?.cliente_nome || "Cliente importado";
       const observacoesCaso = draft.cliente?.observacoes;
       const dadosCliente = buildClienteDados(draft, primeiroProcesso);
@@ -219,14 +268,32 @@ export default function TriagemPage() {
       let criados = 0;
       let reusados = 0;
       const processosPorNumero = new Map<string, Processo>();
-      processos.forEach((p) => processosPorNumero.set(digits(p.numero), p));
+      processos.forEach((p) => {
+        const key = digits(p.numero);
+        if (key) processosPorNumero.set(key, p);
+      });
       const comMovimentacao = new Set<string>();
 
       // 1) Resolve cada processo: cria se for novo, reaproveita se já existe.
       for (const proc of draft.processos) {
-        const existente = processos.find((p) => sameProcess(p.numero, proc.numero));
+        const existente = proc.processo_id
+          ? processos.find((p) => p.id === proc.processo_id)
+          : processos.find((p) => sameProcess(p.numero, proc.numero));
         if (existente) {
-          processosPorNumero.set(digits(existente.numero), existente);
+          const upd: Partial<Processo> = {};
+          if (existente.cliente_id !== cliente.id) upd.cliente_id = cliente.id;
+          if (existente.cliente_nome !== cliente.nome) upd.cliente_nome = cliente.nome;
+          if (isPenalTipo(existente.tipo)) {
+            if (proc.unidade_prisional && !existente.unidade_prisional) upd.unidade_prisional = proc.unidade_prisional;
+            if (proc.tipo_penal && !existente.tipo_penal) upd.tipo_penal = proc.tipo_penal;
+          }
+          if (Object.keys(upd).length) {
+            await updateProcesso(existente.id, upd);
+          }
+          const keyExistente = digits(existente.numero);
+          const keyDraft = digits(proc.numero);
+          if (keyExistente) processosPorNumero.set(keyExistente, existente);
+          if (keyDraft) processosPorNumero.set(keyDraft, existente);
           reusados += 1;
           continue;
         }
@@ -246,9 +313,12 @@ export default function TriagemPage() {
           cliente_cpf_cnpj: draft.cliente?.cpf || proc.cliente_cpf_cnpj,
           parte_contraria: proc.parte_contraria,
           data_distribuicao: proc.data_distribuicao,
+          unidade_prisional: proc.unidade_prisional,
+          tipo_penal: proc.tipo_penal,
           monitorar_datajud: true,
         });
-        processosPorNumero.set(digits(novo.numero), novo);
+        const keyNovo = digits(novo.numero);
+        if (keyNovo) processosPorNumero.set(keyNovo, novo);
         criados += 1;
       }
 
@@ -470,8 +540,8 @@ export default function TriagemPage() {
                       <Button variant="outline" size="sm" onClick={() => descartar(l)} disabled={busy === l.id}>
                         <X className="w-3.5 h-3.5" /> Descartar
                       </Button>
-                      <Button size="sm" onClick={() => aprovar(l)} disabled={busy === l.id}>
-                        <CheckCircle className="w-3.5 h-3.5" /> {busy === l.id ? "Aprovando..." : "Aprovar (vira cliente)"}
+                      <Button size="sm" onClick={() => setLeadParaAprovar(l)} disabled={busy === l.id}>
+                        <CheckCircle className="w-3.5 h-3.5" /> {busy === l.id ? "Aprovando..." : "Aprovar / vincular"}
                       </Button>
                     </div>
                   )}
@@ -488,7 +558,106 @@ export default function TriagemPage() {
           })}
         </div>
       ))}
+      <AprovarTriagemModal
+        lead={leadParaAprovar}
+        clientes={clientes}
+        processos={processos}
+        saving={!!leadParaAprovar && busy === leadParaAprovar.id}
+        onClose={() => setLeadParaAprovar(null)}
+        onConfirm={(vinculos) => {
+          if (!leadParaAprovar) return;
+          aprovar(leadParaAprovar, vinculos);
+        }}
+      />
     </div>
+  );
+}
+
+function AprovarTriagemModal({
+  lead,
+  clientes,
+  processos,
+  saving,
+  onClose,
+  onConfirm,
+}: {
+  lead: TriagemLead | null;
+  clientes: Cliente[];
+  processos: Processo[];
+  saving: boolean;
+  onClose: () => void;
+  onConfirm: (vinculos: { clienteId?: string; processoId?: string }) => void;
+}) {
+  const open = !!lead;
+  const [clienteId, setClienteId] = useState("");
+  const [processoId, setProcessoId] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setClienteId("");
+    setProcessoId("");
+  }, [open, lead?.id]);
+
+  const processosOrdenados = [...processos].sort((a, b) => {
+    const aDoCliente = clienteId && a.cliente_id === clienteId ? 0 : 1;
+    const bDoCliente = clienteId && b.cliente_id === clienteId ? 0 : 1;
+    if (aDoCliente !== bDoCliente) return aDoCliente - bDoCliente;
+    return processoLabel(a).localeCompare(processoLabel(b), "pt-BR");
+  });
+  const clienteSelecionado = clientes.find((c) => c.id === clienteId);
+  const processoSelecionado = processos.find((p) => p.id === processoId);
+
+  function handleProcessoChange(value: string) {
+    setProcessoId(value);
+    const processo = processos.find((p) => p.id === value);
+    if (processo?.cliente_id) setClienteId(processo.cliente_id);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    onConfirm({ clienteId: clienteId || undefined, processoId: processoId || undefined });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Aprovar triagem" size="lg">
+      <form onSubmit={submit} className="space-y-5">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-600">
+          <p className="font-semibold text-gray-900">{lead?.nome || "Triagem sem nome"}</p>
+          {lead?.resumo && <p className="mt-1 line-clamp-3">{lead.resumo}</p>}
+        </div>
+
+        <ComboBox
+          label="Cliente existente (opcional)"
+          options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+          value={clienteId}
+          onChange={setClienteId}
+          placeholder="Criar novo cliente a partir da triagem"
+        />
+
+        <ComboBox
+          label="Processo existente (opcional)"
+          options={processosOrdenados.map((p) => ({ value: p.id, label: processoLabel(p) }))}
+          value={processoId}
+          onChange={handleProcessoChange}
+          placeholder="Sem processo específico"
+        />
+
+        <div className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          Ao aprovar, o Justio cria um atendimento desta triagem
+          {clienteSelecionado ? <> para <strong>{clienteSelecionado.nome}</strong></> : " e cria um novo cliente"}
+          {processoSelecionado ? <> vinculado ao processo <strong>{processoSelecionado.numero || processoSelecionado.titulo}</strong></> : null}.
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            <CheckCircle className="h-4 w-4" /> {saving ? "Aprovando..." : "Aprovar triagem"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -530,8 +699,69 @@ function ImportacaoAssistida({
   onExcluirImportacao: (imp: TriagemImportacao) => void;
 }) {
   const clienteMatch = findClienteMatch(clientes, draft?.cliente, draft?.processos[0]?.cliente_nome);
-  const processosNovos = draft?.processos.filter((p) => !processos.some((existente) => sameProcess(existente.numero, p.numero))).length ?? 0;
+  const clienteSelecionado = draft?.cliente_id === ""
+    ? undefined
+    : clientes.find((c) => c.id === draft?.cliente_id) ?? clienteMatch;
+  const clienteProcessos = clienteSelecionado
+    ? processos.filter((p) => p.cliente_id === clienteSelecionado.id || normalize(p.cliente_nome) === normalize(clienteSelecionado.nome))
+    : [];
+  const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processos.map((p) => p.unidade_prisional)));
+  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processos.map((p) => p.tipo_penal)));
+  const processosNovos = draft?.processos.filter((p) => !p.processo_id && !processos.some((existente) => sameProcess(existente.numero, p.numero))).length ?? 0;
   const processosExistentes = (draft?.processos.length ?? 0) - processosNovos;
+
+  function selecionarCliente(clienteId: string) {
+    if (!draft) return;
+    const cliente = clientes.find((c) => c.id === clienteId);
+    onDraftChange({
+      ...draft,
+      cliente_id: clienteId,
+      cliente: cliente ? {
+        ...(draft.cliente ?? {}),
+        nome: cliente.nome,
+        cpf: cliente.cpf,
+        rg: cliente.rg,
+        email: cliente.email,
+        celular: cliente.celular,
+        cep: cliente.cep,
+        logradouro: cliente.logradouro,
+        numero_end: cliente.numero_end,
+        complemento: cliente.complemento,
+        bairro: cliente.bairro,
+        cidade: cliente.cidade,
+        uf: cliente.uf,
+        observacoes: draft.cliente?.observacoes,
+      } : draft.cliente,
+      processos: draft.processos.map((proc) => ({ ...proc, processo_id: undefined })),
+    });
+  }
+
+  function selecionarProcesso(index: number, processoId: string) {
+    if (!draft) return;
+    const processo = processos.find((p) => p.id === processoId);
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.map((proc, i) => (
+        i === index
+          ? {
+              ...proc,
+              processo_id: processo?.id,
+              numero: processo ? processo.numero : proc.numero,
+              titulo: processo ? processo.titulo : proc.titulo,
+              tribunal: processo ? processo.tribunal : proc.tribunal,
+              vara: processo ? processo.vara : proc.vara,
+              comarca: processo ? processo.comarca : proc.comarca,
+              uf: processo ? processo.uf : proc.uf,
+              tipo: processo ? processo.tipo : proc.tipo,
+              cliente_nome: processo ? processo.cliente_nome : proc.cliente_nome,
+              cliente_cpf_cnpj: processo ? processo.cliente_cpf_cnpj : proc.cliente_cpf_cnpj,
+              unidade_prisional: processo ? processo.unidade_prisional : proc.unidade_prisional,
+              tipo_penal: processo ? processo.tipo_penal : proc.tipo_penal,
+            }
+          : proc
+      )),
+    });
+  }
 
   function setClienteField(field: keyof NonNullable<ImportDraft["cliente"]>, value: string) {
     if (!draft) return;
@@ -692,6 +922,15 @@ function ImportacaoAssistida({
                 <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Cliente</p>
                 {clienteMatch && <Badge variant="neutral">já existe: {clienteMatch.nome}</Badge>}
               </div>
+              <div className="mb-3">
+                <ComboBox
+                  label="Cliente cadastrado (corrija se o Justio reconheceu errado)"
+                  options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+                  value={draft.cliente_id ?? clienteMatch?.id ?? ""}
+                  onChange={selecionarCliente}
+                  placeholder="Criar novo cliente / sem vínculo"
+                />
+              </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <Input label="Nome" value={draft.cliente?.nome ?? draft.processos[0]?.cliente_nome ?? ""} onChange={(e) => setClienteField("nome", e.target.value)} />
                 <Input label="CPF" value={draft.cliente?.cpf ?? ""} onChange={(e) => setClienteField("cpf", e.target.value)} />
@@ -723,6 +962,17 @@ function ImportacaoAssistida({
                         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Processo {index + 1}</p>
                         {existente ? <Badge variant="neutral">já existe → movimentação</Badge> : <Badge variant="success">novo + movimentação</Badge>}
                       </div>
+                      {clienteSelecionado && (
+                        <div className="mb-3">
+                          <ComboBox
+                            label="Processo cadastrado deste cliente (opcional)"
+                            options={clienteProcessos.map((p) => ({ value: p.id, label: processoLabel(p) }))}
+                            value={proc.processo_id ?? existente?.id ?? ""}
+                            onChange={(value) => selecionarProcesso(index, value)}
+                            placeholder={clienteProcessos.length ? "Criar processo novo / sem vínculo" : "Nenhum processo cadastrado para este cliente"}
+                          />
+                        </div>
+                      )}
                       <div className="grid gap-3 md:grid-cols-2">
                         <Input label="Número CNJ" value={proc.numero ?? ""} onChange={(e) => setProcessoField(index, "numero", e.target.value)} />
                         <Input label="Título / classe" value={proc.titulo ?? ""} onChange={(e) => setProcessoField(index, "titulo", e.target.value)} />
@@ -732,6 +982,26 @@ function ImportacaoAssistida({
                         <Input label="Vara" value={proc.vara ?? ""} onChange={(e) => setProcessoField(index, "vara", e.target.value)} />
                         <Input label="Parte contrária" value={proc.parte_contraria ?? ""} onChange={(e) => setProcessoField(index, "parte_contraria", e.target.value)} />
                         <Input label="Tipo" value={proc.tipo ?? ""} onChange={(e) => setProcessoField(index, "tipo", e.target.value)} />
+                        {isPenalTipo(proc.tipo) && (
+                          <SelectComOutro
+                            label="Unidade prisional"
+                            category="processo_unidade_prisional"
+                            baseOptions={unidadePrisionalOptions}
+                            placeholder="Selecione ou cadastre..."
+                            value={proc.unidade_prisional ?? ""}
+                            onChange={(v) => setProcessoField(index, "unidade_prisional", v)}
+                          />
+                        )}
+                        {isPenalTipo(proc.tipo) && (
+                          <SelectComOutro
+                            label="Tipo penal imputado"
+                            category="processo_tipo_penal"
+                            baseOptions={tipoPenalOptions}
+                            placeholder="Selecione ou cadastre..."
+                            value={proc.tipo_penal ?? ""}
+                            onChange={(v) => setProcessoField(index, "tipo_penal", v)}
+                          />
+                        )}
                         <Input label="Data de distribuição" type="date" value={proc.data_distribuicao ?? ""} onChange={(e) => setProcessoField(index, "data_distribuicao", e.target.value)} />
                         <div className="md:col-span-2">
                           <Textarea

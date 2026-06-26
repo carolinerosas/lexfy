@@ -22,12 +22,13 @@ import {
   createAtendimento,
   updateAtendimento,
   deleteAtendimento,
+  createProcesso,
   createPrazo,
   createAudiencia,
 } from "@/lib/store";
 import type { Cliente } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, daysUntil } from "@/lib/utils";
-import type { Atendimento, AtendimentoStatus, Processo } from "@/types";
+import type { Atendimento, AtendimentoStatus, Processo, ProcessoTipo } from "@/types";
 
 const tipoOptions = [
   { value: "consulta_inicial", label: "Consulta Inicial" },
@@ -57,12 +58,50 @@ const statusLabel: Record<AtendimentoStatus, string> = {
   cancelado: "Cancelado",
 };
 
+const processoTipoOptions: { value: ProcessoTipo; label: string }[] = [
+  { value: "civel", label: "Cível" },
+  { value: "familia", label: "Família" },
+  { value: "criminal", label: "Criminal" },
+  { value: "juri", label: "Júri" },
+  { value: "execucao_penal", label: "Execução penal" },
+  { value: "trabalhista", label: "Trabalhista" },
+  { value: "previdenciario", label: "Previdenciário" },
+  { value: "tributario", label: "Tributário" },
+  { value: "federal", label: "Federal" },
+  { value: "outro", label: "Outro" },
+];
+
+function numeroKey(numero?: string): string {
+  return (numero ?? "").replace(/\D/g, "");
+}
+
+function numeroProcessoLabel(processo: Processo): string {
+  return processo.numero?.trim() || processo.numero_inquerito?.trim() || "";
+}
+
+function findProcessoByNumero(processos: Processo[], numero: string): Processo | undefined {
+  const texto = numero.trim().toLocaleLowerCase("pt-BR");
+  const digits = numeroKey(numero);
+  if (!texto && !digits) return undefined;
+
+  return processos.find((p) => {
+    const numeros = [p.numero, p.numero_inquerito].filter(Boolean) as string[];
+    return numeros.some((n) => {
+      const nTexto = n.trim().toLocaleLowerCase("pt-BR");
+      const nDigits = numeroKey(n);
+      return (digits && nDigits === digits) || (!!texto && nTexto === texto);
+    });
+  });
+}
+
 export default function AtendimentosPage() {
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"agendados" | "realizados" | "todos">("agendados");
   const [search, setSearch] = useState("");
+  const [deepLinkHandled, setDeepLinkHandled] = useState(false);
+  const [focusedAtendimentoId, setFocusedAtendimentoId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const data = await getAtendimentosWithProcesso();
@@ -71,9 +110,30 @@ export default function AtendimentosPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (deepLinkHandled || atendimentos.length === 0 || typeof window === "undefined") return;
+
+    const atendimentoId = new URLSearchParams(window.location.search).get("atendimento");
+    if (!atendimentoId) {
+      setDeepLinkHandled(true);
+      return;
+    }
+
+    setSelectedId(atendimentoId);
+    setFocusedAtendimentoId(atendimentoId);
+    setFilter("todos");
+    setSearch("");
+    setDeepLinkHandled(true);
+    window.setTimeout(() => {
+      document.getElementById("detalhe-atendimento")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [atendimentos.length, deepLinkHandled]);
+
   const selected = atendimentos.find((a) => a.id === selectedId) ?? null;
 
   const filtered = atendimentos.filter((a) => {
+    if (focusedAtendimentoId) return a.id === focusedAtendimentoId;
+
     const matchFilter =
       filter === "todos" ? true :
       filter === "agendados" ? a.status === "agendado" :
@@ -240,6 +300,7 @@ function AtendimentoDetail({
 }) {
   const [showPrazoModal, setShowPrazoModal] = useState(false);
   const [showAudModal, setShowAudModal] = useState(false);
+  const [showConverterModal, setShowConverterModal] = useState(false);
   const [notas, setNotas] = useState(atendimento.notas ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -271,7 +332,7 @@ function AtendimentoDetail({
   const changed = notas !== (atendimento.notas ?? "");
 
   return (
-    <div>
+    <div id="detalhe-atendimento">
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -351,6 +412,18 @@ function AtendimentoDetail({
             </div>
           )}
 
+          {!atendimento.processo_id && (
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+              <p className="w-full text-xs font-semibold text-gray-500 uppercase tracking-wide">Transformar atendimento</p>
+              <Button variant="secondary" size="sm" onClick={() => setShowConverterModal(true)}>
+                <FileText className="w-3.5 h-3.5" /> Converter em processo
+              </Button>
+              <p className="w-full text-xs text-gray-400">
+                Use para protocolo de petição inicial ou para habilitação em autos já em andamento.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end pt-2 border-t border-gray-100">
             <Button variant="danger" size="sm" onClick={handleDelete}>
               <Trash2 className="w-3.5 h-3.5" /> Excluir
@@ -377,6 +450,17 @@ function AtendimentoDetail({
           />
         </>
       )}
+      {!atendimento.processo_id && (
+        <ConverterAtendimentoModal
+          open={showConverterModal}
+          onClose={() => setShowConverterModal(false)}
+          atendimento={atendimento}
+          onConverted={() => {
+            setShowConverterModal(false);
+            onUpdate();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -390,6 +474,187 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
         <p className="text-sm font-medium text-gray-800">{value}</p>
       </div>
     </div>
+  );
+}
+
+function ConverterAtendimentoModal({
+  open,
+  onClose,
+  atendimento,
+  onConverted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  atendimento: Atendimento;
+  onConverted: () => void;
+}) {
+  const [processos, setProcessos] = useState<Processo[]>([]);
+  const [modo, setModo] = useState<"peticao_inicial" | "habilitacao">("peticao_inicial");
+  const [numero, setNumero] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [tipo, setTipo] = useState<ProcessoTipo>("civel");
+  const [parteContraria, setParteContraria] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    getProcessos().then(setProcessos);
+    setModo("peticao_inicial");
+    setNumero("");
+    setTitulo(`Petição inicial - ${atendimento.cliente_nome}`);
+    setTipo("civel");
+    setParteContraria("");
+    setObservacoes(atendimento.notas ?? "");
+    setError("");
+  }, [open, atendimento]);
+
+  function handleModoChange(next: "peticao_inicial" | "habilitacao") {
+    setModo(next);
+    setTitulo((current) => {
+      const originalInicial = `Petição inicial - ${atendimento.cliente_nome}`;
+      const originalHabilitacao = `Habilitação - ${atendimento.cliente_nome}`;
+      if (!current || current === originalInicial || current === originalHabilitacao) {
+        return next === "peticao_inicial" ? originalInicial : originalHabilitacao;
+      }
+      return current;
+    });
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+
+    const numeroInformado = numero.trim();
+    if (modo === "habilitacao" && !numeroInformado) {
+      setError("Informe o número do processo em andamento para habilitação.");
+      return;
+    }
+    if (!titulo.trim()) {
+      setError("Informe um título para o processo.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const existente = numeroInformado ? findProcessoByNumero(processos, numeroInformado) : undefined;
+      if (existente) {
+        await updateAtendimento(atendimento.id, { processo_id: existente.id });
+        onConverted();
+        return;
+      }
+
+      const novo = await createProcesso({
+        numero: numeroInformado,
+        titulo: titulo.trim(),
+        cliente_id: atendimento.cliente_id || undefined,
+        cliente_nome: atendimento.cliente_nome,
+        tipo,
+        parte_contraria: parteContraria.trim() || undefined,
+        descricao: [
+          modo === "peticao_inicial"
+            ? "Processo criado a partir de atendimento para protocolo de petição inicial."
+            : "Processo criado a partir de atendimento para habilitação em autos já em andamento.",
+          observacoes.trim(),
+        ].filter(Boolean).join("\n\n"),
+        status: "ativo",
+      });
+
+      await updateAtendimento(atendimento.id, { processo_id: novo.id });
+      onConverted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível converter o atendimento em processo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const processoExistente = numero.trim() ? findProcessoByNumero(processos, numero) : undefined;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Converter atendimento em processo" size="lg">
+      <form onSubmit={submit} className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${modo === "peticao_inicial" ? "border-[#21181d] bg-[#21181d]/5" : "border-gray-200 bg-white"}`}>
+            <input
+              type="radio"
+              name="modo-conversao"
+              checked={modo === "peticao_inicial"}
+              onChange={() => handleModoChange("peticao_inicial")}
+              className="sr-only"
+            />
+            <span className="block text-sm font-bold text-gray-900">Protocolo de petição inicial</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">
+              Cria um processo novo, mesmo que ainda não exista número judicial.
+            </span>
+          </label>
+
+          <label className={`cursor-pointer rounded-xl border p-4 transition-colors ${modo === "habilitacao" ? "border-[#21181d] bg-[#21181d]/5" : "border-gray-200 bg-white"}`}>
+            <input
+              type="radio"
+              name="modo-conversao"
+              checked={modo === "habilitacao"}
+              onChange={() => handleModoChange("habilitacao")}
+              className="sr-only"
+            />
+            <span className="block text-sm font-bold text-gray-900">Habilitação em autos em andamento</span>
+            <span className="mt-1 block text-xs leading-5 text-gray-500">
+              Usa o número do processo para vincular ou criar os autos.
+            </span>
+          </label>
+        </div>
+
+        <Input
+          label={modo === "habilitacao" ? "Número do processo em andamento *" : "Número do processo (se já existir)"}
+          placeholder="0000000-00.0000.0.00.0000"
+          value={numero}
+          onChange={(e) => setNumero(e.target.value)}
+          required={modo === "habilitacao"}
+          hint={processoExistente ? `Processo já cadastrado encontrado: ${processoExistente.titulo}` : undefined}
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="Título do processo *"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            required
+          />
+          <Select
+            label="Tipo"
+            options={processoTipoOptions}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as ProcessoTipo)}
+          />
+        </div>
+
+        <Input
+          label="Parte contrária"
+          placeholder="Nome da parte contrária, se houver"
+          value={parteContraria}
+          onChange={(e) => setParteContraria(e.target.value)}
+        />
+
+        <Textarea
+          label="Observações que irão para o processo"
+          rows={5}
+          value={observacoes}
+          onChange={(e) => setObservacoes(e.target.value)}
+        />
+
+        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Convertendo..." : processoExistente ? "Vincular ao processo encontrado" : "Criar processo e vincular"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -408,6 +673,7 @@ function NovoAtendimentoModal({
   const [form, setForm] = useState({
     cliente_nome: "",
     processo_id: "",
+    processo_numero: "",
     data_hora: "",
     tipo: "",
     duracao_min: "",
@@ -433,28 +699,46 @@ function NovoAtendimentoModal({
   }
 
   function handleProcessoChange(processoId: string) {
-    set("processo_id", processoId);
-    if (processoId && !form.cliente_nome) {
-      const proc = processos.find((p) => p.id === processoId);
-      if (proc) set("cliente_nome", proc.cliente_nome);
-    }
+    const proc = processos.find((p) => p.id === processoId);
+    setForm((f) => ({
+      ...f,
+      processo_id: processoId,
+      processo_numero: proc ? numeroProcessoLabel(proc) : f.processo_numero,
+      cliente_nome: proc && !f.cliente_nome ? proc.cliente_nome : f.cliente_nome,
+    }));
+    if (proc?.cliente_id) setClienteId(proc.cliente_id);
+  }
+
+  function handleProcessoNumeroChange(value: string) {
+    const proc = findProcessoByNumero(processos, value);
+    setForm((f) => ({
+      ...f,
+      processo_numero: value,
+      processo_id: proc ? proc.id : value.trim() ? "" : f.processo_id,
+      cliente_nome: proc && !f.cliente_nome ? proc.cliente_nome : f.cliente_nome,
+    }));
+    if (proc?.cliente_id) setClienteId(proc.cliente_id);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.cliente_nome || !form.data_hora) return;
+    const processoPorNumero = form.processo_numero ? findProcessoByNumero(processos, form.processo_numero) : undefined;
+    const notaNumeroProcesso = form.processo_numero && !processoPorNumero
+      ? `Número do processo informado no atendimento: ${form.processo_numero.trim()}`
+      : "";
     const novo = await createAtendimento({
       cliente_id: clienteId || undefined,
       cliente_nome: form.cliente_nome,
-      processo_id: form.processo_id || undefined,
+      processo_id: form.processo_id || processoPorNumero?.id || undefined,
       data_hora: form.data_hora,
       tipo: form.tipo as any || undefined,
       duracao_min: form.duracao_min ? parseInt(form.duracao_min) : undefined,
       status: form.status,
-      notas: form.notas || undefined,
+      notas: [notaNumeroProcesso, form.notas].filter(Boolean).join("\n\n") || undefined,
       valor_cobrado: form.valor_cobrado ? parseFloat(form.valor_cobrado) : undefined,
     });
-    setForm({ cliente_nome: "", processo_id: "", data_hora: "", tipo: "", duracao_min: "", status: "agendado", notas: "", valor_cobrado: "" });
+    setForm({ cliente_nome: "", processo_id: "", processo_numero: "", data_hora: "", tipo: "", duracao_min: "", status: "agendado", notas: "", valor_cobrado: "" });
     setClienteId("");
     onCreated(novo.id);
   }
@@ -480,6 +764,17 @@ function NovoAtendimentoModal({
           placeholder="Selecione se vinculado a processo..."
           value={form.processo_id}
           onChange={handleProcessoChange}
+        />
+        <Input
+          label="Número do processo relacionado (opcional)"
+          placeholder="Digite o número para vincular automaticamente"
+          value={form.processo_numero}
+          onChange={(e) => handleProcessoNumeroChange(e.target.value)}
+          hint={
+            form.processo_numero && findProcessoByNumero(processos, form.processo_numero)
+              ? "Processo encontrado. O atendimento será vinculado a ele."
+              : "Se o processo já estiver cadastrado, ele aparecerá também na aba Atendimentos do processo."
+          }
         />
         <Input
           label="Nome do Cliente *"

@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Mail, Search, Settings } from "lucide-react";
+import { ArrowLeft, Mail, Search, Settings } from "lucide-react";
 import { SearchModal } from "@/components/ui/search-modal";
 
 export function TopBar() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
+  const showBack = pathname !== "/dashboard";
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -19,9 +23,33 @@ export function TopBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  function handleBack() {
+    if (typeof window !== "undefined") {
+      const sameOriginReferrer = document.referrer.startsWith(window.location.origin);
+      if (sameOriginReferrer && window.history.length > 1) {
+        router.back();
+        return;
+      }
+    }
+
+    router.push("/dashboard");
+  }
+
   return (
     <>
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gray-50/95 px-4 backdrop-blur md:px-6">
+        {showBack && (
+          <button
+            type="button"
+            onClick={handleBack}
+            title="Voltar"
+            aria-label="Voltar para a página anterior"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-800"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => setSearchOpen(true)}

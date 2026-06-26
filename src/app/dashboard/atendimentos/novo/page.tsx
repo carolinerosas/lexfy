@@ -26,6 +26,29 @@ const statusOptions = [
   { value: "agendado", label: "Agendado" },
 ];
 
+function numeroKey(numero?: string): string {
+  return (numero ?? "").replace(/\D/g, "");
+}
+
+function numeroProcessoLabel(processo: Processo): string {
+  return processo.numero?.trim() || processo.numero_inquerito?.trim() || "";
+}
+
+function findProcessoByNumero(processos: Processo[], numero: string): Processo | undefined {
+  const texto = numero.trim().toLocaleLowerCase("pt-BR");
+  const digits = numeroKey(numero);
+  if (!texto && !digits) return undefined;
+
+  return processos.find((p) => {
+    const numeros = [p.numero, p.numero_inquerito].filter(Boolean) as string[];
+    return numeros.some((n) => {
+      const nTexto = n.trim().toLocaleLowerCase("pt-BR");
+      const nDigits = numeroKey(n);
+      return (digits && nDigits === digits) || (!!texto && nTexto === texto);
+    });
+  });
+}
+
 function agoraLocalISO(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -41,6 +64,7 @@ export default function NovoAtendimentoPage() {
   const [form, setForm] = useState({
     cliente_nome: "",
     processo_id: "",
+    processo_numero: "",
     data_hora: agoraLocalISO(),
     tipo: "",
     duracao_min: "",
@@ -66,11 +90,25 @@ export default function NovoAtendimentoPage() {
   }
 
   function handleProcessoChange(processoId: string) {
-    set("processo_id", processoId);
-    if (processoId && !form.cliente_nome) {
-      const proc = processos.find((p) => p.id === processoId);
-      if (proc) set("cliente_nome", proc.cliente_nome);
-    }
+    const proc = processos.find((p) => p.id === processoId);
+    setForm((f) => ({
+      ...f,
+      processo_id: processoId,
+      processo_numero: proc ? numeroProcessoLabel(proc) : f.processo_numero,
+      cliente_nome: proc && !f.cliente_nome ? proc.cliente_nome : f.cliente_nome,
+    }));
+    if (proc?.cliente_id) setClienteId(proc.cliente_id);
+  }
+
+  function handleProcessoNumeroChange(value: string) {
+    const proc = findProcessoByNumero(processos, value);
+    setForm((f) => ({
+      ...f,
+      processo_numero: value,
+      processo_id: proc ? proc.id : value.trim() ? "" : f.processo_id,
+      cliente_nome: proc && !f.cliente_nome ? proc.cliente_nome : f.cliente_nome,
+    }));
+    if (proc?.cliente_id) setClienteId(proc.cliente_id);
   }
 
   async function submit(e: React.FormEvent) {
@@ -78,15 +116,19 @@ export default function NovoAtendimentoPage() {
     if (!form.cliente_nome || !form.data_hora) return;
     setSaving(true);
     try {
+      const processoPorNumero = form.processo_numero ? findProcessoByNumero(processos, form.processo_numero) : undefined;
+      const notaNumeroProcesso = form.processo_numero && !processoPorNumero
+        ? `Número do processo informado no atendimento: ${form.processo_numero.trim()}`
+        : "";
       await createAtendimento({
         cliente_id: clienteId || undefined,
         cliente_nome: form.cliente_nome,
-        processo_id: form.processo_id || undefined,
+        processo_id: form.processo_id || processoPorNumero?.id || undefined,
         data_hora: form.data_hora,
         tipo: (form.tipo as Parameters<typeof createAtendimento>[0]["tipo"]) || undefined,
         duracao_min: form.duracao_min ? parseInt(form.duracao_min) : undefined,
         status: form.status as "agendado" | "realizado" | "cancelado",
-        notas: form.notas || undefined,
+        notas: [notaNumeroProcesso, form.notas].filter(Boolean).join("\n\n") || undefined,
         valor_cobrado: form.valor_cobrado ? parseFloat(form.valor_cobrado) : undefined,
       });
       router.push("/dashboard/atendimentos");
@@ -137,6 +179,17 @@ export default function NovoAtendimentoPage() {
                 onChange={handleProcessoChange}
               />
             </div>
+            <Input
+              label="Número do processo relacionado (opcional)"
+              placeholder="Digite o número para vincular automaticamente"
+              value={form.processo_numero}
+              onChange={(e) => handleProcessoNumeroChange(e.target.value)}
+              hint={
+                form.processo_numero && findProcessoByNumero(processos, form.processo_numero)
+                  ? "Processo encontrado. O atendimento será vinculado a ele."
+                  : "Se o processo já estiver cadastrado, ele aparecerá também na aba Atendimentos do processo."
+              }
+            />
             <div className="grid gap-4 md:grid-cols-4">
               <Select label="Tipo" options={tipoOptions} placeholder="Tipo..." value={form.tipo} onChange={(e) => set("tipo", e.target.value)} />
               <Input label="Data e Hora *" type="datetime-local" value={form.data_hora} onChange={(e) => set("data_hora", e.target.value)} required />

@@ -53,7 +53,6 @@ const moreItems: MobileNavItem[] = [
 
 const ordemMobile = [
   "/dashboard",
-  "/dashboard/briefing",
   "/dashboard/clientes",
   "/dashboard/processos",
   "/dashboard/publicacoes",
@@ -64,6 +63,7 @@ const ordemMobile = [
   "/dashboard/triagem",
   "/dashboard/modelos",
   "/dashboard/financeiro",
+  "/dashboard/briefing",
 ];
 
 const mainHrefs = new Set(mainItems.map((item) => item.href));

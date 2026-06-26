@@ -14,6 +14,7 @@ import {
   Clock,
   FolderOpen,
   ListTodo,
+  Sparkles,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,26 @@ export default function DashboardPage() {
           })}
         </p>
       </div>
+
+      <Link href="/dashboard/briefing" className="mb-6 block">
+        <div className="group flex min-w-0 flex-col gap-4 rounded-2xl border border-[#21181d]/10 bg-gradient-to-br from-[#21181d] to-[#3a2a35] p-5 text-white shadow-lg shadow-[#21181d]/10 transition-all hover:-translate-y-0.5 hover:shadow-xl sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/60">Briefing</p>
+              <h2 className="mt-1 text-lg font-black tracking-tight">Leia o briefing de hoje</h2>
+              <p className="mt-1 text-sm leading-6 text-white/70">
+                Veja o resumo do dia, pontos de atenção e próximos movimentos importantes.
+              </p>
+            </div>
+          </div>
+          <div className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#21181d] transition-transform group-hover:translate-x-0.5">
+            Abrir briefing <ArrowRight className="h-4 w-4" />
+          </div>
+        </div>
+      </Link>
 
       {(stats.prazosVencidos > 0 || stats.tarefasVencidas > 0 || stats.publicacoesNaoLidas > 0 || stats.movimentacoesNaoLidas > 0) && (
         <div className="mb-6 flex min-w-0 flex-wrap gap-3">

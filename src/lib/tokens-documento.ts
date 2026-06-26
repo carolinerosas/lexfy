@@ -59,7 +59,7 @@ export function montarDadosDocumento(cliente: Cliente, perfil: PerfilAdvogado): 
     cidade,
     uf,
     cep: cliente.cep ?? "",
-    unidade_prisional: cliente.unidade_prisional ?? "",
+    unidade_prisional: "",
 
     // Advogada
     adv_nome: perfil.nome ?? "",

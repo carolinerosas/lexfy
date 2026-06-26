@@ -2,23 +2,55 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Users, ChevronRight, Search, Plus, Trash2 } from "lucide-react";
+import { Users, ChevronRight, Search, Plus, Trash2, FileText, Calendar, Loader2, AlertTriangle, Link2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { getClientesSummary, createCliente, deleteCliente, importarClientesExistentes, contarVinculosClienteNome, excluirClienteNaoCadastrado, type ClienteSummary } from "@/lib/store";
+import { ComboBox } from "@/components/ui/combobox";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
+import {
+  getClientesSummary,
+  getClientes,
+  getProcessos,
+  createCliente,
+  deleteCliente,
+  importarClientesExistentes,
+  contarVinculosClienteNome,
+  getVinculosClienteNaoCadastrado,
+  excluirClienteNaoCadastrado,
+  vincularClienteNaoCadastradoAExistente,
+  type ClienteSummary,
+  type ClienteNaoCadastradoVinculos,
+} from "@/lib/store";
 import { formatDate } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
+import {
+  ajustarGenero,
+  estadoCivilOptions,
+  mergeOptions,
+  nacionalidadeOptions,
+  profissaoOptions,
+  valuesToOptions,
+} from "@/lib/cadastro-options";
 import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
+import type { Cliente, Processo } from "@/types";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
 ].map((uf) => ({ value: uf, label: uf }));
 
 type Summary = ClienteSummary & { id?: string; cadastrado: boolean };
+
+const ALFABETO = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+// Primeira letra do nome, sem acento e maiúscula (ex.: "Ávila" -> "A"). Não-letras viram "#".
+function primeiraLetra(nome: string): string {
+  const ch = nome.trim().charAt(0).normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("pt-BR");
+  return /[A-Z]/.test(ch) ? ch : "#";
+}
 
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Summary[]>([]);
@@ -29,6 +61,13 @@ export default function ClientesPage() {
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Summary | null>(null);
+  const [deleteVinculos, setDeleteVinculos] = useState<ClienteNaoCadastradoVinculos | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteActionBusy, setDeleteActionBusy] = useState(false);
+  const [deleteOptions, setDeleteOptions] = useState({ atendimentos: true, processos: false });
+  const [linkTarget, setLinkTarget] = useState<Summary | null>(null);
+  const [letra, setLetra] = useState("");
 
   const naoCadastrados = clientes.filter((c) => !c.cadastrado).length;
 
@@ -68,6 +107,29 @@ export default function ClientesPage() {
 
   async function handleDeleteNaoCadastrado(cliente: Summary) {
     if (cliente.id) return;
+    setDeleteTarget(cliente);
+    setDeleteVinculos(null);
+    setDeleteLoading(true);
+    try {
+      const vinculos = await getVinculosClienteNaoCadastrado(cliente.nome);
+      setDeleteVinculos(vinculos);
+      setDeleteOptions({
+        atendimentos: vinculos.atendimentos.length > 0,
+        processos: vinculos.atendimentos.length === 0 && vinculos.processos.length > 0,
+      });
+    } catch (err: any) {
+      window.alert(err instanceof Error ? err.message : "Não foi possível carregar os vínculos deste nome.");
+      setDeleteTarget(null);
+      return;
+      window.alert(err instanceof Error ? err.message : "NÃ£o foi possÃ­vel carregar os vÃ­nculos deste nome.");
+      setDeleteTarget(null);
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
+  async function handleDeleteNaoCadastradoAntigo(cliente: Summary) {
+    if (cliente.id) return;
     const v = await contarVinculosClienteNome(cliente.nome);
     const partes: string[] = [];
     if (v.processos > 0) partes.push(`${v.processos} processo${v.processos !== 1 ? "s" : ""}`);
@@ -78,20 +140,66 @@ export default function ClientesPage() {
     await load();
   }
 
+  function fecharDeleteNaoCadastrado() {
+    if (deleteActionBusy) return;
+    setDeleteTarget(null);
+    setDeleteVinculos(null);
+    setDeleteOptions({ atendimentos: true, processos: false });
+  }
+
+  async function confirmarDeleteNaoCadastrado() {
+    if (!deleteTarget || !deleteVinculos) return;
+    const apagarAtendimentos = deleteOptions.atendimentos && deleteVinculos.atendimentos.length > 0;
+    const apagarProcessos = deleteOptions.processos && deleteVinculos.processos.length > 0;
+
+    if (!apagarAtendimentos && !apagarProcessos) {
+      window.alert("Escolha pelo menos um tipo de vinculo para excluir.");
+      return;
+    }
+
+    setDeleteActionBusy(true);
+    try {
+      await excluirClienteNaoCadastrado(deleteTarget.nome, {
+        atendimentos: apagarAtendimentos,
+        processos: apagarProcessos,
+      });
+      await load();
+      fecharDeleteNaoCadastrado();
+    } finally {
+      setDeleteActionBusy(false);
+    }
+  }
+
+  function abrirVinculoNaoCadastrado(cliente: Summary) {
+    if (cliente.id) return;
+    setLinkTarget(cliente);
+  }
+
   const load = useCallback(async () => {
     setClientes(await getClientesSummary());
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = clientes.filter((c) =>
-    c.nome.toLowerCase().includes(query.toLowerCase())
+  const filtered = clientes
+    .filter((c) => c.nome.toLowerCase().includes(query.toLowerCase()))
+    .filter((c) => !letra || primeiraLetra(c.nome) === letra)
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR", { sensitivity: "base" }));
+
+  const letrasDisponiveis = new Set(
+    clientes
+      .filter((c) => c.nome.toLowerCase().includes(query.toLowerCase()))
+      .map((c) => primeiraLetra(c.nome))
   );
 
   const cadastrados = clientes.filter((c) => c.cadastrado).length;
 
   const todosSelecionados = filtered.length > 0 && filtered.every((c) => selecionados.has(keyOf(c)));
   const algumSelecionado = selecionados.size > 0;
+  const deleteHasSelection = !!deleteVinculos && (
+    (deleteOptions.atendimentos && deleteVinculos.atendimentos.length > 0) ||
+    (deleteOptions.processos && deleteVinculos.processos.length > 0)
+  );
 
   function toggleTodos() {
     if (todosSelecionados) limparSelecao();
@@ -110,7 +218,7 @@ export default function ClientesPage() {
     try {
       for (const c of alvos) {
         if (c.id) await deleteCliente(c.id);
-        else await excluirClienteNaoCadastrado(c.nome);
+        else await excluirClienteNaoCadastrado(c.nome, { processos: true, atendimentos: true });
       }
       await load();
       encerrarSelecao();
@@ -152,6 +260,46 @@ export default function ClientesPage() {
           placeholder="Filtrar por nome…"
           className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-gray-400 transition-colors bg-white"
         />
+      </div>
+
+      <div className="mb-4 flex flex-wrap items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setLetra("")}
+          className={`h-7 min-w-7 rounded-md px-1.5 text-xs font-semibold transition-colors ${letra === "" ? "bg-[#21181d] text-white" : "text-gray-500 hover:bg-gray-100"}`}
+        >
+          Todas
+        </button>
+        {ALFABETO.map((l) => {
+          const disponivel = letrasDisponiveis.has(l);
+          return (
+            <button
+              key={l}
+              type="button"
+              disabled={!disponivel}
+              onClick={() => setLetra((atual) => (atual === l ? "" : l))}
+              className={`h-7 w-7 rounded-md text-xs font-semibold transition-colors ${
+                letra === l
+                  ? "bg-[#21181d] text-white"
+                  : disponivel
+                    ? "text-gray-600 hover:bg-gray-100"
+                    : "cursor-not-allowed text-gray-300"
+              }`}
+            >
+              {l}
+            </button>
+          );
+        })}
+        {letrasDisponiveis.has("#") && (
+          <button
+            type="button"
+            onClick={() => setLetra((atual) => (atual === "#" ? "" : "#"))}
+            className={`h-7 w-7 rounded-md text-xs font-semibold transition-colors ${letra === "#" ? "bg-[#21181d] text-white" : "text-gray-600 hover:bg-gray-100"}`}
+            title="Outros (números/símbolos)"
+          >
+            #
+          </button>
+        )}
       </div>
 
       {filtered.length > 0 && (
@@ -253,7 +401,14 @@ export default function ClientesPage() {
                   </button>
                 </div>
               ) : (
-                <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+                <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
+                  <button
+                    type="button"
+                    onClick={() => abrirVinculoNaoCadastrado(c)}
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                  >
+                    <Link2 className="h-3.5 w-3.5" /> Vincular
+                  </button>
                   <button
                     onClick={() => {
                       setPreNome(c.nome);
@@ -261,7 +416,7 @@ export default function ClientesPage() {
                     }}
                     className="inline-flex h-9 items-center justify-center rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
                   >
-                    + Cadastrar cliente
+                    + Cadastrar
                   </button>
                   <button
                     type="button"
@@ -363,6 +518,13 @@ export default function ClientesPage() {
                       ) : (
                         <div className="flex items-center justify-end gap-2">
                           <button
+                            type="button"
+                            onClick={() => abrirVinculoNaoCadastrado(c)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-semibold text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 whitespace-nowrap"
+                          >
+                            <Link2 className="h-3.5 w-3.5" /> Vincular
+                          </button>
+                          <button
                             onClick={() => {
                               setPreNome(c.nome);
                               setShowModal(true);
@@ -403,27 +565,290 @@ export default function ClientesPage() {
           onCreated={() => { load(); setShowProcessoModal(false); }}
         />
       )}
+      <VincularClienteNaoCadastradoModal
+        target={linkTarget}
+        onClose={() => setLinkTarget(null)}
+        onSaved={() => { setLinkTarget(null); load(); }}
+      />
+      <Modal
+        open={!!deleteTarget}
+        onClose={fecharDeleteNaoCadastrado}
+        title="Remover cliente não cadastrado"
+        size="lg"
+      >
+        <div className="space-y-5">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-semibold">{deleteTarget?.nome}</p>
+                <p className="mt-1">
+                  Esse nome aparece como não cadastrado porque ainda existe atendimento ou processo usando esse nome.
+                  Escolha o que deseja excluir junto.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {deleteLoading || !deleteVinculos ? (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-100 bg-gray-50 py-10 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Carregando vínculos...
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${deleteOptions.atendimentos ? "border-[#21181d] bg-[#21181d]/5" : "border-gray-200 bg-white"} ${deleteVinculos.atendimentos.length === 0 ? "cursor-not-allowed opacity-60" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.atendimentos && deleteVinculos.atendimentos.length > 0}
+                    disabled={deleteVinculos.atendimentos.length === 0 || deleteActionBusy}
+                    onChange={(e) => setDeleteOptions((prev) => ({ ...prev, atendimentos: e.target.checked }))}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">
+                      Excluir atendimento{deleteVinculos.atendimentos.length !== 1 ? "s" : ""}
+                    </span>
+                    <span className="mt-1 block text-xs text-gray-500">
+                      {deleteVinculos.atendimentos.length} encontrado{deleteVinculos.atendimentos.length !== 1 ? "s" : ""}.
+                    </span>
+                  </span>
+                </label>
+
+                <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${deleteOptions.processos ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"} ${deleteVinculos.processos.length === 0 ? "cursor-not-allowed opacity-60" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={deleteOptions.processos && deleteVinculos.processos.length > 0}
+                    disabled={deleteVinculos.processos.length === 0 || deleteActionBusy}
+                    onChange={(e) => setDeleteOptions((prev) => ({ ...prev, processos: e.target.checked }))}
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-red-600"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-900">
+                      Excluir processo{deleteVinculos.processos.length !== 1 ? "s" : ""}
+                    </span>
+                    <span className="mt-1 block text-xs text-gray-500">
+                      {deleteVinculos.processos.length} encontrado{deleteVinculos.processos.length !== 1 ? "s" : ""}. Isso também apaga prazos, audiências e honorários do processo.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              {deleteVinculos.atendimentos.length === 0 && deleteVinculos.processos.length === 0 ? (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                  Não encontrei vínculos ativos para esse nome. Atualize a página; ele deve sair da lista.
+                </div>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {deleteVinculos.atendimentos.length > 0 && (
+                    <div>
+                      <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                        <Calendar className="h-3.5 w-3.5" /> Atendimentos encontrados
+                      </h3>
+                      <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
+                        {deleteVinculos.atendimentos.map((a) => (
+                          <div key={a.id} className="rounded-lg bg-white p-3 text-sm shadow-sm">
+                            <p className="font-semibold text-gray-900">{formatDate(a.data_hora)} · {a.status}</p>
+                            {a.notas && <p className="mt-1 max-h-16 overflow-hidden text-xs leading-5 text-gray-500">{a.notas}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {deleteVinculos.processos.length > 0 && (
+                    <div>
+                      <h3 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                        <FileText className="h-3.5 w-3.5" /> Processos encontrados
+                      </h3>
+                      <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-2">
+                        {deleteVinculos.processos.map((p) => (
+                          <div key={p.id} className="rounded-lg bg-white p-3 text-sm shadow-sm">
+                            <p className="font-semibold text-gray-900">{p.titulo || "Processo sem título"}</p>
+                            {p.numero && <p className="mt-1 break-all text-xs text-gray-500">Nº {p.numero}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={fecharDeleteNaoCadastrado} disabled={deleteActionBusy}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={confirmarDeleteNaoCadastrado}
+                  disabled={!deleteHasSelection || deleteActionBusy}
+                >
+                  {deleteActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Excluir selecionados
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
+  );
+}
+
+function processoLabel(p: Processo): string {
+  const numero = p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Sem número");
+  return `${numero} — ${p.titulo || "Processo sem título"} — ${p.cliente_nome || "sem cliente"}`;
+}
+
+function VincularClienteNaoCadastradoModal({
+  target,
+  onClose,
+  onSaved,
+}: {
+  target: Summary | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const open = !!target;
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [processos, setProcessos] = useState<Processo[]>([]);
+  const [clienteId, setClienteId] = useState("");
+  const [processoId, setProcessoId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setClienteId("");
+    setProcessoId("");
+    setErro(null);
+    Promise.all([getClientes(), getProcessos()]).then(([cls, procs]) => {
+      setClientes(cls);
+      setProcessos(procs);
+    });
+  }, [open, target?.nome]);
+
+  const processosOrdenados = [...processos].sort((a, b) => {
+    const aDoCliente = clienteId && a.cliente_id === clienteId ? 0 : 1;
+    const bDoCliente = clienteId && b.cliente_id === clienteId ? 0 : 1;
+    if (aDoCliente !== bDoCliente) return aDoCliente - bDoCliente;
+    return processoLabel(a).localeCompare(processoLabel(b), "pt-BR");
+  });
+
+  const clienteSelecionado = clientes.find((c) => c.id === clienteId);
+  const processoSelecionado = processos.find((p) => p.id === processoId);
+  const processoDeOutroCliente = !!processoSelecionado?.cliente_id && processoSelecionado.cliente_id !== clienteId;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!target || !clienteId) return;
+    setSaving(true);
+    setErro(null);
+    try {
+      await vincularClienteNaoCadastradoAExistente(target.nome, clienteId, { processoId: processoId || undefined });
+      onSaved();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não foi possível vincular agora.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vincular cliente não cadastrado" size="lg">
+      <form onSubmit={submit} className="space-y-5">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">{target?.nome}</p>
+          <p className="mt-1">
+            Esse nome veio de atendimento/triagem ou processo sem vínculo. Escolha o cliente já cadastrado e, se for o caso, o processo existente.
+          </p>
+        </div>
+
+        <ComboBox
+          label="Cliente existente *"
+          options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+          value={clienteId}
+          onChange={(value) => {
+            setClienteId(value);
+            const processoAtual = processos.find((p) => p.id === processoId);
+            if (value && processoAtual?.cliente_id && processoAtual.cliente_id !== value) setProcessoId("");
+          }}
+          placeholder="Buscar cliente cadastrado..."
+        />
+
+        <ComboBox
+          label="Processo existente (opcional)"
+          options={processosOrdenados.map((p) => ({ value: p.id, label: processoLabel(p) }))}
+          value={processoId}
+          onChange={setProcessoId}
+          placeholder="Sem processo específico"
+        />
+
+        {clienteSelecionado && (
+          <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            Os atendimentos/triagens de <strong>{target?.nome}</strong> passarão a aparecer em <strong>{clienteSelecionado.nome}</strong>
+            {processoSelecionado ? <> e também no processo <strong>{processoSelecionado.numero || processoSelecionado.titulo}</strong></> : null}.
+          </div>
+        )}
+
+        {processoDeOutroCliente && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            Este processo está em outro cliente. Ao salvar, ele também será vinculado ao cliente escolhido acima.
+          </div>
+        )}
+
+        {erro && <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>}
+
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={!clienteId || saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+            {saving ? "Vinculando..." : "Vincular"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
 function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean; preNome?: string; onClose: () => void; onCreated: () => void }) {
   const empty = {
     nome: "", cpf: "", rg: "", sexo: "", nacionalidade: "", estado_civil: "", profissao: "",
-    unidade_prisional: "", email: "", celular: "",
+    email: "", celular: "",
     cep: "", logradouro: "", numero_end: "", complemento: "",
     bairro: "", cidade: "", uf: "", observacoes: "",
   };
   const [form, setForm] = useState(empty);
+  const [clientesExistentes, setClientesExistentes] = useState<Cliente[]>([]);
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "ok" | "erro">("idle");
 
   useEffect(() => {
-    if (open) { setForm((f) => ({ ...empty, nome: preNome ?? "" })); setCepStatus("idle"); }
+    if (open) {
+      setForm((f) => ({ ...empty, nome: preNome ?? "" }));
+      setCepStatus("idle");
+      getClientes().then(setClientesExistentes);
+    }
   }, [open, preNome]);
 
   function set(field: string, value: string) {
-    setForm((f) => ({ ...f, [field]: value }));
+    setForm((f) => {
+      if (field !== "sexo") return { ...f, [field]: value };
+      return {
+        ...f,
+        sexo: value,
+        nacionalidade: ajustarGenero(f.nacionalidade, value),
+        estado_civil: ajustarGenero(f.estado_civil, value),
+        profissao: ajustarGenero(f.profissao, value),
+      };
+    });
   }
+
+  const nacionalidadeBase = mergeOptions(nacionalidadeOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.nacionalidade).map((v) => ajustarGenero(v, form.sexo))));
+  const estadoCivilBase = mergeOptions(estadoCivilOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.estado_civil).map((v) => ajustarGenero(v, form.sexo))));
+  const profissaoBase = mergeOptions(profissaoOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.profissao).map((v) => ajustarGenero(v, form.sexo))));
 
   async function handleCepChange(value: string) {
     const masked = formatCEP(value);
@@ -438,10 +863,10 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
     if (end) {
       setForm((f) => ({
         ...f,
-        logradouro: end.logradouro || f.logradouro,
-        bairro: end.bairro || f.bairro,
-        cidade: end.cidade || f.cidade,
-        uf: end.uf || f.uf,
+        logradouro: end.logradouro,
+        bairro: end.bairro,
+        cidade: end.cidade,
+        uf: end.uf,
       }));
       setCepStatus("ok");
     } else {
@@ -460,7 +885,6 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
       nacionalidade: form.nacionalidade || undefined,
       estado_civil: form.estado_civil || undefined,
       profissao: form.profissao || undefined,
-      unidade_prisional: form.unidade_prisional || undefined,
       email: form.email || undefined,
       celular: form.celular || undefined,
       cep: form.cep || undefined,
@@ -489,11 +913,10 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
               <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo} onChange={(e) => set("sexo", e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade} onChange={(e) => set("nacionalidade", e.target.value)} />
-              <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil} onChange={(e) => set("estado_civil", e.target.value)} />
-              <Input label="Profissão" placeholder="profissão" value={form.profissao} onChange={(e) => set("profissao", e.target.value)} />
+              <SelectComOutro label="Nacionalidade" category={`cliente_nacionalidade_${form.sexo || "geral"}`} baseOptions={nacionalidadeBase} placeholder="Selecione..." value={form.nacionalidade} onChange={(v) => set("nacionalidade", v)} />
+              <SelectComOutro label="Estado civil" category={`cliente_estado_civil_${form.sexo || "geral"}`} baseOptions={estadoCivilBase} placeholder="Selecione..." value={form.estado_civil} onChange={(v) => set("estado_civil", v)} />
+              <SelectComOutro label="Profissão" category={`cliente_profissao_${form.sexo || "geral"}`} baseOptions={profissaoBase} placeholder="Selecione..." value={form.profissao} onChange={(v) => set("profissao", v)} />
             </div>
-            <Input label="Unidade prisional (execução penal)" placeholder="Ex.: Cadeia Pública de Barra Mansa" value={form.unidade_prisional} onChange={(e) => set("unidade_prisional", e.target.value)} />
           </div>
         </div>
 

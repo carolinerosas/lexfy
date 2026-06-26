@@ -9,7 +9,8 @@ import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { createProcesso, createCliente, getClientes } from "@/lib/store";
+import { createProcesso, createCliente, updateCliente, updateProcesso, getClientes, getProcessos } from "@/lib/store";
+import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import {
   buscarNoDataJud,
   DataJudError,
@@ -18,7 +19,7 @@ import {
   ufFromTribunalDataJud,
   type DataJudResult,
 } from "@/lib/datajud";
-import type { Cliente, InqueritoSituacao, ProcessoTipo } from "@/types";
+import type { Cliente, InqueritoSituacao, Processo, ProcessoTipo } from "@/types";
 
 const ufs = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -29,6 +30,7 @@ const tipoOptions = [
   { value: "civel", label: "Cível" },
   { value: "familia", label: "Família" },
   { value: "criminal", label: "Criminal" },
+  { value: "juri", label: "Júri" },
   { value: "execucao_penal", label: "Execução penal" },
   { value: "inquerito_policial", label: "Inquérito policial" },
   { value: "bo_pm", label: "BO PM" },
@@ -70,7 +72,8 @@ function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): Proce
   if (/(inquerito policial|inquérito policial)/.test(texto)) return "inquerito_policial";
   if (/(boletim de ocorrencia|boletim de ocorrência)/.test(texto)) return "bo_pm";
   if (/(familia|família|alimentos|guarda|divorcio|divórcio|uniao estavel|união estável)/.test(texto)) return "familia";
-  if (/(penal|criminal|crime|pena|juri|júri|trafico|tráfico)/.test(texto)) return "criminal";
+  if (/(juri|júri|tribunal do juri|tribunal do júri)/.test(texto)) return "juri";
+  if (/(penal|criminal|crime|pena|trafico|tráfico)/.test(texto)) return "criminal";
   if (/(trabalh|reclamacao trabalhista|trt)/.test(texto)) return "trabalhista";
   if (/(previdenc|beneficio|aposentad|inss)/.test(texto)) return "previdenciario";
   if (/(tribut|fiscal|execucao fiscal)/.test(texto)) return "tributario";
@@ -115,6 +118,8 @@ function emptyForm() {
     numero_inquerito: "",
     delegacia: "",
     autoridade_policial: "",
+    unidade_prisional: "",
+    tipo_penal: "",
     data_instauracao: "",
     situacao_inquerito: "em_andamento" as InqueritoSituacao,
     relatorio_final: "",
@@ -124,6 +129,7 @@ function emptyForm() {
 
 export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: Props) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [processosExistentes, setProcessosExistentes] = useState<Processo[]>([]);
   const [clienteId, setClienteId] = useState(clienteInicial?.id ?? "");
   const [form, setForm] = useState(() => ({
     ...emptyForm(),
@@ -136,10 +142,14 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
   const [dataJudMessage, setDataJudMessage] = useState("");
   const [numeroConsultado, setNumeroConsultado] = useState("");
   const isInquerito = form.tipo === "inquerito_policial";
+  const isPenal = ["criminal", "juri", "execucao_penal"].includes(form.tipo);
 
   useEffect(() => {
     if (!open) return;
-    getClientes().then(setClientes);
+    Promise.all([getClientes(), getProcessos()]).then(([cls, procs]) => {
+      setClientes(cls);
+      setProcessosExistentes(procs);
+    });
   }, [open]);
 
   useEffect(() => {
@@ -215,6 +225,11 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  const varaOptions = mergeOptions(varaBaseOptions, valuesToOptions(processosExistentes.map((p) => p.vara)));
+  const comarcaOptions = mergeOptions(comarcaBaseOptions, valuesToOptions(processosExistentes.map((p) => p.comarca)));
+  const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processosExistentes.map((p) => p.unidade_prisional)));
+  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosExistentes.map((p) => p.tipo_penal)));
+
   function handleClienteSelect(id: string) {
     setClienteId(id);
     if (!id) return;
@@ -273,14 +288,30 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         numero_inquerito: isInquerito ? form.numero_inquerito || undefined : undefined,
         delegacia: isInquerito ? form.delegacia || undefined : undefined,
         autoridade_policial: isInquerito ? form.autoridade_policial || undefined : undefined,
+        unidade_prisional: isPenal ? form.unidade_prisional || undefined : undefined,
+        tipo_penal: isPenal ? form.tipo_penal || undefined : undefined,
         data_instauracao: isInquerito ? form.data_instauracao || undefined : undefined,
         situacao_inquerito: isInquerito ? form.situacao_inquerito || undefined : undefined,
         relatorio_final: isInquerito ? form.relatorio_final || undefined : undefined,
         status: "ativo",
       });
+      // A unidade prisional é do apenado: guarda na ficha do cliente e nos demais processos criminais/execução do mesmo cliente.
+      if (isPenal && resolvedClienteId && form.unidade_prisional.trim()) {
+        const unidade = form.unidade_prisional.trim();
+        await updateCliente(resolvedClienteId, { unidade_prisional: unidade });
+        const irmaos = processosExistentes.filter(
+          (p) =>
+            p.cliente_id === resolvedClienteId &&
+            ["criminal", "juri", "execucao_penal"].includes(String(p.tipo ?? "")) &&
+            (p.unidade_prisional ?? "") !== unidade
+        );
+        await Promise.all(irmaos.map((p) => updateProcesso(p.id, { unidade_prisional: unidade })));
+      }
       onCreated();
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Não foi possível salvar o cadastro.");
+      const detalhe = error instanceof Error ? error.message : "Não foi possível salvar o cadastro.";
+      const precisaSql = /unidade_prisional|schema cache|column/i.test(detalhe);
+      setSaveError(precisaSql ? `${detalhe} — rode o SQL supabase-processos-unidade-prisional.sql no Supabase.` : detalhe);
     } finally {
       setSaving(false);
     }
@@ -298,7 +329,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
             onChange={(e) => set("numero", e.target.value)}
           />
           <SelectComOutro
-            label="Tipo"
+            label="Classificação"
             category="processo_tipo"
             baseOptions={tipoOptions}
             placeholder="Selecione..."
@@ -353,6 +384,27 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
           </div>
         )}
 
+        {isPenal && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <SelectComOutro
+              label="Unidade prisional (do apenado)"
+              category="processo_unidade_prisional"
+              baseOptions={unidadePrisionalOptions}
+              placeholder="Selecione ou cadastre..."
+              value={form.unidade_prisional}
+              onChange={(v) => set("unidade_prisional", v)}
+            />
+            <SelectComOutro
+              label="Tipo penal imputado"
+              category="processo_tipo_penal"
+              baseOptions={tipoPenalOptions}
+              placeholder="Selecione ou cadastre..."
+              value={form.tipo_penal}
+              onChange={(v) => set("tipo_penal", v)}
+            />
+          </div>
+        )}
+
         {clientes.length > 0 && (
           <ComboBox
             label="Cliente cadastrado"
@@ -393,11 +445,13 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
             value={form.tribunal}
             onChange={(e) => set("tribunal", e.target.value)}
           />
-          <Input
+          <SelectComOutro
             label="Vara / Câmara"
-            placeholder="1ª Vara Cível"
+            category="processo_vara"
+            baseOptions={varaOptions}
+            placeholder="Selecione ou cadastre..."
             value={form.vara}
-            onChange={(e) => set("vara", e.target.value)}
+            onChange={(v) => set("vara", v)}
           />
           <Select
             label="UF"
@@ -409,11 +463,13 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
+          <SelectComOutro
             label="Comarca"
-            placeholder="Rio de Janeiro"
+            category="processo_comarca"
+            baseOptions={comarcaOptions}
+            placeholder="Selecione ou cadastre..."
             value={form.comarca}
-            onChange={(e) => set("comarca", e.target.value)}
+            onChange={(v) => set("comarca", v)}
           />
           <Input
             label="Fase Processual"

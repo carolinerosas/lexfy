@@ -20,7 +20,7 @@ import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
-  getProcesso, getProcessos, getClientes, createProcesso, updateProcesso, deleteProcesso,
+  getProcesso, getProcessos, getClientes, createProcesso, updateProcesso, updateCliente, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
@@ -34,6 +34,7 @@ import {
   getBeneficiosPenaisByProcesso, createBeneficioPenal, updateBeneficioPenal, deleteBeneficioPenal,
   sincronizarProcesso,
 } from "@/lib/store";
+import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import type {
   Cliente, Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
@@ -75,6 +76,7 @@ const processoTipoOptions: { value: ProcessoTipo; label: string }[] = [
   { value: "civel", label: "Cível" },
   { value: "familia", label: "Direito de família" },
   { value: "criminal", label: "Criminal" },
+  { value: "juri", label: "Júri" },
   { value: "execucao_penal", label: "Execução penal" },
   { value: "inquerito_policial", label: "Inquérito policial" },
   { value: "bo_pm", label: "Boletim de Ocorrência PM" },
@@ -177,7 +179,7 @@ function isExecucaoPenalTipo(tipo?: string): boolean {
 
 function isAcaoPenalTipo(tipo?: string): boolean {
   const normalized = normalizeTipo(tipo);
-  return normalized === "criminal" || normalized === "acao_penal" || normalized === "penal";
+  return normalized === "criminal" || normalized === "juri" || normalized === "júri" || normalized === "acao_penal" || normalized === "penal";
 }
 
 function isInqueritoTipo(tipo?: string): boolean {
@@ -363,11 +365,19 @@ export default function ProcessoDetailPage() {
     <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">
       <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-          <Link href="/dashboard/processos">
-            <button className="mt-1 p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              // Volta para a página anterior (ex.: a ficha do cliente). Se não houver
+              // histórico interno (link aberto direto), cai na lista de processos.
+              if (typeof window !== "undefined" && window.history.length > 1) router.back();
+              else router.push("/dashboard/processos");
+            }}
+            className="mt-1 p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <div className="flex min-w-0 items-center gap-2">
@@ -464,6 +474,12 @@ export default function ProcessoDetailPage() {
         <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "—"} />
         <InfoCard icon={<MapPin className="w-4 h-4 text-rose-500" />} label="Comarca" value={processo.comarca ?? "—"} />
+        {processo.unidade_prisional && (
+          <InfoCard icon={<Shield className="w-4 h-4 text-amber-600" />} label="Unidade prisional" value={processo.unidade_prisional} />
+        )}
+        {processo.tipo_penal && (
+          <InfoCard icon={<Scale className="w-4 h-4 text-amber-600" />} label="Tipo penal imputado" value={processo.tipo_penal} />
+        )}
       </div>
 
       {processo.descricao && (
@@ -2386,11 +2402,13 @@ function TransformarInqueritoModal({
 function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boolean; onClose: () => void; processo: Processo; onSaved: () => void }) {
   const [form, setForm] = useState({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
   const [processosRelacionaveis, setProcessosRelacionaveis] = useState<Processo[]>([]);
+  const [processosParaOpcoes, setProcessosParaOpcoes] = useState<Processo[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setForm({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
     getProcessos().then((lista) => {
+      setProcessosParaOpcoes(lista);
       setProcessosRelacionaveis(
         lista.filter((p) => p.id !== processo.id && (p.tipo === "criminal" || p.tipo === "execucao_penal"))
       );
@@ -2399,8 +2417,14 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
 
+  const varaOptions = mergeOptions(varaBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.vara)));
+  const comarcaOptions = mergeOptions(comarcaBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.comarca)));
+  const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.unidade_prisional)));
+  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.tipo_penal)));
+
   const permiteIntegracao = form.tipo === "inquerito_policial" || form.tipo === "bo_pm";
   const isInqueritoForm = isInqueritoTipo(form.tipo as string);
+  const isPenalForm = ["criminal", "juri", "execucao_penal"].includes(normalizeTipo(form.tipo as string));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -2415,6 +2439,8 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         numero_inquerito: isInqueritoForm ? form.numero_inquerito || undefined : undefined,
         delegacia: isInqueritoForm ? form.delegacia || undefined : undefined,
         autoridade_policial: isInqueritoForm ? form.autoridade_policial || undefined : undefined,
+        unidade_prisional: isPenalForm ? form.unidade_prisional || undefined : undefined,
+        tipo_penal: isPenalForm ? form.tipo_penal || undefined : undefined,
         data_instauracao: isInqueritoForm ? form.data_instauracao || undefined : undefined,
         situacao_inquerito: isInqueritoForm ? (form.situacao_inquerito as InqueritoSituacao) || undefined : undefined,
         relatorio_final: isInqueritoForm ? form.relatorio_final || undefined : undefined,
@@ -2422,9 +2448,26 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
         descricao: form.descricao || undefined,
       });
+      // Unidade prisional é do apenado: replica na ficha do cliente e em todos os processos criminais/execução do mesmo cliente.
+      if (isPenalForm && processo.cliente_id && (form.unidade_prisional ?? "").trim()) {
+        const unidade = (form.unidade_prisional ?? "").trim();
+        await updateCliente(processo.cliente_id, { unidade_prisional: unidade });
+        const irmaos = processosParaOpcoes.filter(
+          (p) =>
+            p.id !== processo.id &&
+            p.cliente_id === processo.cliente_id &&
+            ["criminal", "juri", "execucao_penal"].includes(normalizeTipo(p.tipo as string)) &&
+            (p.unidade_prisional ?? "") !== unidade
+        );
+        await Promise.all(irmaos.map((p) => updateProcesso(p.id, { unidade_prisional: unidade })));
+      }
       onSaved();
     } catch (error) {
-      alert(`Não consegui salvar o processo. Se você escolheu uma classificação nova ou integrou a um processo criminal, rode primeiro o SQL supabase-processos-resultados.sql.\n\nDetalhe: ${error instanceof Error ? error.message : "erro desconhecido"}`);
+      const detalhe = error instanceof Error ? error.message : "erro desconhecido";
+      const sql = /unidade_prisional|schema cache|column/i.test(detalhe)
+        ? "supabase-processos-unidade-prisional.sql"
+        : "supabase-processos-resultados.sql";
+      alert(`Não consegui salvar o processo. Se você escolheu uma classificação nova, integrou a um processo criminal ou incluiu unidade prisional, rode primeiro o SQL correspondente (${sql}).\n\nDetalhe: ${detalhe}`);
     }
   }
 
@@ -2475,10 +2518,30 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
             <Textarea label="Relatório final / observações do inquérito" rows={4} value={form.relatorio_final ?? ""} onChange={(e) => set("relatorio_final", e.target.value)} />
           </div>
         )}
+        {isPenalForm && (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <SelectComOutro
+              label="Unidade prisional (do apenado)"
+              category="processo_unidade_prisional"
+              baseOptions={unidadePrisionalOptions}
+              placeholder="Selecione ou cadastre..."
+              value={form.unidade_prisional ?? ""}
+              onChange={(v) => set("unidade_prisional", v)}
+            />
+            <SelectComOutro
+              label="Tipo penal imputado"
+              category="processo_tipo_penal"
+              baseOptions={tipoPenalOptions}
+              placeholder="Selecione ou cadastre..."
+              value={form.tipo_penal ?? ""}
+              onChange={(v) => set("tipo_penal", v)}
+            />
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           <Input label="Tribunal" value={form.tribunal ?? ""} onChange={(e) => set("tribunal", e.target.value)} />
-          <Input label="Vara" value={form.vara ?? ""} onChange={(e) => set("vara", e.target.value)} />
-          <Input label="Comarca" value={form.comarca ?? ""} onChange={(e) => set("comarca", e.target.value)} />
+          <SelectComOutro label="Vara" category="processo_vara" baseOptions={varaOptions} placeholder="Selecione..." value={form.vara ?? ""} onChange={(v) => set("vara", v)} />
+          <SelectComOutro label="Comarca" category="processo_comarca" baseOptions={comarcaOptions} placeholder="Selecione..." value={form.comarca ?? ""} onChange={(v) => set("comarca", v)} />
           <Input label="UF" value={form.uf ?? ""} onChange={(e) => set("uf", e.target.value)} />
         </div>
         <Textarea label="Descrição" value={form.descricao ?? ""} onChange={(e) => set("descricao", e.target.value)} />

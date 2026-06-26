@@ -5,6 +5,7 @@ export type ProcessoTipo =
   | "civel"
   | "familia"
   | "criminal"
+  | "juri"
   | "execucao_penal"
   | "inquerito_policial"
   | "bo_pm"
@@ -151,6 +152,8 @@ export interface Processo {
   numero_inquerito?: string;
   delegacia?: string;
   autoridade_policial?: string;
+  unidade_prisional?: string;
+  tipo_penal?: string;
   data_instauracao?: string;
   situacao_inquerito?: InqueritoSituacao;
   relatorio_final?: string;
@@ -324,6 +327,7 @@ export interface TriagemLead {
 }
 
 export interface TriagemImportDraft {
+  cliente_id?: string;
   cliente?: {
     nome?: string;
     cpf?: string;
@@ -340,6 +344,7 @@ export interface TriagemImportDraft {
     observacoes?: string;
   };
   processos: Array<{
+    processo_id?: string;
     numero: string;
     titulo?: string;
     descricao?: string;
@@ -352,6 +357,8 @@ export interface TriagemImportDraft {
     cliente_nome?: string;
     cliente_cpf_cnpj?: string;
     data_distribuicao?: string;
+    unidade_prisional?: string;
+    tipo_penal?: string;
   }>;
   movimentacoes?: Array<{
     processo_numero?: string;

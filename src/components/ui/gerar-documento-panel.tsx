@@ -368,7 +368,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
                         <button
                           type="button"
                           key={p.id}
-                          onClick={() => setValores((v) => ({ ...v, processo: numeroProcesso(p) }))}
+                          onClick={() => setValores((v) => ({ ...v, processo: numeroProcesso(p), unidade_prisional: p.unidade_prisional ?? v.unidade_prisional ?? "" }))}
                           className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                             numeroProcesso(p) && valores.processo === numeroProcesso(p)
                               ? "border-[#21181d] bg-gray-50"
@@ -377,6 +377,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
                         >
                           <span className="shrink-0 font-mono text-xs text-gray-500">{numeroProcesso(p) || "sem número"}</span>
                           <span className="truncate text-gray-800">{p.titulo}</span>
+                          {p.tipo && <span className="shrink-0 rounded bg-gray-100 px-1.5 text-[10px] font-medium text-gray-600">{p.tipo}</span>}
                           {p.tipo === "inquerito_policial" && <span className="shrink-0 rounded bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700">inquérito</span>}
                         </button>
                       ))}

@@ -14,15 +14,24 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  getCliente, updateCliente, deleteCliente,
+  getCliente, getClientes, updateCliente, deleteCliente,
   getProcessos, updateProcesso,
   getProcessosByCliente, getHonorariosByCliente,
   getAtendimentosByCliente, getPrazosByCliente, getAudienciasByCliente,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
+import {
+  ajustarGenero,
+  estadoCivilOptions,
+  mergeOptions,
+  nacionalidadeOptions,
+  profissaoOptions,
+  valuesToOptions,
+} from "@/lib/cadastro-options";
 import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia } from "@/types";
 import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
@@ -293,7 +302,6 @@ export default function ClienteDetailPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Honorários</CardTitle>
-              <Link href="/dashboard/financeiro" className="text-xs text-gray-400 hover:text-gray-700">Ver todos</Link>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -330,7 +338,6 @@ export default function ClienteDetailPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Atendimentos</CardTitle>
-              <Link href="/dashboard/atendimentos" className="text-xs text-gray-400 hover:text-gray-700">Ver todos</Link>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -339,14 +346,17 @@ export default function ClienteDetailPage() {
             ) : (
               <ul className="divide-y divide-gray-50">
                 {atendimentos.slice(0, 5).map((a) => (
-                  <li key={a.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900">{formatDateTime(a.data_hora)}</p>
-                      {a.notas && <p className="text-xs text-gray-400 truncate mt-0.5">{a.notas}</p>}
-                    </div>
-                    <Badge className="ml-auto" variant={a.status === "realizado" ? "success" : a.status === "cancelado" ? "danger" : "warning"}>
-                      {a.status === "agendado" ? "Agendado" : a.status === "realizado" ? "Realizado" : "Cancelado"}
-                    </Badge>
+                  <li key={a.id} className="transition-colors hover:bg-gray-50/70">
+                    <Link href={`/dashboard/atendimentos?atendimento=${encodeURIComponent(a.id)}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900">{formatDateTime(a.data_hora)}</p>
+                        {a.notas && <p className="text-xs text-gray-400 truncate mt-0.5">{a.notas}</p>}
+                      </div>
+                      <Badge className="ml-auto" variant={a.status === "realizado" ? "success" : a.status === "cancelado" ? "danger" : "warning"}>
+                        {a.status === "agendado" ? "Agendado" : a.status === "realizado" ? "Realizado" : "Cancelado"}
+                      </Badge>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -529,9 +539,29 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
   open: boolean; cliente: Cliente; onClose: () => void; onSaved: () => void;
 }) {
   const [form, setForm] = useState({ ...cliente });
+  const [clientesExistentes, setClientesExistentes] = useState<Cliente[]>([]);
   const [cepStatus, setCepStatus] = useState<"idle" | "loading" | "ok" | "erro">("idle");
-  useEffect(() => { setForm({ ...cliente }); setCepStatus("idle"); }, [cliente]);
-  function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
+  useEffect(() => {
+    setForm({ ...cliente });
+    setCepStatus("idle");
+    if (open) getClientes().then(setClientesExistentes);
+  }, [cliente, open]);
+  function set(field: string, value: string) {
+    setForm((f) => {
+      if (field !== "sexo") return { ...f, [field]: value };
+      return {
+        ...f,
+        sexo: value,
+        nacionalidade: ajustarGenero(f.nacionalidade, value),
+        estado_civil: ajustarGenero(f.estado_civil, value),
+        profissao: ajustarGenero(f.profissao, value),
+      };
+    });
+  }
+
+  const nacionalidadeBase = mergeOptions(nacionalidadeOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.nacionalidade).map((v) => ajustarGenero(v, form.sexo))));
+  const estadoCivilBase = mergeOptions(estadoCivilOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.estado_civil).map((v) => ajustarGenero(v, form.sexo))));
+  const profissaoBase = mergeOptions(profissaoOptions(form.sexo), valuesToOptions(clientesExistentes.map((c) => c.profissao).map((v) => ajustarGenero(v, form.sexo))));
 
   async function handleCepChange(value: string) {
     const masked = formatCEP(value);
@@ -543,15 +573,29 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
     if (end) {
       setForm((f) => ({
         ...f,
-        logradouro: end.logradouro || f.logradouro,
-        bairro: end.bairro || f.bairro,
-        cidade: end.cidade || f.cidade,
-        uf: end.uf || f.uf,
+        logradouro: end.logradouro,
+        bairro: end.bairro,
+        cidade: end.cidade,
+        uf: end.uf,
       }));
       setCepStatus("ok");
     } else {
       setCepStatus("erro");
     }
+  }
+
+  function limparEndereco() {
+    setForm((f) => ({
+      ...f,
+      cep: "",
+      logradouro: "",
+      numero_end: "",
+      complemento: "",
+      bairro: "",
+      cidade: "",
+      uf: "",
+    }));
+    setCepStatus("idle");
   }
 
   async function submit(e: React.FormEvent) {
@@ -562,7 +606,6 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
       nacionalidade: form.nacionalidade || undefined,
       estado_civil: form.estado_civil || undefined,
       profissao: form.profissao || undefined,
-      unidade_prisional: form.unidade_prisional || undefined,
       email: form.email || undefined, celular: form.celular || undefined,
       cep: form.cep || undefined, logradouro: form.logradouro || undefined,
       numero_end: form.numero_end || undefined, complemento: form.complemento || undefined,
@@ -577,6 +620,11 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
       <form onSubmit={submit} className="space-y-5">
         <div>
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificação</p>
+          <div className="-mt-2 mb-3 flex justify-end">
+            <Button type="button" variant="ghost" size="sm" onClick={limparEndereco} className="text-xs text-gray-400 hover:text-red-600">
+              Limpar endereço
+            </Button>
+          </div>
           <div className="space-y-3">
             <Input label="Nome completo *" value={form.nome ?? ""} onChange={(e) => set("nome", e.target.value)} required />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -585,11 +633,10 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
               <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo ?? ""} onChange={(e) => set("sexo", e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Input label="Nacionalidade" placeholder="brasileira" value={form.nacionalidade ?? ""} onChange={(e) => set("nacionalidade", e.target.value)} />
-              <Input label="Estado civil" placeholder="solteiro(a)" value={form.estado_civil ?? ""} onChange={(e) => set("estado_civil", e.target.value)} />
-              <Input label="Profissão" placeholder="profissão" value={form.profissao ?? ""} onChange={(e) => set("profissao", e.target.value)} />
+              <SelectComOutro label="Nacionalidade" category={`cliente_nacionalidade_${form.sexo || "geral"}`} baseOptions={nacionalidadeBase} placeholder="Selecione..." value={form.nacionalidade ?? ""} onChange={(v) => set("nacionalidade", v)} />
+              <SelectComOutro label="Estado civil" category={`cliente_estado_civil_${form.sexo || "geral"}`} baseOptions={estadoCivilBase} placeholder="Selecione..." value={form.estado_civil ?? ""} onChange={(v) => set("estado_civil", v)} />
+              <SelectComOutro label="Profissão" category={`cliente_profissao_${form.sexo || "geral"}`} baseOptions={profissaoBase} placeholder="Selecione..." value={form.profissao ?? ""} onChange={(v) => set("profissao", v)} />
             </div>
-            <Input label="Unidade prisional (execução penal)" placeholder="Ex.: Cadeia Pública de Barra Mansa" value={form.unidade_prisional ?? ""} onChange={(e) => set("unidade_prisional", e.target.value)} />
           </div>
         </div>
         <div>

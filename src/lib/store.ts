@@ -971,7 +971,11 @@ export async function createCliente(
 }
 
 export async function updateCliente(id: string, input: Partial<Cliente>): Promise<void> {
-  await supabase.from("clientes").update({ ...normalizarNomeCliente(input), updated_at: now() }).eq("id", id);
+  const normalizado = normalizarNomeCliente(input);
+  const limpo = Object.fromEntries(
+    Object.entries(normalizado).map(([key, value]) => [key, value === undefined ? null : value])
+  );
+  await supabase.from("clientes").update({ ...limpo, updated_at: now() }).eq("id", id);
 }
 
 export async function deleteCliente(id: string): Promise<void> {
@@ -986,21 +990,91 @@ export async function deleteCliente(id: string): Promise<void> {
 }
 
 // Conta o que está vinculado a um nome de cliente não cadastrado
-export async function contarVinculosClienteNome(nome: string): Promise<{ processos: number; atendimentos: number }> {
-  const [processos, atendimentos] = await Promise.all([getProcessos(), getAtendimentos()]);
+export interface ClienteNaoCadastradoVinculos {
+  processos: Processo[];
+  atendimentos: Atendimento[];
+}
+
+function filtrarVinculosSemClienteCadastrado(
+  nome: string,
+  clientes: Cliente[],
+  processos: Processo[],
+  atendimentos: Atendimento[]
+): ClienteNaoCadastradoVinculos {
+  const clienteIds = new Set(clientes.map((c) => c.id));
+  const semClienteAtivo = (clienteId?: string) => !clienteId || !clienteIds.has(clienteId);
+
   return {
-    processos: processos.filter((p) => p.cliente_nome === nome && !p.cliente_id).length,
-    atendimentos: atendimentos.filter((a) => a.cliente_nome === nome && !a.cliente_id).length,
+    processos: processos.filter((p) => p.cliente_nome === nome && semClienteAtivo(p.cliente_id)),
+    atendimentos: atendimentos.filter((a) => a.cliente_nome === nome && semClienteAtivo(a.cliente_id)),
+  };
+}
+
+export async function getVinculosClienteNaoCadastrado(nome: string): Promise<ClienteNaoCadastradoVinculos> {
+  const [clientes, processos, atendimentos] = await Promise.all([getClientes(), getProcessos(), getAtendimentos()]);
+  return filtrarVinculosSemClienteCadastrado(nome, clientes, processos, atendimentos);
+}
+
+export async function contarVinculosClienteNome(nome: string): Promise<{ processos: number; atendimentos: number }> {
+  const vinculos = await getVinculosClienteNaoCadastrado(nome);
+  return {
+    processos: vinculos.processos.length,
+    atendimentos: vinculos.atendimentos.length,
   };
 }
 
 // Remove um "cliente não cadastrado": apaga os processos e atendimentos que carregam aquele nome
-export async function excluirClienteNaoCadastrado(nome: string): Promise<void> {
-  const [processos, atendimentos] = await Promise.all([getProcessos(), getAtendimentos()]);
-  const procs = processos.filter((p) => p.cliente_nome === nome && !p.cliente_id);
-  for (const p of procs) await deleteProcesso(p.id);
-  const atends = atendimentos.filter((a) => a.cliente_nome === nome && !a.cliente_id);
-  await Promise.all(atends.map((a) => deleteAtendimento(a.id)));
+export async function excluirClienteNaoCadastrado(
+  nome: string,
+  opcoes: { processos?: boolean; atendimentos?: boolean } = { processos: true, atendimentos: true }
+): Promise<void> {
+  const vinculos = await getVinculosClienteNaoCadastrado(nome);
+
+  if (opcoes.processos) {
+    for (const p of vinculos.processos) await deleteProcesso(p.id);
+  }
+
+  if (opcoes.atendimentos) {
+    const processosRemovidos = new Set(opcoes.processos ? vinculos.processos.map((p) => p.id) : []);
+    const atendimentos = vinculos.atendimentos.filter((a) => !a.processo_id || !processosRemovidos.has(a.processo_id));
+    await Promise.all(atendimentos.map((a) => deleteAtendimento(a.id)));
+  }
+}
+
+export async function vincularClienteNaoCadastradoAExistente(
+  nome: string,
+  clienteId: string,
+  opcoes: { processoId?: string } = {}
+): Promise<{ processos: number; atendimentos: number }> {
+  const [clientes, processos, atendimentos] = await Promise.all([getClientes(), getProcessos(), getAtendimentos()]);
+  const cliente = clientes.find((c) => c.id === clienteId);
+  if (!cliente) throw new Error("Cliente existente não encontrado.");
+
+  const processo = opcoes.processoId ? processos.find((p) => p.id === opcoes.processoId) : undefined;
+  if (opcoes.processoId && !processo) throw new Error("Processo existente não encontrado.");
+
+  const vinculos = filtrarVinculosSemClienteCadastrado(nome, clientes, processos, atendimentos);
+
+  for (const p of vinculos.processos) {
+    await updateProcesso(p.id, { cliente_id: cliente.id, cliente_nome: cliente.nome });
+  }
+
+  for (const a of vinculos.atendimentos) {
+    await updateAtendimento(a.id, {
+      cliente_id: cliente.id,
+      cliente_nome: cliente.nome,
+      processo_id: processo?.id ?? a.processo_id,
+    });
+  }
+
+  if (processo && (processo.cliente_id !== cliente.id || processo.cliente_nome !== cliente.nome)) {
+    await updateProcesso(processo.id, { cliente_id: cliente.id, cliente_nome: cliente.nome });
+  }
+
+  return {
+    processos: vinculos.processos.length + (processo ? 1 : 0),
+    atendimentos: vinculos.atendimentos.length,
+  };
 }
 
 export async function importarClientesExistentes(): Promise<number> {
@@ -1052,14 +1126,18 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
     getAtendimentos(),
   ]);
 
+  const registeredNomes = new Set(clientes.map((c) => c.nome));
+  const registeredIds = new Set(clientes.map((c) => c.id));
+  const semClienteAtivo = (clienteId?: string) => !clienteId || !registeredIds.has(clienteId);
+
   function buildSummary(id: string | undefined, nome: string, cadastrado: boolean) {
     const procs = processos.filter((p) =>
-      id ? (p.cliente_id === id || p.cliente_nome === nome) : p.cliente_nome === nome
+      id ? (p.cliente_id === id || p.cliente_nome === nome) : p.cliente_nome === nome && semClienteAtivo(p.cliente_id)
     );
     const procIds = new Set(procs.map((p) => p.id));
     const hons = honorarios.filter((h) => procIds.has(h.processo_id));
     const atens = atendimentos.filter((a) =>
-      id ? (a.cliente_id === id || a.cliente_nome === nome) : a.cliente_nome === nome
+      id ? (a.cliente_id === id || a.cliente_nome === nome) : a.cliente_nome === nome && semClienteAtivo(a.cliente_id)
     );
     const totalCobrado = hons.filter((h) => h.categoria === "cobranca").reduce((s, h) => s + h.valor, 0);
     const totalPago = hons.filter((h) => h.categoria === "pagamento").reduce((s, h) => s + h.valor, 0);
@@ -1077,12 +1155,11 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
     };
   }
 
-  const registeredNomes = new Set(clientes.map((c) => c.nome));
   const registered = clientes.map((c) => buildSummary(c.id, c.nome, true));
 
   const nomesSet = new Set<string>();
-  processos.forEach((p) => { if (p.cliente_nome && !registeredNomes.has(p.cliente_nome)) nomesSet.add(p.cliente_nome); });
-  atendimentos.forEach((a) => { if (a.cliente_nome && !registeredNomes.has(a.cliente_nome)) nomesSet.add(a.cliente_nome); });
+  processos.forEach((p) => { if (p.cliente_nome && !registeredNomes.has(p.cliente_nome) && semClienteAtivo(p.cliente_id)) nomesSet.add(p.cliente_nome); });
+  atendimentos.forEach((a) => { if (a.cliente_nome && !registeredNomes.has(a.cliente_nome) && semClienteAtivo(a.cliente_id)) nomesSet.add(a.cliente_nome); });
   const unregistered = Array.from(nomesSet).filter(Boolean).map((nome) => buildSummary(undefined, nome, false));
 
   return [...registered, ...unregistered].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
@@ -1125,12 +1202,16 @@ export async function getHonorariosByCliente(idOrNome: string): Promise<Honorari
 }
 
 export async function getAtendimentosByCliente(idOrNome: string): Promise<Atendimento[]> {
-  const { data } = await supabase
-    .from("atendimentos")
-    .select("*")
-    .or(`cliente_id.eq.${idOrNome},cliente_nome.eq.${idOrNome}`)
-    .order("data_hora", { ascending: false });
-  return (data ?? []) as Atendimento[];
+  const chave = idOrNome.trim().toLocaleLowerCase("pt-BR");
+  const todos = await getAtendimentos();
+
+  return todos
+    .filter((a) => {
+      const clienteId = a.cliente_id?.trim().toLocaleLowerCase("pt-BR");
+      const clienteNome = a.cliente_nome?.trim().toLocaleLowerCase("pt-BR");
+      return clienteId === chave || clienteNome === chave;
+    })
+    .sort((a, b) => new Date(b.data_hora).getTime() - new Date(a.data_hora).getTime());
 }
 
 // --- Dashboard Stats ---
