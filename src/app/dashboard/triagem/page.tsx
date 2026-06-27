@@ -263,23 +263,12 @@ export default function TriagemPage() {
         }
         return out;
       };
-      // Resolve litisconsortes adicionados na triagem: usa o cliente cadastrado se houver, senão cria.
-      const resolverPartes = async (extras?: ProcessoClienteParte[]): Promise<ProcessoClienteParte[]> => {
-        const out: ProcessoClienteParte[] = [];
-        for (const parte of extras ?? []) {
-          const nome = parte.nome?.trim();
-          if (!nome) continue;
-          let cid = parte.cliente_id;
-          let cpf = parte.cpf_cnpj;
-          if (!cid) {
-            const existe = clientes.find((c) => c.nome.toLowerCase().trim() === nome.toLowerCase());
-            if (existe) { cid = existe.id; cpf = cpf || existe.cpf; }
-            else { const novoCli = await createCliente({ nome, cpf: cpf || undefined }); cid = novoCli.id; cpf = novoCli.cpf; }
-          }
-          out.push({ cliente_id: cid, nome, cpf_cnpj: cpf || undefined, papel: parte.papel || "Litisconsorte" });
-        }
-        return out;
-      };
+      // Mantém os litisconsortes como foram preenchidos. NÃO cria cliente automaticamente:
+      // só vira cliente quando a usuária clica em "+ cliente" (aí a parte já vem com cliente_id).
+      const resolverPartes = (extras?: ProcessoClienteParte[]): ProcessoClienteParte[] =>
+        (extras ?? [])
+          .filter((p) => p.nome?.trim())
+          .map((p) => ({ ...p, nome: p.nome.trim(), papel: p.papel || "Litisconsorte" }));
 
       const primeiroProcesso = draft.processos[0];
       const clienteEscolhido = draft.cliente_id ? clientes.find((c) => c.id === draft.cliente_id) : undefined;
@@ -320,7 +309,7 @@ export default function TriagemPage() {
           if (existente.cliente_id !== cliente.id) upd.cliente_id = cliente.id;
           if (existente.cliente_nome !== cliente.nome) upd.cliente_nome = cliente.nome;
           const partesAtuais = partesDoProcesso(existente);
-          const extrasResolvidas = await resolverPartes(proc.clientes_partes);
+          const extrasResolvidas = resolverPartes(proc.clientes_partes);
           upd.clientes_partes = dedupPartes([
             ...partesAtuais,
             { cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: draft.cliente?.cpf || proc.cliente_cpf_cnpj, papel: partesAtuais.length === 0 ? "Cliente principal" : "Cliente" },
@@ -342,7 +331,7 @@ export default function TriagemPage() {
           continue;
         }
 
-        const extrasNovo = await resolverPartes(proc.clientes_partes);
+        const extrasNovo = resolverPartes(proc.clientes_partes);
         const novo = await createProcesso({
           numero: proc.numero,
           titulo: proc.titulo || "Processo importado",
@@ -516,6 +505,7 @@ export default function TriagemPage() {
           onCarregarImportacao={carregarImportacao}
           onDescartarImportacao={descartarImportacao}
           onExcluirImportacao={excluirImportacao}
+          recarregar={load}
         />
       )}
 
@@ -729,6 +719,7 @@ function ImportacaoAssistida({
   onCarregarImportacao,
   onDescartarImportacao,
   onExcluirImportacao,
+  recarregar,
 }: {
   texto: string;
   setTexto: (value: string) => void;
@@ -747,9 +738,9 @@ function ImportacaoAssistida({
   onCarregarImportacao: (imp: TriagemImportacao) => void;
   onDescartarImportacao: (imp: TriagemImportacao) => void;
   onExcluirImportacao: (imp: TriagemImportacao) => void;
+  recarregar?: () => void;
 }) {
   const [dataJud, setDataJud] = useState<Record<number, { status: "loading" | "ok" | "erro"; msg: string }>>({});
-  const [parteInput, setParteInput] = useState<Record<number, { nome: string; cpf: string }>>({});
 
   const clienteMatch = findClienteMatch(clientes, draft?.cliente, draft?.processos[0]?.cliente_nome);
   const clienteSelecionado = draft?.cliente_id === ""
@@ -950,41 +941,83 @@ function ImportacaoAssistida({
     }
   }
 
-  // Litisconsortes (clientes adicionais) de um processo.
+  // --- Litisconsortes (clientes do mesmo lado) de um processo ---
+  function atualizarPartes(index: number, fn: (partes: ProcessoClienteParte[]) => ProcessoClienteParte[]) {
+    if (!draft) return;
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.map((p, i) => (
+        i === index ? { ...p, clientes_partes: fn(p.clientes_partes ?? []) } : p
+      )),
+    });
+  }
+
+  // Adiciona um litisconsorte em branco para preencher os dados inline.
+  function adicionarParteVazia(index: number) {
+    atualizarPartes(index, (partes) => [...partes, { nome: "", papel: "Litisconsorte" }]);
+  }
+
+  // Adiciona a partir de um cliente já cadastrado (já vem com cliente_id).
   function adicionarParteCadastrada(index: number, clienteId: string) {
-    if (!draft || !clienteId) return;
     const c = clientes.find((cl) => cl.id === clienteId);
     if (!c) return;
-    onDraftChange({
-      ...draft,
-      processos: draft.processos.map((p, i) => (
-        i === index ? { ...p, clientes_partes: [...(p.clientes_partes ?? []), { cliente_id: c.id, nome: c.nome, cpf_cnpj: c.cpf, papel: "Litisconsorte" }] } : p
-      )),
-    });
+    atualizarPartes(index, (partes) => [...partes, {
+      cliente_id: c.id, nome: c.nome, cpf_cnpj: c.cpf, rg: c.rg, email: c.email, celular: c.celular,
+      cep: c.cep, logradouro: c.logradouro, numero_end: c.numero_end, complemento: c.complemento,
+      bairro: c.bairro, cidade: c.cidade, uf: c.uf, papel: "Litisconsorte",
+    }]);
   }
 
-  function adicionarParteManual(index: number) {
-    if (!draft) return;
-    const entrada = parteInput[index] ?? { nome: "", cpf: "" };
-    const nome = entrada.nome.trim();
-    if (!nome) return;
-    onDraftChange({
-      ...draft,
-      processos: draft.processos.map((p, i) => (
-        i === index ? { ...p, clientes_partes: [...(p.clientes_partes ?? []), { nome, cpf_cnpj: entrada.cpf.trim() || undefined, papel: "Litisconsorte" }] } : p
-      )),
-    });
-    setParteInput((s) => ({ ...s, [index]: { nome: "", cpf: "" } }));
+  function setParteField(index: number, j: number, field: keyof ProcessoClienteParte, value: string) {
+    atualizarPartes(index, (partes) => partes.map((parte, k) => (k === j ? { ...parte, [field]: value || undefined } : parte)));
   }
 
-  function removerParte(index: number, parteIndex: number) {
+  function removerParte(index: number, j: number) {
+    atualizarPartes(index, (partes) => partes.filter((_, k) => k !== j));
+  }
+
+  // CEP do litisconsorte: máscara + busca de endereço (preenche só o que estiver vazio).
+  async function preencherCepParte(index: number, j: number, valor: string) {
+    const masked = formatCEP(valor);
+    const dig = masked.replace(/\D/g, "");
+    const end = dig.length === 8 ? await buscarCep(dig) : null;
+    atualizarPartes(index, (partes) => partes.map((parte, k) => (
+      k === j
+        ? {
+            ...parte,
+            cep: masked || undefined,
+            ...(end ? {
+              logradouro: parte.logradouro || end.logradouro,
+              bairro: parte.bairro || end.bairro,
+              cidade: parte.cidade || end.cidade,
+              uf: parte.uf || end.uf,
+            } : {}),
+          }
+        : parte
+    )));
+  }
+
+  // "+ cliente": registra o litisconsorte na lista de clientes (com todos os dados) e vincula.
+  async function registrarParteComoCliente(index: number, j: number) {
     if (!draft) return;
-    onDraftChange({
-      ...draft,
-      processos: draft.processos.map((p, i) => (
-        i === index ? { ...p, clientes_partes: (p.clientes_partes ?? []).filter((_, j) => j !== parteIndex) } : p
-      )),
+    const parte = draft.processos[index]?.clientes_partes?.[j];
+    if (!parte?.nome?.trim() || parte.cliente_id) return;
+    const novo = await createCliente({
+      nome: parte.nome.trim(),
+      cpf: parte.cpf_cnpj || undefined,
+      rg: parte.rg || undefined,
+      email: parte.email || undefined,
+      celular: parte.celular || undefined,
+      cep: parte.cep || undefined,
+      logradouro: parte.logradouro || undefined,
+      numero_end: parte.numero_end || undefined,
+      complemento: parte.complemento || undefined,
+      bairro: parte.bairro || undefined,
+      cidade: parte.cidade || undefined,
+      uf: parte.uf || undefined,
     });
+    atualizarPartes(index, (partes) => partes.map((pt, k) => (k === j ? { ...pt, cliente_id: novo.id } : pt)));
+    recarregar?.();
   }
 
   return (
@@ -1272,52 +1305,75 @@ function ImportacaoAssistida({
                             rows={4}
                           />
                         </div>
-                        <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3 md:col-span-2">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">Litisconsortes (outros clientes deste processo)</p>
-                            <p className="mt-0.5 text-xs text-gray-500">O cliente acima entra como principal. Adicione aqui os demais do mesmo lado.</p>
-                          </div>
-                          {(proc.clientes_partes?.length ?? 0) > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {proc.clientes_partes!.map((parte, j) => (
-                                <button
-                                  key={`${parte.cliente_id || parte.nome}-${j}`}
-                                  type="button"
-                                  onClick={() => removerParte(index, j)}
-                                  className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-red-50 hover:text-red-600"
-                                  title="Remover litisconsorte"
-                                >
-                                  {parte.nome} ×
-                                </button>
-                              ))}
+                        <div className="space-y-3 rounded-lg border border-gray-100 bg-gray-50 p-3 md:col-span-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">Litisconsortes (outros clientes deste processo)</p>
+                              <p className="mt-0.5 text-xs text-gray-500">O cliente acima é o principal. Preencha os dados de cada litisconsorte; ele só vai para a lista de clientes quando você clicar em &quot;+ cliente&quot;.</p>
                             </div>
-                          )}
+                            <Button type="button" variant="outline" size="sm" onClick={() => adicionarParteVazia(index)}>
+                              + Litisconsorte
+                            </Button>
+                          </div>
+
                           {clientes.length > 0 && (
                             <ComboBox
-                              label="Adicionar cliente cadastrado"
+                              label="Ou puxar um cliente já cadastrado"
                               options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
                               value=""
                               onChange={(id) => adicionarParteCadastrada(index, id)}
                               placeholder="Escolha um cliente para adicionar"
                             />
                           )}
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_160px_auto] sm:items-end">
-                            <Input
-                              label="Adicionar novo litisconsorte"
-                              placeholder="Nome completo"
-                              value={parteInput[index]?.nome ?? ""}
-                              onChange={(e) => setParteInput((s) => ({ ...s, [index]: { nome: e.target.value, cpf: s[index]?.cpf ?? "" } }))}
-                            />
-                            <Input
-                              label="CPF/CNPJ"
-                              placeholder="Opcional"
-                              value={parteInput[index]?.cpf ?? ""}
-                              onChange={(e) => setParteInput((s) => ({ ...s, [index]: { nome: s[index]?.nome ?? "", cpf: e.target.value } }))}
-                            />
-                            <Button type="button" variant="secondary" onClick={() => adicionarParteManual(index)} disabled={!(parteInput[index]?.nome ?? "").trim()}>
-                              Adicionar
-                            </Button>
-                          </div>
+
+                          {(proc.clientes_partes?.length ?? 0) === 0 ? (
+                            <p className="text-xs text-gray-400">Nenhum litisconsorte adicionado.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {proc.clientes_partes!.map((parte, j) => (
+                                <div key={j} className="rounded-lg border border-gray-200 bg-white p-3">
+                                  <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className="text-xs font-semibold text-gray-500">
+                                      Litisconsorte {j + 1}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      {parte.cliente_id ? (
+                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600">
+                                          <CheckCircle2 className="h-3.5 w-3.5" /> na lista de clientes
+                                        </span>
+                                      ) : (
+                                        <Button type="button" variant="secondary" size="sm" onClick={() => registrarParteComoCliente(index, j)} disabled={!(parte.nome ?? "").trim()}>
+                                          + cliente
+                                        </Button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => removerParte(index, j)}
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                        title="Remover litisconsorte"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="grid gap-3 md:grid-cols-2">
+                                    <Input label="Nome" value={parte.nome ?? ""} onChange={(e) => setParteField(index, j, "nome", e.target.value)} />
+                                    <Input label="CPF/CNPJ" value={parte.cpf_cnpj ?? ""} onChange={(e) => setParteField(index, j, "cpf_cnpj", e.target.value)} />
+                                    <Input label="RG" value={parte.rg ?? ""} onChange={(e) => setParteField(index, j, "rg", e.target.value)} />
+                                    <Input label="E-mail" type="email" value={parte.email ?? ""} onChange={(e) => setParteField(index, j, "email", e.target.value)} />
+                                    <Input label="Celular" value={parte.celular ?? ""} onChange={(e) => setParteField(index, j, "celular", e.target.value)} />
+                                    <Input label="CEP" inputMode="numeric" placeholder="00000-000" value={parte.cep ?? ""} onChange={(e) => preencherCepParte(index, j, e.target.value)} />
+                                    <Input label="Logradouro" value={parte.logradouro ?? ""} onChange={(e) => setParteField(index, j, "logradouro", e.target.value)} />
+                                    <Input label="Número" value={parte.numero_end ?? ""} onChange={(e) => setParteField(index, j, "numero_end", e.target.value)} />
+                                    <Input label="Complemento" value={parte.complemento ?? ""} onChange={(e) => setParteField(index, j, "complemento", e.target.value)} />
+                                    <Input label="Bairro" value={parte.bairro ?? ""} onChange={(e) => setParteField(index, j, "bairro", e.target.value)} />
+                                    <Input label="Cidade" value={parte.cidade ?? ""} onChange={(e) => setParteField(index, j, "cidade", e.target.value)} />
+                                    <Input label="UF" maxLength={2} value={parte.uf ?? ""} onChange={(e) => setParteField(index, j, "uf", e.target.value.toUpperCase())} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

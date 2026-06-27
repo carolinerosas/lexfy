@@ -132,6 +132,18 @@ export interface ProcessoClienteParte {
   nome: string;
   cpf_cnpj?: string;
   papel?: string;
+  // Dados completos do litisconsorte preenchidos na triagem. Só viram um cliente
+  // de verdade (cliente_id preenchido) quando a usuária clica em "+ cliente".
+  rg?: string;
+  email?: string;
+  celular?: string;
+  cep?: string;
+  logradouro?: string;
+  numero_end?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  uf?: string;
 }
 
 export interface Processo {
