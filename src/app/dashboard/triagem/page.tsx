@@ -16,9 +16,13 @@ import {
   createCliente, updateCliente, createAtendimento, getClientes, getProcessos,
   createProcesso, createMovimentacao, updateProcesso,
 } from "@/lib/store";
-import { mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions } from "@/lib/cadastro-options";
+import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
+import { partesDoProcesso } from "@/lib/processo-partes";
+import { formatCEP, buscarCep } from "@/lib/format";
+import { buscarNoDataJud, DataJudError, formatarCNJ, parseCNJ, ufFromTribunalDataJud } from "@/lib/datajud";
+import { inferirTipoDataJud, descricaoDataJud } from "@/app/dashboard/processos/novo-processo-modal";
 import { formatDateTime } from "@/lib/utils";
-import type { Cliente, Processo, TriagemImportacao, TriagemImportDraft, TriagemLead } from "@/types";
+import type { Cliente, Processo, ProcessoClienteParte, TriagemImportacao, TriagemImportDraft, TriagemLead } from "@/types";
 
 const urgenciaVariant: Record<string, "danger" | "warning" | "neutral"> = {
   alta: "danger",
@@ -42,6 +46,8 @@ const processoTipoLabels: Record<string, string> = {
   federal: "Federal",
   outro: "Outro",
 };
+
+const processoTipoOptions = Object.entries(processoTipoLabels).map(([value, label]) => ({ value, label }));
 
 function normalize(value?: string): string {
   return (value ?? "")
@@ -245,6 +251,36 @@ export default function TriagemPage() {
     setSalvandoImportacao(true);
     setImportMsg(null);
     try {
+      // Remove partes duplicadas (mesmo cliente_id ou mesmo nome).
+      const dedupPartes = (lista: ProcessoClienteParte[]): ProcessoClienteParte[] => {
+        const seen = new Set<string>();
+        const out: ProcessoClienteParte[] = [];
+        for (const p of lista) {
+          const k = p.cliente_id || p.nome.trim().toLocaleLowerCase("pt-BR");
+          if (!k || seen.has(k)) continue;
+          seen.add(k);
+          out.push(p);
+        }
+        return out;
+      };
+      // Resolve litisconsortes adicionados na triagem: usa o cliente cadastrado se houver, senão cria.
+      const resolverPartes = async (extras?: ProcessoClienteParte[]): Promise<ProcessoClienteParte[]> => {
+        const out: ProcessoClienteParte[] = [];
+        for (const parte of extras ?? []) {
+          const nome = parte.nome?.trim();
+          if (!nome) continue;
+          let cid = parte.cliente_id;
+          let cpf = parte.cpf_cnpj;
+          if (!cid) {
+            const existe = clientes.find((c) => c.nome.toLowerCase().trim() === nome.toLowerCase());
+            if (existe) { cid = existe.id; cpf = cpf || existe.cpf; }
+            else { const novoCli = await createCliente({ nome, cpf: cpf || undefined }); cid = novoCli.id; cpf = novoCli.cpf; }
+          }
+          out.push({ cliente_id: cid, nome, cpf_cnpj: cpf || undefined, papel: parte.papel || "Litisconsorte" });
+        }
+        return out;
+      };
+
       const primeiroProcesso = draft.processos[0];
       const clienteEscolhido = draft.cliente_id ? clientes.find((c) => c.id === draft.cliente_id) : undefined;
       const clienteExistente = draft.cliente_id === ""
@@ -283,9 +319,17 @@ export default function TriagemPage() {
           const upd: Partial<Processo> = {};
           if (existente.cliente_id !== cliente.id) upd.cliente_id = cliente.id;
           if (existente.cliente_nome !== cliente.nome) upd.cliente_nome = cliente.nome;
+          const partesAtuais = partesDoProcesso(existente);
+          const extrasResolvidas = await resolverPartes(proc.clientes_partes);
+          upd.clientes_partes = dedupPartes([
+            ...partesAtuais,
+            { cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: draft.cliente?.cpf || proc.cliente_cpf_cnpj, papel: partesAtuais.length === 0 ? "Cliente principal" : "Cliente" },
+            ...extrasResolvidas,
+          ]);
           if (isPenalTipo(existente.tipo)) {
             if (proc.unidade_prisional && !existente.unidade_prisional) upd.unidade_prisional = proc.unidade_prisional;
             if (proc.tipo_penal && !existente.tipo_penal) upd.tipo_penal = proc.tipo_penal;
+            if (proc.tipo_penal && !(existente.tipos_penais ?? []).includes(proc.tipo_penal)) upd.tipos_penais = [...(existente.tipos_penais ?? []), proc.tipo_penal];
           }
           if (Object.keys(upd).length) {
             await updateProcesso(existente.id, upd);
@@ -298,6 +342,7 @@ export default function TriagemPage() {
           continue;
         }
 
+        const extrasNovo = await resolverPartes(proc.clientes_partes);
         const novo = await createProcesso({
           numero: proc.numero,
           titulo: proc.titulo || "Processo importado",
@@ -311,10 +356,15 @@ export default function TriagemPage() {
           cliente_id: cliente.id,
           cliente_nome: cliente.nome,
           cliente_cpf_cnpj: draft.cliente?.cpf || proc.cliente_cpf_cnpj,
+          clientes_partes: dedupPartes([
+            { cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: draft.cliente?.cpf || proc.cliente_cpf_cnpj, papel: "Cliente principal" },
+            ...extrasNovo,
+          ]),
           parte_contraria: proc.parte_contraria,
           data_distribuicao: proc.data_distribuicao,
-          unidade_prisional: proc.unidade_prisional,
-          tipo_penal: proc.tipo_penal,
+          unidade_prisional: isPenalTipo(proc.tipo) ? proc.unidade_prisional : undefined,
+          tipo_penal: isPenalTipo(proc.tipo) ? proc.tipo_penal : undefined,
+          tipos_penais: isPenalTipo(proc.tipo) && proc.tipo_penal ? [proc.tipo_penal] : undefined,
           monitorar_datajud: true,
         });
         const keyNovo = digits(novo.numero);
@@ -698,6 +748,9 @@ function ImportacaoAssistida({
   onDescartarImportacao: (imp: TriagemImportacao) => void;
   onExcluirImportacao: (imp: TriagemImportacao) => void;
 }) {
+  const [dataJud, setDataJud] = useState<Record<number, { status: "loading" | "ok" | "erro"; msg: string }>>({});
+  const [parteInput, setParteInput] = useState<Record<number, { nome: string; cpf: string }>>({});
+
   const clienteMatch = findClienteMatch(clientes, draft?.cliente, draft?.processos[0]?.cliente_nome);
   const clienteSelecionado = draft?.cliente_id === ""
     ? undefined
@@ -707,8 +760,47 @@ function ImportacaoAssistida({
     : [];
   const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processos.map((p) => p.unidade_prisional)));
   const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processos.map((p) => p.tipo_penal)));
+  const comarcaOptions = mergeOptions(comarcaBaseOptions, valuesToOptions(processos.map((p) => p.comarca)));
+  const varaOptions = mergeOptions(varaBaseOptions, valuesToOptions(processos.map((p) => p.vara)));
   const processosNovos = draft?.processos.filter((p) => !p.processo_id && !processos.some((existente) => sameProcess(existente.numero, p.numero))).length ?? 0;
   const processosExistentes = (draft?.processos.length ?? 0) - processosNovos;
+
+  function processoParaDraft(processo?: Processo): ImportDraft["processos"][number] {
+    return {
+      processo_id: processo?.id,
+      numero: processo?.numero ?? "",
+      titulo: processo?.titulo ?? "",
+      descricao: processo?.descricao ?? "",
+      tribunal: processo?.tribunal ?? "",
+      vara: processo?.vara ?? "",
+      comarca: processo?.comarca ?? "",
+      uf: processo?.uf ?? draft?.cliente?.uf ?? "",
+      tipo: processo?.tipo ?? "outro",
+      parte_contraria: processo?.parte_contraria ?? "",
+      cliente_nome: processo?.cliente_nome ?? clienteSelecionado?.nome ?? draft?.cliente?.nome ?? "",
+      cliente_cpf_cnpj: processo?.cliente_cpf_cnpj ?? clienteSelecionado?.cpf ?? draft?.cliente?.cpf ?? "",
+      data_distribuicao: processo?.data_distribuicao ?? "",
+      unidade_prisional: processo?.unidade_prisional ?? "",
+      tipo_penal: processo?.tipo_penal ?? "",
+    };
+  }
+
+  function adicionarProcessoManual(processoId?: string) {
+    if (!draft) return;
+    const processo = processoId ? processos.find((p) => p.id === processoId) : undefined;
+    onDraftChange({
+      ...draft,
+      processos: [...draft.processos, processoParaDraft(processo)],
+    });
+  }
+
+  function removerProcesso(index: number) {
+    if (!draft) return;
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.filter((_, i) => i !== index),
+    });
+  }
 
   function selecionarCliente(clienteId: string) {
     if (!draft) return;
@@ -794,6 +886,103 @@ function ImportacaoAssistida({
       ...draft,
       movimentacoes: (draft.movimentacoes ?? []).map((mov, i) => (
         i === index ? { ...mov, [field]: value || undefined } : mov
+      )),
+    });
+  }
+
+  // CEP do cliente: aplica máscara e, com 8 dígitos, busca o endereço e preenche os campos vazios.
+  async function preencherCepCliente(valor: string) {
+    if (!draft) return;
+    const masked = formatCEP(valor);
+    const base = { ...(draft.cliente ?? {}), cep: masked || undefined };
+    onDraftChange({ ...draft, cliente: base });
+    const dig = masked.replace(/\D/g, "");
+    if (dig.length !== 8) return;
+    const end = await buscarCep(dig);
+    if (!end) return;
+    onDraftChange({
+      ...draft,
+      cliente: {
+        ...base,
+        logradouro: base.logradouro || end.logradouro,
+        bairro: base.bairro || end.bairro,
+        cidade: base.cidade || end.cidade,
+        uf: base.uf || end.uf,
+      },
+    });
+  }
+
+  // Lê o processo no DataJud (mesma fonte do cadastro de processo) e preenche os campos vazios.
+  async function buscarDataJud(index: number) {
+    if (!draft) return;
+    const proc = draft.processos[index];
+    const numeroFormatado = formatarCNJ(proc.numero ?? "");
+    if (!numeroFormatado) {
+      setDataJud((s) => ({ ...s, [index]: { status: "erro", msg: "Número CNJ inválido. Use 0000000-00.0000.0.00.0000." } }));
+      return;
+    }
+    setDataJud((s) => ({ ...s, [index]: { status: "loading", msg: "Buscando no DataJud..." } }));
+    try {
+      const data = await buscarNoDataJud(numeroFormatado);
+      const { tribunal } = parseCNJ(numeroFormatado);
+      onDraftChange({
+        ...draft,
+        processos: draft.processos.map((p, i) => (
+          i === index
+            ? {
+                ...p,
+                numero: numeroFormatado,
+                titulo: p.titulo?.trim() ? p.titulo : (data.classe || data.assuntos?.[0] || "Processo judicial"),
+                tribunal: p.tribunal?.trim() ? p.tribunal : (tribunal?.toUpperCase() ?? ""),
+                vara: p.vara?.trim() ? p.vara : (data.orgaoJulgador ?? ""),
+                uf: p.uf?.trim() ? p.uf : ufFromTribunalDataJud(tribunal),
+                tipo: p.tipo && p.tipo !== "outro" ? p.tipo : inferirTipoDataJud(data, tribunal),
+                data_distribuicao: p.data_distribuicao?.trim() ? p.data_distribuicao : (data.dataAjuizamento?.slice(0, 10) ?? ""),
+                descricao: p.descricao?.trim() ? p.descricao : descricaoDataJud(data),
+              }
+            : p
+        )),
+      });
+      setDataJud((s) => ({ ...s, [index]: { status: "ok", msg: "Dados do DataJud preenchidos — confira e ajuste." } }));
+    } catch (err) {
+      const msg = err instanceof DataJudError ? err.message : "Não consegui consultar o DataJud agora.";
+      setDataJud((s) => ({ ...s, [index]: { status: "erro", msg } }));
+    }
+  }
+
+  // Litisconsortes (clientes adicionais) de um processo.
+  function adicionarParteCadastrada(index: number, clienteId: string) {
+    if (!draft || !clienteId) return;
+    const c = clientes.find((cl) => cl.id === clienteId);
+    if (!c) return;
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.map((p, i) => (
+        i === index ? { ...p, clientes_partes: [...(p.clientes_partes ?? []), { cliente_id: c.id, nome: c.nome, cpf_cnpj: c.cpf, papel: "Litisconsorte" }] } : p
+      )),
+    });
+  }
+
+  function adicionarParteManual(index: number) {
+    if (!draft) return;
+    const entrada = parteInput[index] ?? { nome: "", cpf: "" };
+    const nome = entrada.nome.trim();
+    if (!nome) return;
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.map((p, i) => (
+        i === index ? { ...p, clientes_partes: [...(p.clientes_partes ?? []), { nome, cpf_cnpj: entrada.cpf.trim() || undefined, papel: "Litisconsorte" }] } : p
+      )),
+    });
+    setParteInput((s) => ({ ...s, [index]: { nome: "", cpf: "" } }));
+  }
+
+  function removerParte(index: number, parteIndex: number) {
+    if (!draft) return;
+    onDraftChange({
+      ...draft,
+      processos: draft.processos.map((p, i) => (
+        i === index ? { ...p, clientes_partes: (p.clientes_partes ?? []).filter((_, j) => j !== parteIndex) } : p
       )),
     });
   }
@@ -937,7 +1126,7 @@ function ImportacaoAssistida({
                 <Input label="RG" value={draft.cliente?.rg ?? ""} onChange={(e) => setClienteField("rg", e.target.value)} />
                 <Input label="E-mail" type="email" value={draft.cliente?.email ?? ""} onChange={(e) => setClienteField("email", e.target.value)} />
                 <Input label="Celular" value={draft.cliente?.celular ?? ""} onChange={(e) => setClienteField("celular", e.target.value)} />
-                <Input label="CEP" value={draft.cliente?.cep ?? ""} onChange={(e) => setClienteField("cep", e.target.value)} />
+                <Input label="CEP" inputMode="numeric" placeholder="00000-000" value={draft.cliente?.cep ?? ""} onChange={(e) => preencherCepCliente(e.target.value)} />
                 <Input label="Logradouro" value={draft.cliente?.logradouro ?? ""} onChange={(e) => setClienteField("logradouro", e.target.value)} />
                 <Input label="Número" value={draft.cliente?.numero_end ?? ""} onChange={(e) => setClienteField("numero_end", e.target.value)} />
                 <Input label="Complemento" value={draft.cliente?.complemento ?? ""} onChange={(e) => setClienteField("complemento", e.target.value)} />
@@ -948,19 +1137,53 @@ function ImportacaoAssistida({
             </div>
 
             <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Processos</p>
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Processos</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Se o Justio não encontrou o CNJ, selecione um processo já cadastrado do cliente ou adicione um novo manualmente.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => adicionarProcessoManual()}>
+                  Adicionar processo manualmente
+                </Button>
+              </div>
+              {clienteSelecionado ? (
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <ComboBox
+                    label="Puxar processo já cadastrado deste cliente"
+                    options={clienteProcessos.map((p) => ({ value: p.id, label: processoLabel(p) }))}
+                    value=""
+                    onChange={(value) => {
+                      if (value) adicionarProcessoManual(value);
+                    }}
+                    placeholder={clienteProcessos.length ? "Escolha um processo para adicionar à importação" : "Nenhum processo cadastrado para este cliente"}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                  Escolha ou corrija o cliente acima para listar os processos já cadastrados dele.
+                </div>
+              )}
               {draft.processos.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-400">
-                  Nenhum processo CNJ encontrado.
+                <div className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                  Nenhum processo CNJ encontrado. Você pode puxar um processo cadastrado acima ou adicionar um novo manualmente.
                 </div>
               ) : (
                 draft.processos.map((proc, index) => {
-                  const existente = processos.find((p) => sameProcess(p.numero, proc.numero));
+                  const existente = proc.processo_id
+                    ? processos.find((p) => p.id === proc.processo_id)
+                    : processos.find((p) => sameProcess(p.numero, proc.numero));
                   return (
                     <div key={index} className="rounded-xl border border-gray-100 p-4">
                       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                         <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Processo {index + 1}</p>
-                        {existente ? <Badge variant="neutral">já existe → movimentação</Badge> : <Badge variant="success">novo + movimentação</Badge>}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {existente ? <Badge variant="neutral">já cadastrado</Badge> : <Badge variant="success">novo cadastro</Badge>}
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removerProcesso(index)}>
+                            Remover
+                          </Button>
+                        </div>
                       </div>
                       {clienteSelecionado && (
                         <div className="mb-3">
@@ -974,14 +1197,52 @@ function ImportacaoAssistida({
                         </div>
                       )}
                       <div className="grid gap-3 md:grid-cols-2">
-                        <Input label="Número CNJ" value={proc.numero ?? ""} onChange={(e) => setProcessoField(index, "numero", e.target.value)} />
+                        <div>
+                          <Input label="Número CNJ" value={proc.numero ?? ""} onChange={(e) => setProcessoField(index, "numero", e.target.value)} />
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => buscarDataJud(index)}
+                              disabled={dataJud[index]?.status === "loading"}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              <FileText className="h-3.5 w-3.5" /> {dataJud[index]?.status === "loading" ? "Buscando..." : "Buscar no DataJud"}
+                            </button>
+                            {dataJud[index]?.msg && (
+                              <span className={`text-xs ${dataJud[index]?.status === "erro" ? "text-amber-600" : dataJud[index]?.status === "ok" ? "text-green-600" : "text-gray-400"}`}>
+                                {dataJud[index]?.msg}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                         <Input label="Título / classe" value={proc.titulo ?? ""} onChange={(e) => setProcessoField(index, "titulo", e.target.value)} />
                         <Input label="Tribunal" value={proc.tribunal ?? ""} onChange={(e) => setProcessoField(index, "tribunal", e.target.value)} />
                         <Input label="UF" maxLength={2} value={proc.uf ?? ""} onChange={(e) => setProcessoField(index, "uf", e.target.value.toUpperCase())} />
-                        <Input label="Comarca" value={proc.comarca ?? ""} onChange={(e) => setProcessoField(index, "comarca", e.target.value)} />
-                        <Input label="Vara" value={proc.vara ?? ""} onChange={(e) => setProcessoField(index, "vara", e.target.value)} />
+                        <SelectComOutro
+                          label="Comarca"
+                          category="processo_comarca"
+                          baseOptions={comarcaOptions}
+                          placeholder="Selecione ou cadastre..."
+                          value={proc.comarca ?? ""}
+                          onChange={(v) => setProcessoField(index, "comarca", v)}
+                        />
+                        <SelectComOutro
+                          label="Vara"
+                          category="processo_vara"
+                          baseOptions={varaOptions}
+                          placeholder="Selecione ou cadastre..."
+                          value={proc.vara ?? ""}
+                          onChange={(v) => setProcessoField(index, "vara", v)}
+                        />
                         <Input label="Parte contrária" value={proc.parte_contraria ?? ""} onChange={(e) => setProcessoField(index, "parte_contraria", e.target.value)} />
-                        <Input label="Tipo" value={proc.tipo ?? ""} onChange={(e) => setProcessoField(index, "tipo", e.target.value)} />
+                        <SelectComOutro
+                          label="Classificação"
+                          category="processo_tipo"
+                          baseOptions={processoTipoOptions}
+                          placeholder="Selecione..."
+                          value={proc.tipo ?? ""}
+                          onChange={(v) => setProcessoField(index, "tipo", v)}
+                        />
                         {isPenalTipo(proc.tipo) && (
                           <SelectComOutro
                             label="Unidade prisional"
@@ -1010,6 +1271,53 @@ function ImportacaoAssistida({
                             onChange={(e) => setProcessoField(index, "descricao", e.target.value)}
                             rows={4}
                           />
+                        </div>
+                        <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3 md:col-span-2">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">Litisconsortes (outros clientes deste processo)</p>
+                            <p className="mt-0.5 text-xs text-gray-500">O cliente acima entra como principal. Adicione aqui os demais do mesmo lado.</p>
+                          </div>
+                          {(proc.clientes_partes?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {proc.clientes_partes!.map((parte, j) => (
+                                <button
+                                  key={`${parte.cliente_id || parte.nome}-${j}`}
+                                  type="button"
+                                  onClick={() => removerParte(index, j)}
+                                  className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-red-50 hover:text-red-600"
+                                  title="Remover litisconsorte"
+                                >
+                                  {parte.nome} ×
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {clientes.length > 0 && (
+                            <ComboBox
+                              label="Adicionar cliente cadastrado"
+                              options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+                              value=""
+                              onChange={(id) => adicionarParteCadastrada(index, id)}
+                              placeholder="Escolha um cliente para adicionar"
+                            />
+                          )}
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_160px_auto] sm:items-end">
+                            <Input
+                              label="Adicionar novo litisconsorte"
+                              placeholder="Nome completo"
+                              value={parteInput[index]?.nome ?? ""}
+                              onChange={(e) => setParteInput((s) => ({ ...s, [index]: { nome: e.target.value, cpf: s[index]?.cpf ?? "" } }))}
+                            />
+                            <Input
+                              label="CPF/CNPJ"
+                              placeholder="Opcional"
+                              value={parteInput[index]?.cpf ?? ""}
+                              onChange={(e) => setParteInput((s) => ({ ...s, [index]: { nome: s[index]?.nome ?? "", cpf: e.target.value } }))}
+                            />
+                            <Button type="button" variant="secondary" onClick={() => adicionarParteManual(index)} disabled={!(parteInput[index]?.nome ?? "").trim()}>
+                              Adicionar
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>

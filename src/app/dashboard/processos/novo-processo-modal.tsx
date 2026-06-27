@@ -9,7 +9,7 @@ import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { createProcesso, createCliente, updateCliente, updateProcesso, getClientes, getProcessos } from "@/lib/store";
+import { createProcesso, createCliente, getClientes, getProcessos } from "@/lib/store";
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import {
   buscarNoDataJud,
@@ -19,7 +19,7 @@ import {
   ufFromTribunalDataJud,
   type DataJudResult,
 } from "@/lib/datajud";
-import type { Cliente, InqueritoSituacao, Processo, ProcessoTipo } from "@/types";
+import type { Cliente, InqueritoSituacao, Processo, ProcessoClienteParte, ProcessoTipo } from "@/types";
 
 const ufs = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -59,7 +59,7 @@ function textoBusca(texto: string): string {
     .toLowerCase();
 }
 
-function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): ProcessoTipo {
+export function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): ProcessoTipo {
   const texto = textoBusca([
     data.classe,
     data.sistema,
@@ -81,7 +81,7 @@ function inferirTipoDataJud(data: DataJudResult, tribunal: string | null): Proce
   return "civel";
 }
 
-function descricaoDataJud(data: DataJudResult): string {
+export function descricaoDataJud(data: DataJudResult): string {
   const linhas = [
     data.classe ? `Classe: ${data.classe}` : "",
     data.assuntos?.length ? `Assuntos: ${data.assuntos.slice(0, 5).join("; ")}` : "",
@@ -131,6 +131,12 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [processosExistentes, setProcessosExistentes] = useState<Processo[]>([]);
   const [clienteId, setClienteId] = useState(clienteInicial?.id ?? "");
+  const [partes, setPartes] = useState<ProcessoClienteParte[]>(
+    clienteInicial ? [{ cliente_id: clienteInicial.id, nome: clienteInicial.nome, cpf_cnpj: clienteInicial.cpf, papel: "Cliente principal" }] : []
+  );
+  const [parteManualNome, setParteManualNome] = useState("");
+  const [parteManualCpf, setParteManualCpf] = useState("");
+  const [tiposPenais, setTiposPenais] = useState<string[]>([]);
   const [form, setForm] = useState(() => ({
     ...emptyForm(),
     cliente_nome: clienteInicial?.nome ?? "",
@@ -146,6 +152,17 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
 
   useEffect(() => {
     if (!open) return;
+    setClienteId(clienteInicial?.id ?? "");
+    setPartes(clienteInicial ? [{ cliente_id: clienteInicial.id, nome: clienteInicial.nome, cpf_cnpj: clienteInicial.cpf, papel: "Cliente principal" }] : []);
+    setParteManualNome("");
+    setParteManualCpf("");
+    setTiposPenais([]);
+    setForm({
+      ...emptyForm(),
+      cliente_nome: clienteInicial?.nome ?? "",
+      cliente_cpf_cnpj: clienteInicial?.cpf ?? "",
+    });
+    setSaveError("");
     Promise.all([getClientes(), getProcessos()]).then(([cls, procs]) => {
       setClientes(cls);
       setProcessosExistentes(procs);
@@ -225,10 +242,43 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  function addParte(parte: ProcessoClienteParte) {
+    const nome = parte.nome.trim();
+    if (!nome) return;
+    setPartes((atuais) => {
+      const key = parte.cliente_id || nome.toLocaleLowerCase("pt-BR");
+      if (atuais.some((p) => (p.cliente_id || p.nome.trim().toLocaleLowerCase("pt-BR")) === key)) return atuais;
+      return [...atuais, { ...parte, nome, papel: parte.papel || "Cliente" }];
+    });
+  }
+
+  function removerParte(index: number) {
+    setPartes((atuais) => atuais.filter((_, i) => i !== index));
+  }
+
+  function adicionarParteManual() {
+    const nome = parteManualNome.trim();
+    if (!nome) return;
+    addParte({ nome, cpf_cnpj: parteManualCpf.trim() || undefined, papel: "Cliente" });
+    setParteManualNome("");
+    setParteManualCpf("");
+  }
+
+  function addTipoPenal(value: string) {
+    const tipo = value.trim();
+    if (!tipo) return;
+    setTiposPenais((atuais) => atuais.some((item) => item.toLocaleLowerCase("pt-BR") === tipo.toLocaleLowerCase("pt-BR")) ? atuais : [...atuais, tipo]);
+    set("tipo_penal", "");
+  }
+
+  function removerTipoPenal(index: number) {
+    setTiposPenais((atuais) => atuais.filter((_, i) => i !== index));
+  }
+
   const varaOptions = mergeOptions(varaBaseOptions, valuesToOptions(processosExistentes.map((p) => p.vara)));
   const comarcaOptions = mergeOptions(comarcaBaseOptions, valuesToOptions(processosExistentes.map((p) => p.comarca)));
   const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processosExistentes.map((p) => p.unidade_prisional)));
-  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosExistentes.map((p) => p.tipo_penal)));
+  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosExistentes.flatMap((p) => p.tipos_penais?.length ? p.tipos_penais : [p.tipo_penal])), valuesToOptions(tiposPenais));
 
   function handleClienteSelect(id: string) {
     setClienteId(id);
@@ -240,6 +290,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         cliente_nome: c.nome,
         cliente_cpf_cnpj: c.cpf ?? f.cliente_cpf_cnpj,
       }));
+      addParte({ cliente_id: c.id, nome: c.nome, cpf_cnpj: c.cpf, papel: partes.length === 0 ? "Cliente principal" : "Cliente" });
     }
   }
 
@@ -253,28 +304,62 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
     setSaving(true);
     setSaveError("");
     try {
-      let resolvedClienteId = clienteId;
-      if (!resolvedClienteId && form.cliente_nome.trim()) {
-        const existente = clientes.find(
-          (c) => c.nome.toLowerCase().trim() === form.cliente_nome.toLowerCase().trim()
-        );
-        if (existente) {
-          resolvedClienteId = existente.id;
-        } else {
-          const novo = await createCliente({
-            nome: form.cliente_nome.trim(),
-            cpf: form.cliente_cpf_cnpj || undefined,
-          });
-          resolvedClienteId = novo.id;
+      const partesBase = [
+        ...partes,
+        form.cliente_nome.trim()
+          ? { cliente_id: clienteId || undefined, nome: form.cliente_nome.trim(), cpf_cnpj: form.cliente_cpf_cnpj || undefined, papel: "Cliente principal" }
+          : undefined,
+      ].filter((parte): parte is ProcessoClienteParte => Boolean(parte?.nome?.trim()));
+
+      const partesUnicas: ProcessoClienteParte[] = [];
+      for (const parte of partesBase) {
+        const key = parte.cliente_id || parte.nome.trim().toLocaleLowerCase("pt-BR");
+        if (!key || partesUnicas.some((p) => (p.cliente_id || p.nome.trim().toLocaleLowerCase("pt-BR")) === key)) continue;
+        partesUnicas.push(parte);
+      }
+
+      const partesResolvidas: ProcessoClienteParte[] = [];
+      for (const parte of partesUnicas) {
+        let resolvedClienteId = parte.cliente_id;
+        let cpf = parte.cpf_cnpj;
+        if (!resolvedClienteId && parte.nome.trim()) {
+          const existente = clientes.find(
+            (c) => c.nome.toLowerCase().trim() === parte.nome.toLowerCase().trim()
+          );
+          if (existente) {
+            resolvedClienteId = existente.id;
+            cpf = cpf || existente.cpf;
+          } else {
+            const novo = await createCliente({
+              nome: parte.nome.trim(),
+              cpf: cpf || undefined,
+            });
+            resolvedClienteId = novo.id;
+            cpf = novo.cpf;
+          }
         }
+        partesResolvidas.push({
+          cliente_id: resolvedClienteId,
+          nome: parte.nome.trim(),
+          cpf_cnpj: cpf || undefined,
+          papel: parte.papel || (partesResolvidas.length === 0 ? "Cliente principal" : "Cliente"),
+        });
+      }
+
+      const principal = partesResolvidas[0];
+      if (!principal) {
+        setSaveError("Informe pelo menos um cliente para o processo.");
+        setSaving(false);
+        return;
       }
 
       await createProcesso({
         numero: form.numero.trim(),
         titulo: form.titulo,
-        cliente_id: resolvedClienteId || undefined,
-        cliente_nome: form.cliente_nome,
-        cliente_cpf_cnpj: form.cliente_cpf_cnpj || undefined,
+        cliente_id: principal.cliente_id || undefined,
+        cliente_nome: principal.nome,
+        cliente_cpf_cnpj: principal.cpf_cnpj || undefined,
+        clientes_partes: partesResolvidas,
         parte_contraria: form.parte_contraria || undefined,
         tribunal: form.tribunal || undefined,
         vara: form.vara || undefined,
@@ -289,29 +374,22 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         delegacia: isInquerito ? form.delegacia || undefined : undefined,
         autoridade_policial: isInquerito ? form.autoridade_policial || undefined : undefined,
         unidade_prisional: isPenal ? form.unidade_prisional || undefined : undefined,
-        tipo_penal: isPenal ? form.tipo_penal || undefined : undefined,
+        tipo_penal: isPenal ? tiposPenais.join("; ") || undefined : undefined,
+        tipos_penais: isPenal ? tiposPenais : undefined,
         data_instauracao: isInquerito ? form.data_instauracao || undefined : undefined,
         situacao_inquerito: isInquerito ? form.situacao_inquerito || undefined : undefined,
         relatorio_final: isInquerito ? form.relatorio_final || undefined : undefined,
         status: "ativo",
       });
-      // A unidade prisional é do apenado: guarda na ficha do cliente e nos demais processos criminais/execução do mesmo cliente.
-      if (isPenal && resolvedClienteId && form.unidade_prisional.trim()) {
-        const unidade = form.unidade_prisional.trim();
-        await updateCliente(resolvedClienteId, { unidade_prisional: unidade });
-        const irmaos = processosExistentes.filter(
-          (p) =>
-            p.cliente_id === resolvedClienteId &&
-            ["criminal", "juri", "execucao_penal"].includes(String(p.tipo ?? "")) &&
-            (p.unidade_prisional ?? "") !== unidade
-        );
-        await Promise.all(irmaos.map((p) => updateProcesso(p.id, { unidade_prisional: unidade })));
-      }
       onCreated();
     } catch (error) {
       const detalhe = error instanceof Error ? error.message : "Não foi possível salvar o cadastro.";
-      const precisaSql = /unidade_prisional|schema cache|column/i.test(detalhe);
-      setSaveError(precisaSql ? `${detalhe} — rode o SQL supabase-processos-unidade-prisional.sql no Supabase.` : detalhe);
+      const precisaSql = /clientes_partes|tipos_penais/i.test(detalhe)
+        ? "supabase-processos-litisconsorcio.sql"
+        : /unidade_prisional|schema cache|column/i.test(detalhe)
+          ? "supabase-processos-unidade-prisional.sql"
+          : "";
+      setSaveError(precisaSql ? `${detalhe} — rode o SQL ${precisaSql} no Supabase.` : detalhe);
     } finally {
       setSaving(false);
     }
@@ -385,7 +463,9 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         )}
 
         {isPenal && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">Tipos penais imputados</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <SelectComOutro
               label="Unidade prisional (do apenado)"
               category="processo_unidade_prisional"
@@ -395,21 +475,39 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
               onChange={(v) => set("unidade_prisional", v)}
             />
             <SelectComOutro
-              label="Tipo penal imputado"
+              label="Adicionar tipo penal"
               category="processo_tipo_penal"
               baseOptions={tipoPenalOptions}
               placeholder="Selecione ou cadastre..."
               value={form.tipo_penal}
-              onChange={(v) => set("tipo_penal", v)}
+              onChange={addTipoPenal}
             />
+            </div>
+            {tiposPenais.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tiposPenais.map((tipo, index) => (
+                  <button
+                    key={`${tipo}-${index}`}
+                    type="button"
+                    onClick={() => removerTipoPenal(index)}
+                    className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600"
+                    title="Remover tipo penal"
+                  >
+                    {tipo} ×
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">Você pode adicionar mais de um tipo penal.</p>
+            )}
           </div>
         )}
 
         {clientes.length > 0 && (
           <ComboBox
-            label="Cliente cadastrado"
+            label="Cliente principal cadastrado"
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
-            placeholder="Selecionar da lista de clientes…"
+            placeholder="Selecionar cliente principal…"
             value={clienteId}
             onChange={handleClienteSelect}
           />
@@ -417,7 +515,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Nome do Cliente *"
+            label="Nome do cliente principal *"
             placeholder="Nome completo"
             value={form.cliente_nome}
             onChange={(e) => set("cliente_nome", e.target.value)}
@@ -429,6 +527,49 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
             value={form.cliente_cpf_cnpj}
             onChange={(e) => set("cliente_cpf_cnpj", e.target.value)}
           />
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Clientes / partes do processo</p>
+            <p className="mt-0.5 text-xs text-gray-500">Use para litisconsórcio. O primeiro nome fica como cliente principal.</p>
+          </div>
+          {partes.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {partes.map((parte, index) => (
+                <button
+                  key={`${parte.cliente_id || parte.nome}-${index}`}
+                  type="button"
+                  onClick={() => removerParte(index)}
+                  className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600"
+                  title="Remover cliente do processo"
+                >
+                  {parte.nome}{index === 0 ? " · principal" : ""} ×
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500">Nenhum litisconsorte adicionado ainda.</p>
+          )}
+          {clientes.length > 0 && (
+            <ComboBox
+              label="Adicionar cliente cadastrado"
+              options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
+              placeholder="Escolha um cliente para adicionar ao processo"
+              value=""
+              onChange={(id) => {
+                const c = clientes.find((cliente) => cliente.id === id);
+                if (c) addParte({ cliente_id: c.id, nome: c.nome, cpf_cnpj: c.cpf, papel: partes.length === 0 ? "Cliente principal" : "Cliente" });
+              }}
+            />
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
+            <Input label="Adicionar novo cliente/parte" placeholder="Nome completo" value={parteManualNome} onChange={(e) => setParteManualNome(e.target.value)} />
+            <Input label="CPF/CNPJ" placeholder="Opcional" value={parteManualCpf} onChange={(e) => setParteManualCpf(e.target.value)} />
+            <Button type="button" variant="secondary" onClick={adicionarParteManual} disabled={!parteManualNome.trim()}>
+              Adicionar
+            </Button>
+          </div>
         </div>
 
         <Input

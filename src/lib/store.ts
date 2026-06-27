@@ -18,6 +18,7 @@ import type {
   TriagemImportacao,
   Briefing,
 } from "@/types";
+import { processoTemCliente } from "@/lib/processo-partes";
 
 const USER_ID = "lexfy_shared";
 
@@ -1132,7 +1133,7 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
 
   function buildSummary(id: string | undefined, nome: string, cadastrado: boolean) {
     const procs = processos.filter((p) =>
-      id ? (p.cliente_id === id || p.cliente_nome === nome) : p.cliente_nome === nome && semClienteAtivo(p.cliente_id)
+      id ? processoTemCliente(p, { id, nome }) : p.cliente_nome === nome && semClienteAtivo(p.cliente_id)
     );
     const procIds = new Set(procs.map((p) => p.id));
     const hons = honorarios.filter((h) => procIds.has(h.processo_id));
@@ -1166,12 +1167,10 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
 }
 
 export async function getProcessosByCliente(idOrNome: string): Promise<Processo[]> {
-  const { data } = await supabase
-    .from("processos")
-    .select("*")
-    .or(`cliente_id.eq.${idOrNome},cliente_nome.eq.${idOrNome}`)
-    .order("updated_at", { ascending: false });
-  return (data ?? []) as Processo[];
+  const processos = await getProcessos();
+  return processos
+    .filter((processo) => processoTemCliente(processo, idOrNome))
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 }
 
 export async function getPrazosByCliente(idOrNome: string): Promise<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]> {

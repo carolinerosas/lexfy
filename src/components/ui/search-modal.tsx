@@ -23,6 +23,7 @@ import {
   getTarefasWithProcesso,
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { nomesPartesProcesso } from "@/lib/processo-partes";
 
 type ResultItem =
   | { kind: "cliente"; id: string; title: string; sub: string; href: string }
@@ -80,12 +81,13 @@ async function search(query: string): Promise<ResultItem[]> {
   });
 
   processos.forEach((p) => {
-    if (matches(query, p.numero, p.titulo, p.cliente_nome, p.parte_contraria, p.descricao)) {
+    const clientesProcesso = nomesPartesProcesso(p);
+    if (matches(query, p.numero, p.titulo, clientesProcesso, p.parte_contraria, p.descricao)) {
       results.push({
         kind: "processo",
         id: p.id,
         title: p.titulo || p.numero,
-        sub: `${p.cliente_nome} · ${p.numero || p.numero_inquerito || "Sem número"}`,
+        sub: `${clientesProcesso} · ${p.numero || p.numero_inquerito || "Sem número"}`,
         href: `/dashboard/processos/${p.id}`,
       });
     }

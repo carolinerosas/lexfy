@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { createProcesso, deleteProcesso, getProcessos, updateProcesso } from "@/lib/store";
+import { nomesPartesProcesso, partesDoProcesso } from "@/lib/processo-partes";
 import { formatDate } from "@/lib/utils";
 import type { Processo, ProcessoStatus, ProcessoTipo } from "@/types";
 import { NovoProcessoModal } from "./novo-processo-modal";
@@ -88,7 +89,9 @@ function situacaoInqueritoDisplay(value?: string): string {
 }
 
 function clienteHref(processo: Processo): string | undefined {
-  return processo.cliente_id ? `/dashboard/clientes/${processo.cliente_id}` : undefined;
+  const partes = partesDoProcesso(processo);
+  if (partes.length !== 1 || !partes[0].cliente_id) return undefined;
+  return `/dashboard/clientes/${partes[0].cliente_id}`;
 }
 
 type ImportState = {
@@ -308,7 +311,7 @@ export default function ProcessosPage() {
         p.numero.toLowerCase().includes(search.toLowerCase()) ||
         (p.numero_inquerito ?? "").toLowerCase().includes(search.toLowerCase()) ||
         p.titulo.toLowerCase().includes(search.toLowerCase()) ||
-        p.cliente_nome.toLowerCase().includes(search.toLowerCase()) ||
+        nomesPartesProcesso(p).toLowerCase().includes(search.toLowerCase()) ||
         (p.parte_contraria ?? "").toLowerCase().includes(search.toLowerCase()) ||
         (p.delegacia ?? "").toLowerCase().includes(search.toLowerCase());
       const matchStatus = statusFilter === "todos" || p.status === statusFilter;
@@ -528,10 +531,10 @@ export default function ProcessosPage() {
                     <span className="font-medium text-gray-700">Cliente:</span>{" "}
                     {clienteHref(p) ? (
                       <Link href={clienteHref(p)!} className="font-semibold text-gray-800 hover:text-blue-600 hover:underline">
-                        {p.cliente_nome}
+                        {nomesPartesProcesso(p)}
                       </Link>
                     ) : (
-                      p.cliente_nome
+                      nomesPartesProcesso(p)
                     )}
                   </p>
                   {p.parte_contraria && (
@@ -662,12 +665,12 @@ export default function ProcessosPage() {
                     {clienteHref(p) ? (
                       <Link
                         href={clienteHref(p)!}
-                        className="block max-w-32 truncate font-medium text-gray-800 hover:text-blue-600 hover:underline"
+                        className="block max-w-48 truncate font-medium text-gray-800 hover:text-blue-600 hover:underline"
                       >
-                        {p.cliente_nome}
+                        {nomesPartesProcesso(p)}
                       </Link>
                     ) : (
-                      <p className="text-gray-800 font-medium truncate max-w-32">{p.cliente_nome}</p>
+                      <p className="text-gray-800 font-medium truncate max-w-48">{nomesPartesProcesso(p)}</p>
                     )}
                     {p.parte_contraria && (
                       <p className="text-gray-400 text-xs mt-0.5 truncate max-w-32">vs. {p.parte_contraria}</p>

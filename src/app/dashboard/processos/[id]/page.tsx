@@ -20,7 +20,7 @@ import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
-  getProcesso, getProcessos, getClientes, createProcesso, updateProcesso, updateCliente, deleteProcesso,
+  getProcesso, getProcessos, getClientes, createProcesso, createCliente, updateProcesso, deleteProcesso,
   getMovimentacoesByProcesso, createMovimentacao, updateMovimentacao, deleteMovimentacao, deleteMovimentacoesByProcesso,
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
@@ -35,9 +35,10 @@ import {
   sincronizarProcesso,
 } from "@/lib/store";
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
+import { labelTiposPenais, nomesPartesProcesso, partesDoProcesso, tiposPenaisDoProcesso } from "@/lib/processo-partes";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import type {
-  Cliente, Processo, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
+  Cliente, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
   ProcessoTipo, ProcessoResultadoTipo, IncidenteExecucao, CalculoPena, BeneficioPenal,
   IncidenteExecucaoTipo, IncidenteExecucaoStatus, BeneficioPenalTipo, BeneficioPenalStatus, InqueritoSituacao,
 } from "@/types";
@@ -334,7 +335,8 @@ export default function ProcessoDetailPage() {
   };
 
   const movNaoLidas = movimentacoes.filter((m) => !m.lida).length;
-  const clienteDetalheHref = processo.cliente_id ? `/dashboard/clientes/${processo.cliente_id}` : undefined;
+  const clientesProcesso = partesDoProcesso(processo);
+  const tiposPenaisLabel = labelTiposPenais(processo);
 
   const hasResultado = Boolean(processo.resultado_tipo || processo.resultado_descricao || processo.pena);
   const isExecucaoPenal = isExecucaoPenalTipo(processo.tipo);
@@ -444,20 +446,29 @@ export default function ProcessoDetailPage() {
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="py-3 px-4">
-            <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><User className="w-4 h-4 text-blue-500" />Cliente</div>
-            {clienteDetalheHref ? (
-              <Link
-                href={clienteDetalheHref}
-                className="block truncate text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline"
-              >
-                {processo.cliente_nome || "—"}
-              </Link>
-            ) : (
-              <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
-            )}
+            <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1"><User className="w-4 h-4 text-blue-500" />Clientes</div>
+            <div className="space-y-1">
+              {clientesProcesso.length > 0 ? clientesProcesso.map((parte, index) => (
+                parte.cliente_id ? (
+                  <Link
+                    key={`${parte.cliente_id}-${index}`}
+                    href={`/dashboard/clientes/${parte.cliente_id}`}
+                    className="block truncate text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline"
+                  >
+                    {parte.nome}{clientesProcesso.length > 1 && index === 0 ? " · principal" : ""}
+                  </Link>
+                ) : (
+                  <p key={`${parte.nome}-${index}`} className="truncate text-sm font-semibold text-gray-900">
+                    {parte.nome}{clientesProcesso.length > 1 && index === 0 ? " · principal" : ""}
+                  </p>
+                )
+              )) : (
+                <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
+              )}
+            </div>
             <div className="mt-1.5 flex items-center gap-2">
               {processo.cliente_id ? (
-                <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium"><CheckCircle className="w-3 h-3" /> Vinculado</span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-green-600 font-medium"><CheckCircle className="w-3 h-3" /> {clientesProcesso.length > 1 ? "Litisconsórcio" : "Vinculado"}</span>
               ) : (
                 <span className="text-[11px] text-amber-600">Não vinculado a um cliente cadastrado</span>
               )}
@@ -466,7 +477,7 @@ export default function ProcessoDetailPage() {
                 onClick={() => setVincularClienteModal(true)}
                 className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800"
               >
-                <Link2 className="w-3 h-3" /> {processo.cliente_id ? "Trocar" : "Vincular cliente"}
+                <Link2 className="w-3 h-3" /> Gerenciar
               </button>
             </div>
           </CardContent>
@@ -477,8 +488,8 @@ export default function ProcessoDetailPage() {
         {processo.unidade_prisional && (
           <InfoCard icon={<Shield className="w-4 h-4 text-amber-600" />} label="Unidade prisional" value={processo.unidade_prisional} />
         )}
-        {processo.tipo_penal && (
-          <InfoCard icon={<Scale className="w-4 h-4 text-amber-600" />} label="Tipo penal imputado" value={processo.tipo_penal} />
+        {tiposPenaisLabel && (
+          <InfoCard icon={<Scale className="w-4 h-4 text-amber-600" />} label="Tipos penais imputados" value={tiposPenaisLabel} />
         )}
       </div>
 
@@ -749,44 +760,123 @@ function VincularClienteModal({ open, processo, onClose, onSaved }: {
 }) {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteId, setClienteId] = useState("");
+  const [partes, setPartes] = useState<ProcessoClienteParte[]>([]);
+  const [manualNome, setManualNome] = useState("");
+  const [manualCpf, setManualCpf] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     getClientes().then(setClientes);
-    setClienteId(processo.cliente_id ?? "");
+    setClienteId("");
+    setPartes(partesDoProcesso(processo));
+    setManualNome("");
+    setManualCpf("");
   }, [open, processo]);
+
+  function addParte(parte: ProcessoClienteParte) {
+    const nome = parte.nome.trim();
+    if (!nome) return;
+    setPartes((atuais) => {
+      const key = parte.cliente_id || nome.toLocaleLowerCase("pt-BR");
+      if (atuais.some((p) => (p.cliente_id || p.nome.trim().toLocaleLowerCase("pt-BR")) === key)) return atuais;
+      return [...atuais, { ...parte, nome, papel: parte.papel || "Cliente" }];
+    });
+  }
+
+  function addClienteCadastrado(id: string) {
+    setClienteId(id);
+    const cliente = clientes.find((c) => c.id === id);
+    if (!cliente) return;
+    addParte({ cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: cliente.cpf, papel: partes.length === 0 ? "Cliente principal" : "Cliente" });
+  }
+
+  function addManual() {
+    const nome = manualNome.trim();
+    if (!nome) return;
+    addParte({ nome, cpf_cnpj: manualCpf.trim() || undefined, papel: partes.length === 0 ? "Cliente principal" : "Cliente" });
+    setManualNome("");
+    setManualCpf("");
+  }
+
+  function removerParte(index: number) {
+    setPartes((atuais) => atuais.filter((_, i) => i !== index));
+  }
+
+  async function resolverPartes(): Promise<ProcessoClienteParte[]> {
+    const resolvidas: ProcessoClienteParte[] = [];
+    for (const parte of partes) {
+      const nome = parte.nome.trim();
+      if (!nome) continue;
+      let clienteIdResolvido = parte.cliente_id;
+      let cpf = parte.cpf_cnpj;
+      if (!clienteIdResolvido) {
+        const existente = clientes.find((c) => c.nome.trim().toLocaleLowerCase("pt-BR") === nome.toLocaleLowerCase("pt-BR"));
+        if (existente) {
+          clienteIdResolvido = existente.id;
+          cpf = cpf || existente.cpf;
+        } else {
+          const novo = await createCliente({ nome, cpf: cpf || undefined });
+          clienteIdResolvido = novo.id;
+          cpf = novo.cpf;
+        }
+      }
+      resolvidas.push({
+        cliente_id: clienteIdResolvido,
+        nome,
+        cpf_cnpj: cpf || undefined,
+        papel: parte.papel || (resolvidas.length === 0 ? "Cliente principal" : "Cliente"),
+      });
+    }
+    return resolvidas;
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!clienteId) return;
-    const c = clientes.find((cl) => cl.id === clienteId);
-    if (!c) return;
+    if (partes.length === 0) return;
     setSaving(true);
     try {
-      await updateProcesso(processo.id, { cliente_id: c.id, cliente_nome: c.nome });
+      const resolvidas = await resolverPartes();
+      const principal = resolvidas[0];
+      await updateProcesso(processo.id, {
+        cliente_id: principal.cliente_id,
+        cliente_nome: principal.nome,
+        cliente_cpf_cnpj: principal.cpf_cnpj,
+        clientes_partes: resolvidas,
+      });
       onSaved();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function desvincular() {
-    setSaving(true);
-    try {
-      await updateProcesso(processo.id, { cliente_id: undefined });
-      onSaved();
+    } catch (error) {
+      const detalhe = error instanceof Error ? error.message : "erro desconhecido";
+      const sql = /clientes_partes|schema cache|column/i.test(detalhe) ? "supabase-processos-litisconsorcio.sql" : "SQL correspondente";
+      alert(`Não consegui salvar os clientes do processo. Rode primeiro o ${sql} no Supabase.\n\nDetalhe: ${detalhe}`);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Vincular cliente" size="sm">
+    <Modal open={open} onClose={onClose} title="Gerenciar clientes do processo" size="md">
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          Associe este processo a um cliente cadastrado. O nome do cliente no processo será atualizado.
+          Adicione um ou mais clientes ao processo. O primeiro da lista fica como cliente principal.
         </p>
+        {partes.length > 0 ? (
+          <div className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
+            {partes.map((parte, index) => (
+              <div key={`${parte.cliente_id || parte.nome}-${index}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-gray-900">{parte.nome}</p>
+                  <p className="text-xs text-gray-400">{index === 0 ? "Cliente principal" : "Litisconsorte"}{parte.cpf_cnpj ? ` · ${parte.cpf_cnpj}` : ""}</p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => removerParte(index)} disabled={saving}>
+                  Remover
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">Adicione pelo menos um cliente.</p>
+        )}
         {clientes.length === 0 ? (
           <p className="text-sm text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
             Nenhum cliente cadastrado ainda. Cadastre um cliente na aba Clientes primeiro.
@@ -794,22 +884,22 @@ function VincularClienteModal({ open, processo, onClose, onSaved }: {
         ) : (
           <ComboBox
             label="Cliente cadastrado"
-            placeholder="Selecione o cliente..."
+            placeholder="Adicionar cliente cadastrado..."
             value={clienteId}
-            onChange={setClienteId}
+            onChange={addClienteCadastrado}
             options={clientes.map((c) => ({ value: c.id, label: c.nome }))}
           />
         )}
-        <div className="flex justify-between gap-3 pt-1">
-          {processo.cliente_id ? (
-            <Button type="button" variant="ghost" onClick={desvincular} disabled={saving}>
-              Desvincular
-            </Button>
-          ) : <span />}
-          <div className="flex gap-3">
-            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" disabled={!clienteId || saving}>{saving ? "Salvando..." : "Vincular"}</Button>
-          </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_160px_auto] sm:items-end">
+          <Input label="Novo cliente/parte" value={manualNome} onChange={(e) => setManualNome(e.target.value)} placeholder="Nome completo" />
+          <Input label="CPF/CNPJ" value={manualCpf} onChange={(e) => setManualCpf(e.target.value)} placeholder="Opcional" />
+          <Button type="button" variant="secondary" onClick={addManual} disabled={!manualNome.trim() || saving}>
+            Adicionar
+          </Button>
+        </div>
+        <div className="flex justify-end gap-3 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={partes.length === 0 || saving}>{saving ? "Salvando..." : "Salvar clientes"}</Button>
         </div>
       </form>
     </Modal>
@@ -1096,8 +1186,14 @@ function optionalNumber(value: string): number | undefined {
 }
 
 function mesmoCliente(a: Processo, b: Processo): boolean {
-  if (a.cliente_id && b.cliente_id) return a.cliente_id === b.cliente_id;
-  return a.cliente_nome.trim().toLowerCase() === b.cliente_nome.trim().toLowerCase();
+  const partesA = partesDoProcesso(a);
+  const partesB = partesDoProcesso(b);
+  return partesA.some((pa) =>
+    partesB.some((pb) => {
+      if (pa.cliente_id && pb.cliente_id) return pa.cliente_id === pb.cliente_id;
+      return pa.nome.trim().toLocaleLowerCase("pt-BR") === pb.nome.trim().toLocaleLowerCase("pt-BR");
+    })
+  );
 }
 
 function InqueritoInfoPanel({ processo, acaoPenal }: { processo: Processo; acaoPenal?: Processo }) {
@@ -2256,7 +2352,7 @@ function VincularInqueritoModal({
     .sort((a, b) => {
       const sameA = mesmoCliente(a, acaoPenal) ? 0 : 1;
       const sameB = mesmoCliente(b, acaoPenal) ? 0 : 1;
-      return sameA - sameB || a.cliente_nome.localeCompare(b.cliente_nome) || a.numero.localeCompare(b.numero);
+      return sameA - sameB || nomesPartesProcesso(a).localeCompare(nomesPartesProcesso(b)) || a.numero.localeCompare(b.numero);
     });
 
   async function submit(e: React.FormEvent) {
@@ -2289,7 +2385,7 @@ function VincularInqueritoModal({
             onChange={setInqueritoId}
             options={inqueritos.map((p) => ({
               value: p.id,
-              label: `${p.numero_inquerito || p.numero} · ${p.cliente_nome}${mesmoCliente(p, acaoPenal) ? "" : " · outro cliente"}`,
+              label: `${p.numero_inquerito || p.numero} · ${nomesPartesProcesso(p)}${mesmoCliente(p, acaoPenal) ? "" : " · outro cliente"}`,
             }))}
           />
         )}
@@ -2401,12 +2497,14 @@ function TransformarInqueritoModal({
 
 function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boolean; onClose: () => void; processo: Processo; onSaved: () => void }) {
   const [form, setForm] = useState({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
+  const [tiposPenais, setTiposPenais] = useState<string[]>(() => tiposPenaisDoProcesso(processo));
   const [processosRelacionaveis, setProcessosRelacionaveis] = useState<Processo[]>([]);
   const [processosParaOpcoes, setProcessosParaOpcoes] = useState<Processo[]>([]);
 
   useEffect(() => {
     if (!open) return;
     setForm({ ...processo, valor_causa: processo.valor_causa?.toString() ?? "" });
+    setTiposPenais(tiposPenaisDoProcesso(processo));
     getProcessos().then((lista) => {
       setProcessosParaOpcoes(lista);
       setProcessosRelacionaveis(
@@ -2416,11 +2514,20 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
   }, [open, processo]);
 
   function set(field: string, value: string) { setForm((f) => ({ ...f, [field]: value })); }
+  function addTipoPenal(value: string) {
+    const tipo = value.trim();
+    if (!tipo) return;
+    setTiposPenais((atuais) => atuais.some((item) => item.toLocaleLowerCase("pt-BR") === tipo.toLocaleLowerCase("pt-BR")) ? atuais : [...atuais, tipo]);
+    set("tipo_penal", "");
+  }
+  function removerTipoPenal(index: number) {
+    setTiposPenais((atuais) => atuais.filter((_, i) => i !== index));
+  }
 
   const varaOptions = mergeOptions(varaBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.vara)));
   const comarcaOptions = mergeOptions(comarcaBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.comarca)));
   const unidadePrisionalOptions = mergeOptions(unidadePrisionalBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.unidade_prisional)));
-  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosParaOpcoes.map((p) => p.tipo_penal)));
+  const tipoPenalOptions = mergeOptions(tipoPenalBaseOptions, valuesToOptions(processosParaOpcoes.flatMap((p) => p.tipos_penais?.length ? p.tipos_penais : [p.tipo_penal])), valuesToOptions(tiposPenais));
 
   const permiteIntegracao = form.tipo === "inquerito_policial" || form.tipo === "bo_pm";
   const isInqueritoForm = isInqueritoTipo(form.tipo as string);
@@ -2440,7 +2547,8 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         delegacia: isInqueritoForm ? form.delegacia || undefined : undefined,
         autoridade_policial: isInqueritoForm ? form.autoridade_policial || undefined : undefined,
         unidade_prisional: isPenalForm ? form.unidade_prisional || undefined : undefined,
-        tipo_penal: isPenalForm ? form.tipo_penal || undefined : undefined,
+        tipo_penal: isPenalForm ? tiposPenais.join("; ") || undefined : undefined,
+        tipos_penais: isPenalForm ? tiposPenais : undefined,
         data_instauracao: isInqueritoForm ? form.data_instauracao || undefined : undefined,
         situacao_inquerito: isInqueritoForm ? (form.situacao_inquerito as InqueritoSituacao) || undefined : undefined,
         relatorio_final: isInqueritoForm ? form.relatorio_final || undefined : undefined,
@@ -2448,23 +2556,12 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         valor_causa: form.valor_causa ? parseFloat(form.valor_causa) : undefined,
         descricao: form.descricao || undefined,
       });
-      // Unidade prisional é do apenado: replica na ficha do cliente e em todos os processos criminais/execução do mesmo cliente.
-      if (isPenalForm && processo.cliente_id && (form.unidade_prisional ?? "").trim()) {
-        const unidade = (form.unidade_prisional ?? "").trim();
-        await updateCliente(processo.cliente_id, { unidade_prisional: unidade });
-        const irmaos = processosParaOpcoes.filter(
-          (p) =>
-            p.id !== processo.id &&
-            p.cliente_id === processo.cliente_id &&
-            ["criminal", "juri", "execucao_penal"].includes(normalizeTipo(p.tipo as string)) &&
-            (p.unidade_prisional ?? "") !== unidade
-        );
-        await Promise.all(irmaos.map((p) => updateProcesso(p.id, { unidade_prisional: unidade })));
-      }
       onSaved();
     } catch (error) {
       const detalhe = error instanceof Error ? error.message : "erro desconhecido";
-      const sql = /unidade_prisional|schema cache|column/i.test(detalhe)
+      const sql = /clientes_partes|tipos_penais/i.test(detalhe)
+        ? "supabase-processos-litisconsorcio.sql"
+        : /unidade_prisional|schema cache|column/i.test(detalhe)
         ? "supabase-processos-unidade-prisional.sql"
         : "supabase-processos-resultados.sql";
       alert(`Não consegui salvar o processo. Se você escolheu uma classificação nova, integrou a um processo criminal ou incluiu unidade prisional, rode primeiro o SQL correspondente (${sql}).\n\nDetalhe: ${detalhe}`);
@@ -2491,7 +2588,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
             onChange={(v) => set("processo_principal_id", v)}
             options={processosRelacionaveis.map((p) => ({
               value: p.id,
-              label: `${p.numero} · ${p.cliente_nome}`,
+              label: `${p.numero} · ${nomesPartesProcesso(p)}`,
             }))}
           />
         )}
@@ -2519,7 +2616,9 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
           </div>
         )}
         {isPenalForm && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm font-semibold text-gray-900">Tipos penais imputados</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <SelectComOutro
               label="Unidade prisional (do apenado)"
               category="processo_unidade_prisional"
@@ -2529,13 +2628,31 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
               onChange={(v) => set("unidade_prisional", v)}
             />
             <SelectComOutro
-              label="Tipo penal imputado"
+              label="Adicionar tipo penal"
               category="processo_tipo_penal"
               baseOptions={tipoPenalOptions}
               placeholder="Selecione ou cadastre..."
               value={form.tipo_penal ?? ""}
-              onChange={(v) => set("tipo_penal", v)}
+              onChange={addTipoPenal}
             />
+            </div>
+            {tiposPenais.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {tiposPenais.map((tipo, index) => (
+                  <button
+                    key={`${tipo}-${index}`}
+                    type="button"
+                    onClick={() => removerTipoPenal(index)}
+                    className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-gray-200 hover:bg-red-50 hover:text-red-600"
+                    title="Remover tipo penal"
+                  >
+                    {tipo} ×
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">Você pode adicionar mais de um tipo penal.</p>
+            )}
           </div>
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">

@@ -127,6 +127,13 @@ export interface Cliente {
   user_id: string;
 }
 
+export interface ProcessoClienteParte {
+  cliente_id?: string;
+  nome: string;
+  cpf_cnpj?: string;
+  papel?: string;
+}
+
 export interface Processo {
   id: string;
   numero: string;
@@ -142,6 +149,7 @@ export interface Processo {
   cliente_id?: string;
   cliente_nome: string;
   cliente_cpf_cnpj?: string;
+  clientes_partes?: ProcessoClienteParte[];
   parte_contraria?: string;
   valor_causa?: number;
   data_distribuicao?: string;
@@ -154,6 +162,7 @@ export interface Processo {
   autoridade_policial?: string;
   unidade_prisional?: string;
   tipo_penal?: string;
+  tipos_penais?: string[];
   data_instauracao?: string;
   situacao_inquerito?: InqueritoSituacao;
   relatorio_final?: string;
@@ -359,6 +368,7 @@ export interface TriagemImportDraft {
     data_distribuicao?: string;
     unidade_prisional?: string;
     tipo_penal?: string;
+    clientes_partes?: ProcessoClienteParte[];
   }>;
   movimentacoes?: Array<{
     processo_numero?: string;

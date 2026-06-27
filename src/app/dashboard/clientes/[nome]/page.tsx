@@ -24,6 +24,7 @@ import {
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
+import { nomesPartesProcesso, partesDoProcesso } from "@/lib/processo-partes";
 import {
   ajustarGenero,
   estadoCivilOptions,
@@ -474,7 +475,7 @@ function VincularProcessoModal({ open, cliente, processosVinculados, onClose, on
     .filter((p) => {
       if (!busca) return true;
       const s = busca.toLowerCase();
-      return p.numero.toLowerCase().includes(s) || p.titulo.toLowerCase().includes(s) || p.cliente_nome.toLowerCase().includes(s);
+      return p.numero.toLowerCase().includes(s) || p.titulo.toLowerCase().includes(s) || nomesPartesProcesso(p).toLowerCase().includes(s);
     });
 
   async function submit(e: React.FormEvent) {
@@ -482,8 +483,25 @@ function VincularProcessoModal({ open, cliente, processosVinculados, onClose, on
     if (!processoId) return;
     setSaving(true);
     try {
-      await updateProcesso(processoId, { cliente_id: cliente.id, cliente_nome: cliente.nome });
+      const processo = todos.find((p) => p.id === processoId);
+      if (!processo) return;
+      const partesAtuais = partesDoProcesso(processo);
+      const keyCliente = cliente.id || cliente.nome.trim().toLocaleLowerCase("pt-BR");
+      const partes = partesAtuais.some((parte) => (parte.cliente_id || parte.nome.trim().toLocaleLowerCase("pt-BR")) === keyCliente)
+        ? partesAtuais
+        : [...partesAtuais, { cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: cliente.cpf, papel: partesAtuais.length === 0 ? "Cliente principal" : "Cliente" }];
+      const principal = partes[0];
+      await updateProcesso(processoId, {
+        cliente_id: principal.cliente_id,
+        cliente_nome: principal.nome,
+        cliente_cpf_cnpj: principal.cpf_cnpj,
+        clientes_partes: partes,
+      });
       onSaved();
+    } catch (error) {
+      const detalhe = error instanceof Error ? error.message : "erro desconhecido";
+      const sql = /clientes_partes|schema cache|column/i.test(detalhe) ? "supabase-processos-litisconsorcio.sql" : "SQL correspondente";
+      alert(`Não consegui vincular o processo ao cliente. Rode primeiro o ${sql} no Supabase.\n\nDetalhe: ${detalhe}`);
     } finally {
       setSaving(false);
     }
@@ -520,7 +538,7 @@ function VincularProcessoModal({ open, cliente, processosVinculados, onClose, on
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{p.titulo}</p>
                   <p className="text-xs text-gray-400 font-mono">{p.numero}</p>
-                  <p className="text-xs text-gray-400">Cliente atual: {p.cliente_nome || "—"}</p>
+                  <p className="text-xs text-gray-400">Clientes atuais: {nomesPartesProcesso(p)}</p>
                 </div>
               </label>
             ))}
