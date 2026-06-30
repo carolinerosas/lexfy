@@ -313,6 +313,86 @@ export async function deleteHonorario(id: string): Promise<void> {
   await supabase.from("honorarios").delete().eq("id", id);
 }
 
+// Registra o recebimento de uma cobrança/parcela.
+// - recebido == valor: quita a parcela.
+// - recebido < valor: abate o recebido e gera uma nova cobrança com a diferença (vencimento editável).
+// - recebido > valor: quita a parcela e abate o excedente das ÚLTIMAS parcelas em aberto do mesmo
+//   processo (da última para a primeira). Sobra vira adiantamento.
+export async function registrarRecebimento(
+  h: Honorario,
+  opts: { data: string; valorRecebido: number; vencimentoDiferenca?: string }
+): Promise<void> {
+  const quando = opts.data;
+  const round = (n: number) => Math.round(n * 100) / 100;
+  const recebido = round(Math.max(0, opts.valorRecebido));
+  if (recebido <= 0) return;
+
+  const lancarPagamento = (valor: number, ref: Honorario) =>
+    createHonorario({
+      processo_id: ref.processo_id,
+      descricao: `Recebimento — ${ref.descricao}`,
+      valor,
+      categoria: "pagamento",
+      status: "recebido",
+      data_recebimento: quando,
+    });
+
+  if (recebido <= h.valor + 0.005) {
+    const diferenca = round(h.valor - recebido);
+    await updateHonorario(h.id, { valor: recebido, status: "recebido", data_recebimento: quando });
+    await lancarPagamento(recebido, h);
+    if (diferenca > 0.005) {
+      await createHonorario({
+        processo_id: h.processo_id,
+        descricao: `${h.descricao} — diferença`,
+        valor: diferenca,
+        tipo: h.tipo,
+        categoria: "cobranca",
+        status: "pendente",
+        data_lancamento: h.data_lancamento,
+        data_vencimento: opts.vencimentoDiferenca || h.data_vencimento,
+      });
+    }
+    return;
+  }
+
+  // Recebeu mais que a parcela.
+  await updateHonorario(h.id, { status: "recebido", data_recebimento: quando });
+  await lancarPagamento(h.valor, h);
+  let excedente = round(recebido - h.valor);
+
+  const todos = await getHonorarios();
+  const outras = todos
+    .filter((p) =>
+      p.processo_id === h.processo_id && p.id !== h.id &&
+      p.categoria === "cobranca" && p.status !== "recebido" && p.status !== "cancelado")
+    .sort((a, b) => (b.data_vencimento ?? "").localeCompare(a.data_vencimento ?? ""));
+
+  for (const p of outras) {
+    if (excedente <= 0.005) break;
+    if (excedente >= p.valor - 0.005) {
+      await updateHonorario(p.id, { status: "recebido", data_recebimento: quando });
+      await lancarPagamento(p.valor, p);
+      excedente = round(excedente - p.valor);
+    } else {
+      await updateHonorario(p.id, { valor: round(p.valor - excedente) });
+      await lancarPagamento(excedente, p);
+      excedente = 0;
+    }
+  }
+
+  if (excedente > 0.005) {
+    await createHonorario({
+      processo_id: h.processo_id,
+      descricao: `Recebimento — ${h.descricao} (adiantamento)`,
+      valor: excedente,
+      categoria: "pagamento",
+      status: "recebido",
+      data_recebimento: quando,
+    });
+  }
+}
+
 // --- Contas do escritorio ---
 
 export async function getContasEscritorio(): Promise<ContaEscritorio[]> {

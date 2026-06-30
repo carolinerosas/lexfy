@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ComboBox } from "@/components/ui/combobox";
+import { RecebimentoModal } from "@/components/ui/recebimento-modal";
 import {
   getHonorariosWithProcesso, getProcessos, getClientes,
   createHonorario, updateHonorario, deleteHonorario,
@@ -107,6 +108,12 @@ function primeiraLetra(nome: string): string {
   return /[A-Z]/.test(ch) ? ch : "#";
 }
 
+const MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+function mesLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${MESES_PT[(m || 1) - 1]} de ${y}`;
+}
+
 // As "visões" abertas ao clicar nos cards do topo.
 type FinView = "cobrado" | "recebido" | "saldo" | "mes_receber" | "mes_recebido";
 const viewTitulo: Record<FinView, string> = {
@@ -127,9 +134,6 @@ export default function FinanceiroPage() {
   const [pagandoConta, setPagandoConta] = useState<ContaEscritorio | null>(null);
   const [dataPagamentoConta, setDataPagamentoConta] = useState(todayISO());
   const [recebendo, setRecebendo] = useState<HonorarioFull | null>(null);
-  const [dataRecebida, setDataRecebida] = useState(todayISO());
-  const [valorRecebido, setValorRecebido] = useState("");
-  const [vencDiferenca, setVencDiferenca] = useState("");
   const [view, setView] = useState<FinView | null>(null);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
 
@@ -141,9 +145,6 @@ export default function FinanceiroPage() {
 
   function abrirRecebimento(h: HonorarioFull) {
     setRecebendo(h);
-    setDataRecebida(todayISO());
-    setValorRecebido(String(h.valor));
-    setVencDiferenca(h.data_vencimento ?? todayISO());
   }
 
   const load = useCallback(async () => {
@@ -255,41 +256,31 @@ export default function FinanceiroPage() {
     if (!ancoraPorLetra.has(l)) ancoraPorLetra.set(l, g.chave);
   }
 
+  // Linha do tempo: entradas (honorários recebidos) e saídas (contas pagas) por mês.
+  const mesesMap = new Map<string, { entradas: number; saidas: number }>();
+  for (const h of honorarios) {
+    if (h.categoria === "pagamento" && h.data_recebimento) {
+      const m = h.data_recebimento.slice(0, 7);
+      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
+      e.entradas += h.valor;
+      mesesMap.set(m, e);
+    }
+  }
+  for (const c of contas) {
+    if (c.status === "paga" && c.data_pagamento) {
+      const m = c.data_pagamento.slice(0, 7);
+      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
+      e.saidas += Number(c.valor || 0);
+      mesesMap.set(m, e);
+    }
+  }
+  const linhaTempo = [...mesesMap.entries()]
+    .map(([mes, v]) => ({ mes, ...v, saldo: v.entradas - v.saidas }))
+    .sort((a, b) => b.mes.localeCompare(a.mes));
+
   async function handleDelete(h: Honorario) {
     if (!window.confirm("Excluir este lançamento?")) return;
     await deleteHonorario(h.id);
-    await load();
-  }
-
-  async function marcarRecebido(h: HonorarioFull, dataRec: string, valorRec?: number, vencDif?: string) {
-    const quando = dataRec || todayISO();
-    const recebido = valorRec != null && valorRec > 0 ? Math.min(valorRec, h.valor) : h.valor;
-    const diferenca = Math.round((h.valor - recebido) * 100) / 100;
-
-    // A cobrança original passa a valer o que foi efetivamente recebido e é marcada como recebida.
-    await updateHonorario(h.id, { valor: recebido, status: "recebido", data_recebimento: quando });
-    // Lança o pagamento (entrada de caixa) do valor recebido.
-    await createHonorario({
-      processo_id: h.processo_id,
-      descricao: `Recebimento — ${h.descricao}`,
-      valor: recebido,
-      categoria: "pagamento",
-      status: "recebido",
-      data_recebimento: quando,
-    });
-    // Se recebeu menos que a parcela, gera uma nova cobrança com a diferença (vencimento editável).
-    if (diferenca > 0.005) {
-      await createHonorario({
-        processo_id: h.processo_id,
-        descricao: `${h.descricao} — diferença`,
-        valor: diferenca,
-        tipo: h.tipo,
-        categoria: "cobranca",
-        status: "pendente",
-        data_lancamento: h.data_lancamento,
-        data_vencimento: vencDif || h.data_vencimento,
-      });
-    }
     await load();
   }
 
@@ -511,6 +502,28 @@ export default function FinanceiroPage() {
         )}
       </Card>
 
+      {linhaTempo.length > 0 && (
+        <Card className="mb-6">
+          <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
+            <CalendarClock className="w-4 h-4 text-gray-500" />
+            <h2 className="text-sm font-bold text-gray-900">Linha do tempo</h2>
+            <span className="text-xs text-gray-400">entradas e saídas por mês</span>
+          </div>
+          <ul className="divide-y divide-gray-50">
+            {linhaTempo.map((m) => (
+              <li key={m.mes} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
+                <span className="w-36 shrink-0 text-sm font-semibold capitalize text-gray-900">{mesLabel(m.mes)}</span>
+                <span className="text-xs text-gray-500">Entradas: <strong className="text-green-700">{formatCurrency(m.entradas)}</strong></span>
+                <span className="text-xs text-gray-500">Saídas: <strong className="text-red-600">{formatCurrency(m.saidas)}</strong></span>
+                <span className={`ml-auto text-sm font-black tabular-nums ${m.saldo >= 0 ? "text-green-700" : "text-red-600"}`}>
+                  {m.saldo >= 0 ? "+" : "−"}{formatCurrency(Math.abs(m.saldo))}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {honorarios.length === 0 && (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
@@ -566,61 +579,11 @@ export default function FinanceiroPage() {
         </Modal>
       )}
 
-      {recebendo && (
-        <Modal open onClose={() => setRecebendo(null)} title="Confirmar recebimento" size="sm">
-          {(() => {
-            const totalParcela = recebendo.valor;
-            const recNum = parseFloat(valorRecebido.replace(",", ".")) || 0;
-            const recAplicado = Math.min(Math.max(0, recNum), totalParcela);
-            const diferenca = Math.round((totalParcela - recAplicado) * 100) / 100;
-            const parcial = diferenca > 0.005;
-            return (
-              <div className="space-y-4">
-                <div className="rounded-lg bg-gray-50 px-3 py-2.5">
-                  <p className="text-sm font-medium text-gray-900">{recebendo.descricao}</p>
-                  <p className="text-sm font-bold text-green-700">Parcela: {formatCurrency(totalParcela)}</p>
-                </div>
-                <Input
-                  label="Valor recebido *"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={valorRecebido}
-                  onChange={(e) => setValorRecebido(e.target.value)}
-                />
-                <Input
-                  label="Quando você recebeu? *"
-                  type="date"
-                  value={dataRecebida}
-                  onChange={(e) => setDataRecebida(e.target.value)}
-                />
-                {parcial && (
-                  <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="text-sm text-amber-900">
-                      Recebimento parcial: vou abater <strong>{formatCurrency(recAplicado)}</strong> e gerar uma nova cobrança de <strong>{formatCurrency(diferenca)}</strong> (a diferença).
-                    </p>
-                    <Input
-                      label="Vencimento da diferença"
-                      type="date"
-                      value={vencDiferenca}
-                      onChange={(e) => setVencDiferenca(e.target.value)}
-                    />
-                  </div>
-                )}
-                <div className="flex justify-end gap-3">
-                  <Button variant="secondary" onClick={() => setRecebendo(null)}>Cancelar</Button>
-                  <Button
-                    onClick={async () => { const h = recebendo; setRecebendo(null); await marcarRecebido(h, dataRecebida, recAplicado, vencDiferenca); }}
-                    disabled={!dataRecebida || recAplicado <= 0}
-                  >
-                    <CheckCircle2 className="w-4 h-4" /> Confirmar recebimento
-                  </Button>
-                </div>
-              </div>
-            );
-          })()}
-        </Modal>
-      )}
+      <RecebimentoModal
+        honorario={recebendo}
+        onClose={() => setRecebendo(null)}
+        onDone={() => { setRecebendo(null); load(); }}
+      />
     </div>
   );
 }

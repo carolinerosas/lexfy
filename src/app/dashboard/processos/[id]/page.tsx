@@ -37,6 +37,7 @@ import {
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import { labelTiposPenais, nomesPartesProcesso, partesDoProcesso, tiposPenaisDoProcesso } from "@/lib/processo-partes";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
+import { RecebimentoModal } from "@/components/ui/recebimento-modal";
 import type {
   Cliente, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
   ProcessoTipo, ProcessoResultadoTipo, IncidenteExecucao, CalculoPena, BeneficioPenal,
@@ -259,7 +260,6 @@ export default function ProcessoDetailPage() {
   const [audModal, setAudModal] = useState(false);
   const [honModal, setHonModal] = useState(false);
   const [honRecebendo, setHonRecebendo] = useState<Honorario | null>(null);
-  const [honDataRec, setHonDataRec] = useState("");
   const [atenModal, setAtenModal] = useState(false);
   const [anotacaoModal, setAnotacaoModal] = useState(false);
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
@@ -614,7 +614,7 @@ export default function ProcessoDetailPage() {
         <HonorariosTab
           honorarios={honorarios}
           onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
-          onReceber={(h) => { setHonRecebendo(h); setHonDataRec(hojeISODate()); }}
+          onReceber={(h) => setHonRecebendo(h)}
           onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
         />
       )}
@@ -638,40 +638,11 @@ export default function ProcessoDetailPage() {
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
       <NovoHonorarioModal open={honModal} onClose={() => setHonModal(false)} processoId={id} categoria={honCategoria} onCreated={() => { load(); setHonModal(false); }} />
 
-      {honRecebendo && (
-        <Modal open onClose={() => setHonRecebendo(null)} title="Confirmar recebimento" size="sm">
-          <div className="space-y-4">
-            <div className="rounded-lg bg-gray-50 px-3 py-2.5">
-              <p className="text-sm font-medium text-gray-900">{honRecebendo.descricao}</p>
-              <p className="text-sm font-bold text-green-700">{formatCurrency(honRecebendo.valor)}</p>
-            </div>
-            <Input label="Quando você recebeu? *" type="date" value={honDataRec} onChange={(e) => setHonDataRec(e.target.value)} />
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setHonRecebendo(null)}>Cancelar</Button>
-              <Button
-                disabled={!honDataRec}
-                onClick={async () => {
-                  const h = honRecebendo;
-                  const quando = honDataRec || hojeISODate();
-                  setHonRecebendo(null);
-                  await updateHonorario(h.id, { status: "recebido", data_recebimento: quando });
-                  await createHonorario({
-                    processo_id: h.processo_id,
-                    descricao: `Recebimento — ${h.descricao}`,
-                    valor: h.valor,
-                    categoria: "pagamento",
-                    status: "recebido",
-                    data_recebimento: quando,
-                  });
-                  load();
-                }}
-              >
-                <CheckCircle className="w-4 h-4" /> Confirmar recebimento
-              </Button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <RecebimentoModal
+        honorario={honRecebendo}
+        onClose={() => setHonRecebendo(null)}
+        onDone={() => { setHonRecebendo(null); load(); }}
+      />
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
       <AnotacaoModal
         open={anotacaoModal}
