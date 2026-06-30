@@ -126,6 +126,15 @@ export default function FinanceiroPage() {
   const [dataPagamentoConta, setDataPagamentoConta] = useState(todayISO());
   const [recebendo, setRecebendo] = useState<HonorarioFull | null>(null);
   const [dataRecebida, setDataRecebida] = useState(todayISO());
+  const [valorRecebido, setValorRecebido] = useState("");
+  const [vencDiferenca, setVencDiferenca] = useState("");
+
+  function abrirRecebimento(h: HonorarioFull) {
+    setRecebendo(h);
+    setDataRecebida(todayISO());
+    setValorRecebido(String(h.valor));
+    setVencDiferenca(h.data_vencimento ?? todayISO());
+  }
 
   const load = useCallback(async () => {
     const [hon, procs, cls, contasEsc] = await Promise.all([
@@ -207,17 +216,35 @@ export default function FinanceiroPage() {
     await load();
   }
 
-  async function marcarRecebido(h: HonorarioFull, dataRec: string) {
+  async function marcarRecebido(h: HonorarioFull, dataRec: string, valorRec?: number, vencDif?: string) {
     const quando = dataRec || todayISO();
-    await updateHonorario(h.id, { status: "recebido", data_recebimento: quando });
+    const recebido = valorRec != null && valorRec > 0 ? Math.min(valorRec, h.valor) : h.valor;
+    const diferenca = Math.round((h.valor - recebido) * 100) / 100;
+
+    // A cobrança original passa a valer o que foi efetivamente recebido e é marcada como recebida.
+    await updateHonorario(h.id, { valor: recebido, status: "recebido", data_recebimento: quando });
+    // Lança o pagamento (entrada de caixa) do valor recebido.
     await createHonorario({
       processo_id: h.processo_id,
       descricao: `Recebimento — ${h.descricao}`,
-      valor: h.valor,
+      valor: recebido,
       categoria: "pagamento",
       status: "recebido",
       data_recebimento: quando,
     });
+    // Se recebeu menos que a parcela, gera uma nova cobrança com a diferença (vencimento editável).
+    if (diferenca > 0.005) {
+      await createHonorario({
+        processo_id: h.processo_id,
+        descricao: `${h.descricao} — diferença`,
+        valor: diferenca,
+        tipo: h.tipo,
+        categoria: "cobranca",
+        status: "pendente",
+        data_lancamento: h.data_lancamento,
+        data_vencimento: vencDif || h.data_vencimento,
+      });
+    }
     await load();
   }
 
@@ -288,7 +315,14 @@ export default function FinanceiroPage() {
                     </p>
                   </div>
                   <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
-                  <Button size="sm" onClick={() => { setRecebendo(h); setDataRecebida(todayISO()); }}>
+                  <button
+                    onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })}
+                    title="Editar lançamento"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <Button size="sm" onClick={() => abrirRecebimento(h)}>
                     <CheckCircle2 className="w-3.5 h-3.5" /> Recebido
                   </Button>
                 </li>
@@ -444,6 +478,11 @@ export default function FinanceiroPage() {
                       {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
                     </span>
                     <div className="flex shrink-0 items-center gap-0.5">
+                      {h.categoria === "cobranca" && h.status !== "recebido" && h.status !== "cancelado" && (
+                        <button onClick={() => abrirRecebimento(h)} title="Registrar recebimento" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-green-50 hover:text-green-600">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -504,27 +543,57 @@ export default function FinanceiroPage() {
 
       {recebendo && (
         <Modal open onClose={() => setRecebendo(null)} title="Confirmar recebimento" size="sm">
-          <div className="space-y-4">
-            <div className="rounded-lg bg-gray-50 px-3 py-2.5">
-              <p className="text-sm font-medium text-gray-900">{recebendo.descricao}</p>
-              <p className="text-sm font-bold text-green-700">{formatCurrency(recebendo.valor)}</p>
-            </div>
-            <Input
-              label="Quando você recebeu? *"
-              type="date"
-              value={dataRecebida}
-              onChange={(e) => setDataRecebida(e.target.value)}
-            />
-            <div className="flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setRecebendo(null)}>Cancelar</Button>
-              <Button
-                onClick={async () => { const h = recebendo; setRecebendo(null); await marcarRecebido(h, dataRecebida); }}
-                disabled={!dataRecebida}
-              >
-                <CheckCircle2 className="w-4 h-4" /> Confirmar recebimento
-              </Button>
-            </div>
-          </div>
+          {(() => {
+            const totalParcela = recebendo.valor;
+            const recNum = parseFloat(valorRecebido.replace(",", ".")) || 0;
+            const recAplicado = Math.min(Math.max(0, recNum), totalParcela);
+            const diferenca = Math.round((totalParcela - recAplicado) * 100) / 100;
+            const parcial = diferenca > 0.005;
+            return (
+              <div className="space-y-4">
+                <div className="rounded-lg bg-gray-50 px-3 py-2.5">
+                  <p className="text-sm font-medium text-gray-900">{recebendo.descricao}</p>
+                  <p className="text-sm font-bold text-green-700">Parcela: {formatCurrency(totalParcela)}</p>
+                </div>
+                <Input
+                  label="Valor recebido *"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={valorRecebido}
+                  onChange={(e) => setValorRecebido(e.target.value)}
+                />
+                <Input
+                  label="Quando você recebeu? *"
+                  type="date"
+                  value={dataRecebida}
+                  onChange={(e) => setDataRecebida(e.target.value)}
+                />
+                {parcial && (
+                  <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-sm text-amber-900">
+                      Recebimento parcial: vou abater <strong>{formatCurrency(recAplicado)}</strong> e gerar uma nova cobrança de <strong>{formatCurrency(diferenca)}</strong> (a diferença).
+                    </p>
+                    <Input
+                      label="Vencimento da diferença"
+                      type="date"
+                      value={vencDiferenca}
+                      onChange={(e) => setVencDiferenca(e.target.value)}
+                    />
+                  </div>
+                )}
+                <div className="flex justify-end gap-3">
+                  <Button variant="secondary" onClick={() => setRecebendo(null)}>Cancelar</Button>
+                  <Button
+                    onClick={async () => { const h = recebendo; setRecebendo(null); await marcarRecebido(h, dataRecebida, recAplicado, vencDiferenca); }}
+                    disabled={!dataRecebida || recAplicado <= 0}
+                  >
+                    <CheckCircle2 className="w-4 h-4" /> Confirmar recebimento
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </Modal>
       )}
     </div>

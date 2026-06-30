@@ -68,23 +68,18 @@ export default function ClienteDetailPage() {
     setCliente(c);
     const dedup = <T extends { id: string }>(arr: T[]) =>
       arr.filter((item, i, self) => self.findIndex((x) => x.id === item.id) === i);
-    const [procId, procNome, honId, honNome, atenId, atenNome, prazId, prazNome, audId, audNome] = await Promise.all([
+    const [procId, honId, atenId, prazId, audId] = await Promise.all([
       getProcessosByCliente(c.id),
-      getProcessosByCliente(c.nome),
       getHonorariosByCliente(c.id),
-      getHonorariosByCliente(c.nome),
       getAtendimentosByCliente(c.id),
-      getAtendimentosByCliente(c.nome),
       getPrazosByCliente(c.id),
-      getPrazosByCliente(c.nome),
       getAudienciasByCliente(c.id),
-      getAudienciasByCliente(c.nome),
     ]);
-    setProcessos(dedup([...procId, ...procNome]));
-    setHonorarios(dedup([...honId, ...honNome]));
-    setAtendimentos(dedup([...atenId, ...atenNome]));
-    setPrazos(dedup([...prazId, ...prazNome]));
-    setAudiencias(dedup([...audId, ...audNome]));
+    setProcessos(dedup(procId));
+    setHonorarios(dedup(honId));
+    setAtendimentos(dedup(atenId));
+    setPrazos(dedup(prazId));
+    setAudiencias(dedup(audId));
   }, [id, router]);
 
   useEffect(() => { load(); }, [load]);

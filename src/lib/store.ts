@@ -1133,12 +1133,14 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
 
   function buildSummary(id: string | undefined, nome: string, cadastrado: boolean) {
     const procs = processos.filter((p) =>
-      id ? processoTemCliente(p, { id, nome }) : p.cliente_nome === nome && semClienteAtivo(p.cliente_id)
+      id
+        ? p.cliente_id === id || (p.clientes_partes ?? []).some((parte) => parte.cliente_id === id)
+        : p.cliente_nome === nome && semClienteAtivo(p.cliente_id)
     );
     const procIds = new Set(procs.map((p) => p.id));
     const hons = honorarios.filter((h) => procIds.has(h.processo_id));
     const atens = atendimentos.filter((a) =>
-      id ? (a.cliente_id === id || a.cliente_nome === nome) : a.cliente_nome === nome && semClienteAtivo(a.cliente_id)
+      id ? a.cliente_id === id : a.cliente_nome === nome && semClienteAtivo(a.cliente_id)
     );
     const totalCobrado = hons.filter((h) => h.categoria === "cobranca").reduce((s, h) => s + h.valor, 0);
     const totalPago = hons.filter((h) => h.categoria === "pagamento").reduce((s, h) => s + h.valor, 0);
@@ -1159,7 +1161,7 @@ export async function getClientesSummary(): Promise<(ClienteSummary & { id?: str
   const registered = clientes.map((c) => buildSummary(c.id, c.nome, true));
 
   const nomesSet = new Set<string>();
-  processos.forEach((p) => { if (p.cliente_nome && !registeredNomes.has(p.cliente_nome) && semClienteAtivo(p.cliente_id)) nomesSet.add(p.cliente_nome); });
+  processos.forEach((p) => { if (p.cliente_nome && semClienteAtivo(p.cliente_id)) nomesSet.add(p.cliente_nome); });
   atendimentos.forEach((a) => { if (a.cliente_nome && !registeredNomes.has(a.cliente_nome) && semClienteAtivo(a.cliente_id)) nomesSet.add(a.cliente_nome); });
   const unregistered = Array.from(nomesSet).filter(Boolean).map((nome) => buildSummary(undefined, nome, false));
 
