@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
 import {
   DollarSign, Plus, Trash2, TrendingUp, TrendingDown, Pencil,
-  FolderOpen, UserRound, ArrowDownCircle, CalendarClock, CheckCircle2,
-  Receipt, AlertTriangle, Wallet,
+  ArrowDownCircle, CalendarClock, CheckCircle2,
+  Receipt, AlertTriangle, Wallet, X, ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,13 +29,6 @@ const honorarioTipoOptions = [
   { value: "outro", label: "Outro" },
 ];
 
-const tipoLabel: Record<string, string> = {
-  contratual: "Contratual",
-  sucumbencial: "Sucumbencial",
-  exito: "Êxito",
-  outro: "Outro",
-};
-
 type HonorarioFull = Honorario & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> };
 
 const contaCategoriaOptions = [
@@ -58,14 +50,6 @@ const contaCategoriaOptions = [
 const contaCategoriaLabel = Object.fromEntries(contaCategoriaOptions.map((opt) => [opt.value, opt.label]));
 
 interface ProcInfo { numero: string; clienteNome: string; clienteId?: string; }
-
-interface Grupo extends ProcInfo {
-  processoId: string;
-  cobrado: number;
-  recebido: number;
-  saldo: number;
-  itens: HonorarioFull[];
-}
 
 interface ModalState {
   editing: Honorario | null;
@@ -115,6 +99,24 @@ function splitValor(total: number, n: number): number[] {
   return arr.map((c) => c / 100);
 }
 
+const ALFABETO = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+// Primeira letra do nome, sem acento e maiúscula (ex.: "Ávila" -> "A"). Não-letras viram "#".
+function primeiraLetra(nome: string): string {
+  const ch = (nome ?? "").trim().charAt(0).normalize("NFD").replace(/[̀-ͯ]/g, "").toLocaleUpperCase("pt-BR");
+  return /[A-Z]/.test(ch) ? ch : "#";
+}
+
+// As "visões" abertas ao clicar nos cards do topo.
+type FinView = "cobrado" | "recebido" | "saldo" | "mes_receber" | "mes_recebido";
+const viewTitulo: Record<FinView, string> = {
+  cobrado: "Tudo que foi cobrado",
+  recebido: "Tudo que você recebeu",
+  saldo: "Tudo que você vai receber",
+  mes_receber: "A receber este mês",
+  mes_recebido: "Recebido este mês",
+};
+
 export default function FinanceiroPage() {
   const [honorarios, setHonorarios] = useState<HonorarioFull[]>([]);
   const [contas, setContas] = useState<ContaEscritorio[]>([]);
@@ -128,6 +130,14 @@ export default function FinanceiroPage() {
   const [dataRecebida, setDataRecebida] = useState(todayISO());
   const [valorRecebido, setValorRecebido] = useState("");
   const [vencDiferenca, setVencDiferenca] = useState("");
+  const [view, setView] = useState<FinView | null>(null);
+  const [clienteAberto, setClienteAberto] = useState<string | null>(null);
+
+  // Pula para os honorários de uma letra (mesmo esquema da seção Clientes).
+  function irParaLetra(l: string) {
+    if (typeof document === "undefined") return;
+    document.getElementById(`fin-letra-${l}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   function abrirRecebimento(h: HonorarioFull) {
     setRecebendo(h);
@@ -150,6 +160,20 @@ export default function FinanceiroPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Atalho de teclado: apertar uma letra (fora de campos) pula para os honorários daquela inicial.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      const tag = alvo?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || alvo?.isContentEditable) return;
+      if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) irParaLetra(e.key.toUpperCase());
+      else if (e.key.length === 1 && /[0-9]/.test(e.key)) irParaLetra("#");
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const totalCobrado = honorarios.filter((h) => h.categoria === "cobranca").reduce((s, h) => s + h.valor, 0);
   const totalPago = honorarios.filter((h) => h.categoria === "pagamento").reduce((s, h) => s + h.valor, 0);
@@ -196,19 +220,40 @@ export default function FinanceiroPage() {
     return (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? "");
   });
 
-  const grupos: Grupo[] = processos
-    .map((proc) => {
-      const itens = honorarios
-        .filter((h) => h.processo_id === proc.id)
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      if (itens.length === 0) return null;
-      const cobrado = itens.filter((h) => h.categoria === "cobranca").reduce((s, h) => s + h.valor, 0);
-      const recebido = itens.filter((h) => h.categoria === "pagamento").reduce((s, h) => s + h.valor, 0);
-      const info = procInfo.get(proc.id)!;
-      return { processoId: proc.id, ...info, cobrado, recebido, saldo: cobrado - recebido, itens } as Grupo;
-    })
-    .filter((g): g is Grupo => g !== null)
-    .sort((a, b) => b.saldo - a.saldo);
+
+  // Honorários da visão escolhida (ao clicar num card do topo).
+  function filtrarPorView(h: HonorarioFull, v: FinView): boolean {
+    switch (v) {
+      case "cobrado": return h.categoria === "cobranca";
+      case "recebido": return h.categoria === "pagamento";
+      case "saldo": return h.categoria === "cobranca" && h.status !== "recebido" && h.status !== "cancelado";
+      case "mes_receber": return h.categoria === "cobranca" && h.status !== "recebido" && h.status !== "cancelado" && isThisMonth(h.data_vencimento);
+      case "mes_recebido": return h.categoria === "pagamento" && isThisMonth(h.data_recebimento);
+    }
+  }
+
+  // Agrupa os honorários da visão por cliente, em ordem alfabética (mesmo sistema da seção Clientes).
+  const honorariosView = view ? honorarios.filter((h) => filtrarPorView(h, view)) : [];
+  const gruposClienteMap = new Map<string, { clienteNome: string; clienteId?: string; itens: HonorarioFull[]; total: number }>();
+  for (const h of honorariosView) {
+    const info = procInfo.get(h.processo_id);
+    const nome = info?.clienteNome ?? h.processo?.cliente_nome ?? "Sem cliente";
+    const chave = nome.toLowerCase().trim();
+    const g = gruposClienteMap.get(chave) ?? { clienteNome: nome, clienteId: info?.clienteId, itens: [], total: 0 };
+    g.itens.push(h);
+    g.total += h.valor;
+    if (!g.clienteId && info?.clienteId) g.clienteId = info.clienteId;
+    gruposClienteMap.set(chave, g);
+  }
+  const gruposCliente = [...gruposClienteMap.entries()]
+    .map(([chave, g]) => ({ chave, ...g }))
+    .sort((a, b) => a.clienteNome.localeCompare(b.clienteNome, "pt-BR", { sensitivity: "base" }));
+  const letrasComCliente = new Set(gruposCliente.map((g) => primeiraLetra(g.clienteNome)));
+  const ancoraPorLetra = new Map<string, string>();
+  for (const g of gruposCliente) {
+    const l = primeiraLetra(g.clienteNome);
+    if (!ancoraPorLetra.has(l)) ancoraPorLetra.set(l, g.chave);
+  }
 
   async function handleDelete(h: Honorario) {
     if (!window.confirm("Excluir este lançamento?")) return;
@@ -274,63 +319,123 @@ export default function FinanceiroPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
-        <SummaryCard icon={<DollarSign className="w-5 h-5 text-white" />} dark label="Total Cobrado" value={formatCurrency(totalCobrado)} />
-        <SummaryCard icon={<TrendingUp className="w-5 h-5 text-green-600" />} label="Total Recebido" value={formatCurrency(totalPago)} />
-        <SummaryCard icon={<TrendingDown className="w-5 h-5 text-amber-600" />} label="Saldo a Receber" value={formatCurrency(saldoDevedor)} />
-        <SummaryCard icon={<CalendarClock className="w-5 h-5 text-blue-600" />} label="A receber este mês" value={formatCurrency(totalReceberMes)} highlight />
-        <SummaryCard icon={<TrendingUp className="w-5 h-5 text-gray-600" />} label="Recebido este mês" value={formatCurrency(recebidoMes)} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+        <SummaryCard icon={<DollarSign className="w-5 h-5 text-white" />} dark label="Total Cobrado" value={formatCurrency(totalCobrado)} onClick={() => setView((v) => (v === "cobrado" ? null : "cobrado"))} active={view === "cobrado"} />
+        <SummaryCard icon={<TrendingUp className="w-5 h-5 text-green-600" />} label="Total Recebido" value={formatCurrency(totalPago)} onClick={() => setView((v) => (v === "recebido" ? null : "recebido"))} active={view === "recebido"} />
+        <SummaryCard icon={<TrendingDown className="w-5 h-5 text-amber-600" />} label="Saldo a Receber" value={formatCurrency(saldoDevedor)} onClick={() => setView((v) => (v === "saldo" ? null : "saldo"))} active={view === "saldo"} />
+        <SummaryCard icon={<CalendarClock className="w-5 h-5 text-blue-600" />} label="A receber este mês" value={formatCurrency(totalReceberMes)} highlight onClick={() => setView((v) => (v === "mes_receber" ? null : "mes_receber"))} active={view === "mes_receber"} />
+        <SummaryCard icon={<TrendingUp className="w-5 h-5 text-gray-600" />} label="Recebido este mês" value={formatCurrency(recebidoMes)} onClick={() => setView((v) => (v === "mes_recebido" ? null : "mes_recebido"))} active={view === "mes_recebido"} />
       </div>
+      <p className="mb-8 text-xs text-gray-400">Clique num card acima para ver os honorários, por cliente.</p>
 
-      {/* Recebíveis do mês */}
-      <Card className="mb-6">
-        <div className="flex items-center gap-2 border-b border-gray-100 bg-blue-50/50 px-5 py-3">
-          <CalendarClock className="w-4 h-4 text-blue-600" />
-          <h2 className="text-sm font-bold text-gray-900">A receber este mês</h2>
-          {aReceberMes.length > 0 && (
-            <Badge variant="neutral">{aReceberMes.length} parcela{aReceberMes.length !== 1 ? "s" : ""} · {formatCurrency(totalReceberMes)}</Badge>
-          )}
-        </div>
-        {aReceberMes.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-gray-400">
-            Nenhuma parcela vencendo este mês. Defina o vencimento ao lançar uma cobrança.
+      {/* Painel de honorários — só aparece ao clicar num card; agrupado por cliente (A-Z, igual à seção Clientes) */}
+      {view && (
+        <Card className="mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-gray-900">{viewTitulo[view]}</h2>
+              <Badge variant="neutral">{honorariosView.length} lançamento{honorariosView.length !== 1 ? "s" : ""} · {formatCurrency(honorariosView.reduce((s, h) => s + h.valor, 0))}</Badge>
+            </div>
+            <button onClick={() => setView(null)} title="Fechar" className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-50">
-            {aReceberMes.map((h) => {
-              const info = procInfo.get(h.processo_id);
-              const venc = new Date((h.data_vencimento ?? "") + "T00:00:00");
-              const vencida = !isNaN(venc.getTime()) && venc < new Date(new Date().toDateString());
-              return (
-                <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50 sm:flex-nowrap">
-                  <div className={`flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg ${vencida ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
-                    <CalendarClock className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{h.descricao}</p>
-                    <p className="text-xs text-gray-400">
-                      {info?.clienteNome ?? h.processo?.cliente_nome ?? "—"}
-                      {" · vence "}{formatDate(h.data_vencimento)}
-                      {vencida && <span className="ml-1 font-semibold text-red-600">(vencida)</span>}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
-                  <button
-                    onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })}
-                    title="Editar lançamento"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <Button size="sm" onClick={() => abrirRecebimento(h)}>
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Recebido
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
+
+          {gruposCliente.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-gray-400">Nenhum honorário nesta visão.</div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-x-0.5 gap-y-1 border-b border-gray-100 px-5 py-2">
+                <span className="mr-1.5 text-[11px] text-gray-400">Digite uma letra:</span>
+                {ALFABETO.map((l) => {
+                  const disp = letrasComCliente.has(l);
+                  return (
+                    <button
+                      key={l}
+                      type="button"
+                      disabled={!disp}
+                      onClick={() => irParaLetra(l)}
+                      className={`h-6 w-6 rounded text-xs font-semibold transition-colors ${disp ? "text-gray-500 hover:bg-gray-100 hover:text-gray-900" : "cursor-default text-gray-200"}`}
+                    >
+                      {l}
+                    </button>
+                  );
+                })}
+                {letrasComCliente.has("#") && (
+                  <button type="button" onClick={() => irParaLetra("#")} className="h-6 w-6 rounded text-xs font-semibold text-gray-500 hover:bg-gray-100 hover:text-gray-900">#</button>
+                )}
+              </div>
+
+              <ul className="divide-y divide-gray-100">
+                {gruposCliente.map((g) => {
+                  const aberto = clienteAberto === g.chave;
+                  const ancora = ancoraPorLetra.get(primeiraLetra(g.clienteNome)) === g.chave ? primeiraLetra(g.clienteNome) : null;
+                  return (
+                    <li key={g.chave} id={ancora ? `fin-letra-${ancora}` : undefined} className="scroll-mt-24">
+                      <button
+                        onClick={() => setClienteAberto(aberto ? null : g.chave)}
+                        className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-50/60"
+                      >
+                        <ChevronRight className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#21181d] text-[11px] font-bold text-white">
+                          {g.clienteNome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold text-gray-900">{g.clienteNome}</span>
+                        <span className="shrink-0 text-xs text-gray-400">{g.itens.length} lanç.</span>
+                        <span className="shrink-0 text-sm font-black tabular-nums text-gray-900">{formatCurrency(g.total)}</span>
+                      </button>
+
+                      {aberto && (
+                        <ul className="divide-y divide-gray-50 border-t border-gray-50 bg-gray-50/30">
+                          {g.itens.map((h) => {
+                            const info = procInfo.get(h.processo_id);
+                            const pendente = h.categoria === "cobranca" && h.status !== "recebido" && h.status !== "cancelado";
+                            return (
+                              <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 pl-12 hover:bg-gray-50/60 sm:flex-nowrap">
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${h.categoria === "pagamento" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"}`}>
+                                  {h.categoria === "pagamento" ? <ArrowDownCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-medium text-gray-900">
+                                    {h.descricao}
+                                    {h.categoria === "cobranca" && h.status === "recebido" && <span className="ml-2 align-middle text-[10px] font-semibold text-green-600">✓ recebida</span>}
+                                  </p>
+                                  <p className="text-xs text-gray-400">
+                                    {info?.numero ? `${info.numero} · ` : ""}
+                                    {h.categoria === "pagamento"
+                                      ? `recebido ${formatDate(h.data_recebimento ?? h.created_at)}`
+                                      : h.data_vencimento ? `vence ${formatDate(h.data_vencimento)}` : "sem vencimento"}
+                                  </p>
+                                </div>
+                                <span className={`shrink-0 text-[11px] font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
+                                  {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
+                                </span>
+                                <div className="flex shrink-0 items-center gap-0.5">
+                                  {pendente && (
+                                    <button onClick={() => abrirRecebimento(h)} title="Registrar recebimento" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-green-50 hover:text-green-600">
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button onClick={() => handleDelete(h)} title="Excluir" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600">
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Card>
+      )}
 
       <Card className="mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-[#2a2027]/[0.04] px-5 py-4">
@@ -406,7 +511,7 @@ export default function FinanceiroPage() {
         )}
       </Card>
 
-      {grupos.length === 0 ? (
+      {honorarios.length === 0 && (
         <Card>
           <div className="flex flex-col items-center py-16 text-center">
             <DollarSign className="w-12 h-12 text-gray-200 mb-4" />
@@ -416,86 +521,6 @@ export default function FinanceiroPage() {
             </Button>
           </div>
         </Card>
-      ) : (
-        <div className="space-y-4">
-          {grupos.map((g) => (
-            <Card key={g.processoId}>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3.5">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {g.clienteId ? (
-                      <Link href={`/dashboard/clientes/${g.clienteId}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-900 hover:text-blue-600">
-                        <UserRound className="w-3.5 h-3.5 text-gray-400" /> {g.clienteNome}
-                      </Link>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-gray-900"><UserRound className="w-3.5 h-3.5 text-gray-400" /> {g.clienteNome}</span>
-                    )}
-                    <Link href={`/dashboard/processos/${g.processoId}`} className="inline-flex items-center gap-1.5 text-xs tabular-nums text-gray-500 hover:text-blue-600">
-                      <FolderOpen className="w-3.5 h-3.5 text-gray-400" /> {g.numero}
-                    </Link>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-500">
-                    <span>Cobrado: <strong className="text-gray-700">{formatCurrency(g.cobrado)}</strong></span>
-                    <span>Recebido: <strong className="text-green-700">{formatCurrency(g.recebido)}</strong></span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right mr-1">
-                    <p className={`text-sm font-black tabular-nums ${g.saldo > 0 ? "text-amber-600" : "text-green-700"}`}>{formatCurrency(Math.max(0, g.saldo))}</p>
-                    <p className="text-[10px] uppercase tracking-wide text-gray-400">{g.saldo > 0 ? "a receber" : "quitado"}</p>
-                  </div>
-                  {g.saldo > 0 && (
-                    <Button size="sm" onClick={() => setModal({ editing: null, processoId: g.processoId, categoria: "pagamento" })}>
-                      <ArrowDownCircle className="w-3.5 h-3.5" /> Receber
-                    </Button>
-                  )}
-                  <Button variant="secondary" size="sm" onClick={() => setModal({ editing: null, processoId: g.processoId, categoria: "cobranca" })}>
-                    <Plus className="w-3.5 h-3.5" /> Cobrança
-                  </Button>
-                </div>
-              </div>
-
-              <ul className="divide-y divide-gray-50">
-                {g.itens.map((h) => (
-                  <li key={h.id} className="flex flex-wrap items-center gap-3 px-5 py-3 hover:bg-gray-50/50 sm:flex-nowrap">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${h.categoria === "pagamento" ? "bg-green-50 text-green-600" : "bg-blue-50 text-blue-600"}`}>
-                      {h.categoria === "pagamento" ? <ArrowDownCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {h.descricao}
-                        {h.categoria === "cobranca" && h.status === "recebido" && (
-                          <span className="ml-2 align-middle text-[10px] font-semibold text-green-600">✓ recebida</span>
-                        )}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {h.categoria === "pagamento" ? "Recebimento" : `Cobrança${h.tipo ? ` · ${tipoLabel[h.tipo] ?? h.tipo}` : ""}`}
-                        {h.categoria === "cobranca" && h.data_vencimento && ` · vence ${formatDate(h.data_vencimento)}`}
-                        {h.categoria === "pagamento" && ` · ${formatDate(h.data_recebimento ?? h.created_at)}`}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 text-[11px] font-bold tabular-nums ${h.categoria === "pagamento" ? "text-green-700" : "text-gray-900"}`}>
-                      {h.categoria === "pagamento" ? "+" : ""}{formatCurrency(h.valor)}
-                    </span>
-                    <div className="flex shrink-0 items-center gap-0.5">
-                      {h.categoria === "cobranca" && h.status !== "recebido" && h.status !== "cancelado" && (
-                        <button onClick={() => abrirRecebimento(h)} title="Registrar recebimento" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-green-50 hover:text-green-600">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(h)} title="Excluir" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </div>
       )}
 
       {modal && (
@@ -600,9 +625,12 @@ export default function FinanceiroPage() {
   );
 }
 
-function SummaryCard({ icon, dark, highlight, label, value }: { icon: React.ReactNode; dark?: boolean; highlight?: boolean; label: string; value: string }) {
+function SummaryCard({ icon, dark, highlight, label, value, onClick, active }: { icon: React.ReactNode; dark?: boolean; highlight?: boolean; label: string; value: string; onClick?: () => void; active?: boolean }) {
+  const base = dark ? "bg-[#21181d] border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : "";
+  const interativo = onClick ? "cursor-pointer transition-all hover:shadow-md" : "";
+  const selecionado = active ? (dark ? "ring-2 ring-white/40" : "ring-2 ring-[#21181d]") : "";
   return (
-    <Card className={dark ? "bg-[#21181d] border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : ""}>
+    <Card className={`${base} ${interativo} ${selecionado}`} onClick={onClick}>
       <CardContent className="p-4">
         <div className={`w-9 h-9 rounded-xl ${dark ? "bg-white/10" : "bg-white"} flex items-center justify-center mb-2 border ${dark ? "border-white/10" : "border-gray-100"}`}>{icon}</div>
         <p className={`text-[11px] font-black tracking-tight tabular-nums sm:text-xs ${dark ? "text-white" : "text-gray-900"}`}>{value}</p>
