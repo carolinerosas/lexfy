@@ -9,6 +9,21 @@ const HEADERS = {
   "Accept-Language": "pt-BR,pt;q=0.9",
 };
 
+// A API Comunica do CNJ passou a bloquear (403) requisições sem cara de navegador.
+// Enviamos Referer/Origin do portal oficial e cabeçalhos sec-fetch para tentar passar.
+const COMUNICA_HEADERS = {
+  ...HEADERS,
+  Accept: "application/json, text/plain, */*",
+  Referer: "https://comunica.pje.jus.br/",
+  Origin: "https://comunica.pje.jus.br",
+  "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"Windows"',
+  "Sec-Fetch-Dest": "empty",
+  "Sec-Fetch-Mode": "cors",
+  "Sec-Fetch-Site": "same-site",
+};
+
 const PUBLICATION_SEARCH_DAYS = 45;
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
 const USER_ID = "lexfy_shared";
@@ -444,7 +459,7 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
       const url = `${COMUNICA_API_URL}/comunicacao?${params.toString()}`;
 
       const res = await fetch(url, {
-        headers: HEADERS,
+        headers: COMUNICA_HEADERS,
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
