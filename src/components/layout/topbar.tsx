@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Mail, Search, Settings } from "lucide-react";
 import { SearchModal } from "@/components/ui/search-modal";
+import { MobileMenuButton } from "@/components/layout/mobile-drawer";
 
 export function TopBar() {
   const router = useRouter();
@@ -38,6 +39,8 @@ export function TopBar() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-gray-50/95 px-4 backdrop-blur md:px-6">
+        <MobileMenuButton />
+
         {showBack && (
           <button
             type="button"

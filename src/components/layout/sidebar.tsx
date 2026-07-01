@@ -2,72 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import {
-  Calendar,
-  Clock,
-  DollarSign,
-  FileText,
-  FolderOpen,
-  LayoutDashboard,
-  ListTodo,
-  MessageSquare,
-  Newspaper,
-  Sparkles,
-  UserRound,
-  Users,
-} from "lucide-react";
 import { JustioLogo } from "@/components/ui/justio-logo";
-import { getPublicacoes, getTriagemNovosCount, getBriefingsNaoLidos } from "@/lib/store";
 import { useDatajudSync } from "@/hooks/useDatajudSync";
-
-const navItems = [
-  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/dashboard/briefing", label: "Briefing", icon: Sparkles, badge: "briefing" },
-  { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
-  { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
-  { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
-  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo },
-  { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
-  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
-  { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
-  { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
-  { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
-  { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
-];
+import { navItems, useNavBadges } from "./nav-config";
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [pubNaoLidas, setPubNaoLidas] = useState(0);
-  const [triagemNovos, setTriagemNovos] = useState(0);
-  const [briefingNaoLidos, setBriefingNaoLidos] = useState(0);
-
-  async function refreshBadges() {
-    const [pubs, triagem, briefings] = await Promise.all([
-      getPublicacoes(),
-      getTriagemNovosCount(),
-      getBriefingsNaoLidos(),
-    ]);
-    setPubNaoLidas(pubs.filter((p) => !p.lida).length);
-    setTriagemNovos(triagem);
-    setBriefingNaoLidos(briefings);
-  }
-
-  useEffect(() => {
-    refreshBadges();
-    const id = setInterval(refreshBadges, 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  useDatajudSync(() => refreshBadges());
-
-  function getBadge(key?: string): number {
-    if (key === "publicacoes") return pubNaoLidas;
-    if (key === "triagem") return triagemNovos;
-    if (key === "briefing") return briefingNaoLidos;
-    return 0;
-  }
+  const getBadge = useNavBadges();
+  useDatajudSync(() => {});
 
   return (
     <aside className="flex h-full w-60 flex-col border-r border-white/10 bg-[#21181d]">

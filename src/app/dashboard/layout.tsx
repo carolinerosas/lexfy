@@ -1,5 +1,4 @@
 import { Sidebar } from "@/components/layout/sidebar";
-import { MobileNav } from "@/components/layout/mobile-nav";
 import { TopBar } from "@/components/layout/topbar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -11,13 +10,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex min-w-0 max-w-full flex-1 flex-col overflow-x-hidden">
         <TopBar />
-        <main className="max-w-full flex-1 overflow-x-hidden overflow-y-auto pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <main className="max-w-full flex-1 overflow-x-hidden overflow-y-auto pb-[env(safe-area-inset-bottom)] md:pb-0">
           {children}
         </main>
-      </div>
-
-      <div className="md:hidden">
-        <MobileNav />
       </div>
     </div>
   );
