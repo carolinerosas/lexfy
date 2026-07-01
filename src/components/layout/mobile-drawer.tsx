@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { JustioLogo } from "@/components/ui/justio-logo";
@@ -13,6 +14,9 @@ export function MobileMenuButton() {
   const pathname = usePathname();
   const getBadge = useNavBadges();
   const [aberto, setAberto] = useState(false);
+  const [montado, setMontado] = useState(false);
+
+  useEffect(() => { setMontado(true); }, []);
 
   // Fecha ao trocar de página.
   useEffect(() => { setAberto(false); }, [pathname]);
@@ -37,8 +41,8 @@ export function MobileMenuButton() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {aberto && (
-        <div className="fixed inset-0 z-50 md:hidden">
+      {montado && aberto && createPortal(
+        <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-[#171216]/60 backdrop-blur-sm" onClick={() => setAberto(false)} />
 
           <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[82%] flex-col bg-[#21181d] shadow-2xl shadow-black/40">
@@ -85,7 +89,8 @@ export function MobileMenuButton() {
               })}
             </nav>
           </aside>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
