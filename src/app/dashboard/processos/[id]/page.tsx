@@ -38,6 +38,7 @@ import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisiona
 import { labelTiposPenais, nomesPartesProcesso, partesDoProcesso, tiposPenaisDoProcesso } from "@/lib/processo-partes";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
+import { AcordosPanel } from "@/components/ui/acordos-panel";
 import type {
   Cliente, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
   ProcessoTipo, ProcessoResultadoTipo, IncidenteExecucao, CalculoPena, BeneficioPenal,
@@ -611,12 +612,17 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "honorarios" && (
-        <HonorariosTab
-          honorarios={honorarios}
-          onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
-          onReceber={(h) => setHonRecebendo(h)}
-          onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
-        />
+        <div className="space-y-6">
+          <HonorariosTab
+            honorarios={honorarios}
+            onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
+            onReceber={(h) => setHonRecebendo(h)}
+            onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
+          />
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+            <AcordosPanel processoId={id} clienteNome={processo.cliente_nome} />
+          </div>
+        </div>
       )}
       {tab === "atendimentos" && (
         <AtendimentosTab

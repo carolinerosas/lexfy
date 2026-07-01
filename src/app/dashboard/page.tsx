@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   FolderOpen,
+  Handshake,
   ListTodo,
   Sparkles,
   Users,
@@ -25,10 +26,11 @@ import {
   getDashboardStats,
   getPrazosWithProcesso,
   getTarefasWithProcesso,
+  getAcordoParcelas,
   type DashboardStats,
 } from "@/lib/store";
-import { daysUntil, formatDate, formatDateTime, prazoColor } from "@/lib/utils";
-import type { Atendimento, Audiencia, Prazo, Processo, Tarefa } from "@/types";
+import { daysUntil, formatCurrency, formatDate, formatDateTime, prazoColor } from "@/lib/utils";
+import type { Atendimento, Audiencia, Prazo, Processo, Tarefa, AcordoParcela } from "@/types";
 
 type ProcessoResumo = Pick<Processo, "numero" | "titulo" | "cliente_nome">;
 type ProcessoResumoComId = Pick<Processo, "id" | "numero" | "titulo" | "cliente_nome">;
@@ -40,7 +42,8 @@ type EventoPrazo = { kind: "prazo"; data: PrazoComProcesso };
 type EventoTarefa = { kind: "tarefa"; data: TarefaComProcesso };
 type EventoAudiencia = { kind: "audiencia"; data: AudienciaComProcesso };
 type EventoAtendimento = { kind: "atendimento"; data: Atendimento };
-type Evento = EventoPrazo | EventoTarefa | EventoAudiencia | EventoAtendimento;
+type EventoAcordo = { kind: "acordo"; data: AcordoParcela };
+type Evento = EventoPrazo | EventoTarefa | EventoAudiencia | EventoAtendimento | EventoAcordo;
 
 type AgendaView = "dia" | "semana" | "mes";
 
@@ -69,6 +72,7 @@ export default function DashboardPage() {
   const [agendaView, setAgendaView] = useState<AgendaView>("semana");
   const [offset, setOffset] = useState(0);
   const [eventosPorDia, setEventosPorDia] = useState<Map<string, Evento[]>>(new Map());
+  const [acordosAlerta, setAcordosAlerta] = useState<AcordoParcela[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -112,17 +116,30 @@ export default function DashboardPage() {
         mapa.get(key)!.push(ev);
       };
 
-      const [allPrazos, allTarefas, allAudiencias, allAtendimentos] = await Promise.all([
+      const [allPrazos, allTarefas, allAudiencias, allAtendimentos, allAcordos] = await Promise.all([
         getPrazosWithProcesso(),
         getTarefasWithProcesso(),
         getAudienciasWithProcesso(),
         getAtendimentosWithProcesso(),
+        getAcordoParcelas(),
       ]);
 
       allPrazos.filter((p) => !p.concluido).forEach((p) => push(p.data_prazo.slice(0, 10), { kind: "prazo", data: p }));
       allTarefas.filter((t) => !t.concluida && t.data_limite).forEach((t) => push(t.data_limite!.slice(0, 10), { kind: "tarefa", data: t }));
       allAudiencias.filter((a) => !a.realizada).forEach((a) => push(a.data_hora.slice(0, 10), { kind: "audiencia", data: a }));
       allAtendimentos.filter((a) => a.status === "agendado").forEach((a) => push(a.data_hora.slice(0, 10), { kind: "atendimento", data: a }));
+
+      const parcelasPendentes = allAcordos.filter((p) => !p.pago && p.data_vencimento);
+      parcelasPendentes.forEach((p) => push(p.data_vencimento!.slice(0, 10), { kind: "acordo", data: p }));
+
+      // Aviso no painel: parcelas de acordo vencidas ou vencendo nos próximos 7 dias.
+      const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+      const limite = new Date(hoje); limite.setDate(limite.getDate() + 7);
+      setAcordosAlerta(
+        parcelasPendentes
+          .filter((p) => { const v = new Date(p.data_vencimento! + "T00:00:00"); return v <= limite; })
+          .sort((a, b) => (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? ""))
+      );
 
       setEventosPorDia(mapa);
     }
@@ -203,8 +220,16 @@ export default function DashboardPage() {
         </div>
       </Link>
 
-      {(stats.prazosVencidos > 0 || stats.tarefasVencidas > 0 || stats.publicacoesNaoLidas > 0 || stats.movimentacoesNaoLidas > 0) && (
+      {(stats.prazosVencidos > 0 || stats.tarefasVencidas > 0 || stats.publicacoesNaoLidas > 0 || stats.movimentacoesNaoLidas > 0 || acordosAlerta.length > 0) && (
         <div className="mb-6 flex min-w-0 flex-wrap gap-3">
+          {acordosAlerta.length > 0 && (
+            <Link href="/dashboard/financeiro" className="min-w-0 w-full sm:w-auto">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100">
+                <Handshake className="h-4 w-4 shrink-0" />
+                {acordosAlerta.length} parcela{acordosAlerta.length > 1 ? "s" : ""} de acordo vencendo (próx. {formatCurrency(acordosAlerta.reduce((s, p) => s + p.valor, 0))})
+              </div>
+            </Link>
+          )}
           {stats.prazosVencidos > 0 && (
             <div className="flex min-w-0 w-full items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 sm:w-auto">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -352,6 +377,7 @@ export default function DashboardPage() {
             <LegendDot color="bg-slate-500" label="Tarefa" />
             <LegendDot color="bg-blue-500" label="Audiência" />
             <LegendDot color="bg-violet-500" label="Atendimento" />
+            <LegendDot color="bg-emerald-500" label="Acordo" />
           </div>
         </CardContent>
       </Card>
@@ -407,6 +433,16 @@ function EventoChip({ evento, isOnDark, compact }: { evento: Evento; isOnDark: b
         isOnDark ? "bg-blue-500/25 text-blue-200" : "border border-blue-200 bg-blue-50 text-blue-700"
       }`}>
         {hora && hora !== "00:00" ? hora : "Audiência"} · {evento.data.titulo}
+      </div>
+    );
+  }
+
+  if (evento.kind === "acordo") {
+    return (
+      <div className={`${pad} ${
+        isOnDark ? "bg-emerald-500/25 text-emerald-200" : "border border-emerald-200 bg-emerald-50 text-emerald-700"
+      }`}>
+        {compact ? "" : "Acordo · "}{evento.data.direcao === "receber" ? "receber" : "pagar"} {formatCurrency(evento.data.valor)}
       </div>
     );
   }

@@ -15,13 +15,15 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ComboBox } from "@/components/ui/combobox";
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
+import { AcordosPanel } from "@/components/ui/acordos-panel";
 import {
   getHonorariosWithProcesso, getProcessos, getClientes,
   createHonorario, updateHonorario, deleteHonorario,
   getContasEscritorio, createContaEscritorio, updateContaEscritorio, deleteContaEscritorio,
+  getAcordoParcelas,
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Honorario, Processo, Cliente, ContaEscritorio } from "@/types";
+import type { Honorario, Processo, Cliente, ContaEscritorio, AcordoParcela } from "@/types";
 
 const honorarioTipoOptions = [
   { value: "contratual", label: "Contratual" },
@@ -127,6 +129,7 @@ const viewTitulo: Record<FinView, string> = {
 export default function FinanceiroPage() {
   const [honorarios, setHonorarios] = useState<HonorarioFull[]>([]);
   const [contas, setContas] = useState<ContaEscritorio[]>([]);
+  const [acordos, setAcordos] = useState<AcordoParcela[]>([]);
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -148,16 +151,18 @@ export default function FinanceiroPage() {
   }
 
   const load = useCallback(async () => {
-    const [hon, procs, cls, contasEsc] = await Promise.all([
+    const [hon, procs, cls, contasEsc, acord] = await Promise.all([
       getHonorariosWithProcesso(),
       getProcessos(),
       getClientes(),
       getContasEscritorio(),
+      getAcordoParcelas(),
     ]);
     setHonorarios(hon);
     setProcessos(procs);
     setClientes(cls);
     setContas(contasEsc);
+    setAcordos(acord);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -271,6 +276,15 @@ export default function FinanceiroPage() {
       const m = c.data_pagamento.slice(0, 7);
       const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
       e.saidas += Number(c.valor || 0);
+      mesesMap.set(m, e);
+    }
+  }
+  for (const p of acordos) {
+    if (p.pago && p.data_pagamento) {
+      const m = p.data_pagamento.slice(0, 7);
+      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
+      if (p.direcao === "receber") e.entradas += p.valor;
+      else e.saidas += p.valor;
       mesesMap.set(m, e);
     }
   }
@@ -500,6 +514,12 @@ export default function FinanceiroPage() {
             })}
           </ul>
         )}
+      </Card>
+
+      <Card className="mb-6">
+        <div className="p-4 sm:p-5">
+          <AcordosPanel onChanged={load} />
+        </div>
       </Card>
 
       {linhaTempo.length > 0 && (

@@ -185,6 +185,26 @@ export interface Processo {
   user_id: string;
 }
 
+export type AcordoDirecao = "receber" | "pagar";
+
+export interface AcordoParcela {
+  id: string;
+  grupo_id: string;
+  processo_id: string;
+  cliente_nome?: string;
+  direcao: AcordoDirecao;
+  titulo?: string;
+  numero: number;
+  total_parcelas: number;
+  valor: number;
+  data_vencimento?: string;
+  pago: boolean;
+  data_pagamento?: string;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
 export interface Prazo {
   id: string;
   processo_id: string;

@@ -17,6 +17,7 @@ import type {
   TriagemLead,
   TriagemImportacao,
   Briefing,
+  AcordoParcela,
 } from "@/types";
 import { processoTemCliente } from "@/lib/processo-partes";
 
@@ -311,6 +312,70 @@ export async function updateHonorario(id: string, input: Partial<Honorario>): Pr
 
 export async function deleteHonorario(id: string): Promise<void> {
   await supabase.from("honorarios").delete().eq("id", id);
+}
+
+// --- Acordos (parcelamento em processo) ---
+
+export async function getAcordoParcelas(): Promise<AcordoParcela[]> {
+  const { data, error } = await supabase.from("acordo_parcelas").select("*");
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as AcordoParcela[];
+}
+
+export async function getAcordoParcelasByProcesso(processoId: string): Promise<AcordoParcela[]> {
+  const { data, error } = await supabase.from("acordo_parcelas").select("*").eq("processo_id", processoId);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as AcordoParcela[];
+}
+
+// Cria um acordo com N parcelas (todas com o mesmo grupo_id).
+export async function createAcordo(input: {
+  processo_id: string;
+  cliente_nome?: string;
+  direcao: AcordoParcela["direcao"];
+  titulo?: string;
+  parcelas: Array<{ valor: number; data_vencimento?: string; pago?: boolean; data_pagamento?: string }>;
+}): Promise<void> {
+  const grupo_id = generateId();
+  const total = input.parcelas.length;
+  const linhas = input.parcelas.map((p, i) => ({
+    id: generateId(),
+    grupo_id,
+    processo_id: input.processo_id,
+    cliente_nome: input.cliente_nome,
+    direcao: input.direcao,
+    titulo: input.titulo,
+    numero: i + 1,
+    total_parcelas: total,
+    valor: p.valor,
+    data_vencimento: p.data_vencimento,
+    pago: p.pago ?? false,
+    data_pagamento: p.data_pagamento,
+    created_at: now(),
+    updated_at: now(),
+    user_id: USER_ID,
+  }));
+  const { error } = await supabase.from("acordo_parcelas").insert(linhas);
+  if (error) throw new Error(error.message);
+}
+
+export async function updateAcordoParcela(id: string, input: Partial<AcordoParcela>): Promise<void> {
+  const { error } = await supabase.from("acordo_parcelas").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteAcordoParcela(id: string): Promise<void> {
+  await supabase.from("acordo_parcelas").delete().eq("id", id);
+}
+
+export async function deleteAcordo(grupoId: string): Promise<void> {
+  await supabase.from("acordo_parcelas").delete().eq("grupo_id", grupoId);
 }
 
 // Registra o recebimento de uma cobrança/parcela.
