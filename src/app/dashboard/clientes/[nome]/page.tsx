@@ -35,6 +35,7 @@ import {
 } from "@/lib/cadastro-options";
 import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia } from "@/types";
 import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
+import { AcordosPanel } from "@/components/ui/acordos-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
 
@@ -327,6 +328,12 @@ export default function ClienteDetailPage() {
                 ))}
               </ul>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <AcordosPanel clienteFiltro={cliente.nome} clienteNome={cliente.nome} />
           </CardContent>
         </Card>
 

@@ -200,6 +200,13 @@ export interface AcordoParcela {
   data_vencimento?: string;
   pago: boolean;
   data_pagamento?: string;
+  // Dados de pagamento do acordo (iguais para todas as parcelas do mesmo grupo).
+  forma_pagamento?: string;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  pix?: string;
+  observacoes?: string;
   created_at: string;
   updated_at: string;
   user_id: string;

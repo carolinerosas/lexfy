@@ -10,10 +10,14 @@ import { ComboBox } from "./combobox";
 import { Badge } from "./badge";
 import {
   getAcordoParcelas, getAcordoParcelasByProcesso, createAcordo,
-  updateAcordoParcela, deleteAcordoParcela, deleteAcordo, getProcessos,
+  updateAcordoParcela, updateAcordoPagamento, deleteAcordoParcela, deleteAcordo, getProcessos,
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { AcordoParcela, AcordoDirecao, Processo } from "@/types";
+
+function normalizarNome(v?: string): string {
+  return (v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+}
 
 function hojeISO(): string {
   const d = new Date();
@@ -41,6 +45,7 @@ type Grupo = {
   direcao: AcordoDirecao;
   processoId: string;
   clienteNome?: string;
+  primeira?: AcordoParcela;
   parcelas: AcordoParcela[];
   total: number;
   pago: number;
@@ -51,7 +56,7 @@ function agrupar(parcelas: AcordoParcela[]): Grupo[] {
   for (const p of parcelas) {
     const g = mapa.get(p.grupo_id) ?? {
       grupoId: p.grupo_id, titulo: p.titulo, direcao: p.direcao,
-      processoId: p.processo_id, clienteNome: p.cliente_nome, parcelas: [], total: 0, pago: 0,
+      processoId: p.processo_id, clienteNome: p.cliente_nome, primeira: p, parcelas: [], total: 0, pago: 0,
     };
     g.parcelas.push(p);
     g.total += p.valor;
@@ -67,15 +72,18 @@ function agrupar(parcelas: AcordoParcela[]): Grupo[] {
 export function AcordosPanel({
   processoId,
   clienteNome,
+  clienteFiltro,
   onChanged,
 }: {
   processoId?: string;
   clienteNome?: string;
+  clienteFiltro?: string; // na ficha do cliente: mostra os acordos deste cliente (por nome)
   onChanged?: () => void;
 }) {
   const [parcelas, setParcelas] = useState<AcordoParcela[]>([]);
   const [novoOpen, setNovoOpen] = useState(false);
   const [editando, setEditando] = useState<AcordoParcela | null>(null);
+  const [editandoAcordo, setEditandoAcordo] = useState<Grupo | null>(null);
 
   const load = useCallback(async () => {
     setParcelas(processoId ? await getAcordoParcelasByProcesso(processoId) : await getAcordoParcelas());
@@ -83,7 +91,10 @@ export function AcordosPanel({
 
   useEffect(() => { load(); }, [load]);
 
-  const grupos = agrupar(parcelas);
+  const visiveis = clienteFiltro
+    ? parcelas.filter((p) => normalizarNome(p.cliente_nome) === normalizarNome(clienteFiltro))
+    : parcelas;
+  const grupos = agrupar(visiveis);
 
   async function recarregar() {
     await load();
@@ -142,10 +153,29 @@ export function AcordosPanel({
                     <p className="mt-0.5 text-xs text-gray-500">
                       {g.parcelas.length} parcela(s) · Total {formatCurrency(g.total)} · Pago {formatCurrency(g.pago)} · Falta {formatCurrency(saldo)}
                     </p>
+                    {(() => {
+                      const d = g.primeira;
+                      const partes = [
+                        d?.forma_pagamento,
+                        d?.pix ? `PIX: ${d.pix}` : "",
+                        d?.banco ? `Banco ${d.banco}` : "",
+                        d?.agencia ? `Ag ${d.agencia}` : "",
+                        d?.conta ? `C/C ${d.conta}` : "",
+                      ].filter(Boolean);
+                      return partes.length > 0 ? (
+                        <p className="mt-1 text-xs text-gray-600"><span className="font-semibold text-gray-500">Pagamento:</span> {partes.join(" · ")}</p>
+                      ) : null;
+                    })()}
+                    {g.primeira?.observacoes && <p className="mt-0.5 text-xs text-gray-500">{g.primeira.observacoes}</p>}
                   </div>
-                  <button onClick={() => excluirAcordo(g)} title="Excluir acordo" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button onClick={() => setEditandoAcordo(g)} title="Editar dados de pagamento" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => excluirAcordo(g)} title="Excluir acordo" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <ul className="divide-y divide-gray-50">
                   {g.parcelas.map((p) => {
@@ -196,6 +226,7 @@ export function AcordosPanel({
         <NovoAcordoModal
           processoId={processoId}
           clienteNome={clienteNome}
+          clienteFiltro={clienteFiltro}
           onClose={() => setNovoOpen(false)}
           onCreated={() => { setNovoOpen(false); recarregar(); }}
         />
@@ -207,6 +238,13 @@ export function AcordosPanel({
           onSaved={() => { setEditando(null); recarregar(); }}
         />
       )}
+      {editandoAcordo && (
+        <EditarAcordoModal
+          grupo={editandoAcordo}
+          onClose={() => setEditandoAcordo(null)}
+          onSaved={() => { setEditandoAcordo(null); recarregar(); }}
+        />
+      )}
     </div>
   );
 }
@@ -214,11 +252,13 @@ export function AcordosPanel({
 function NovoAcordoModal({
   processoId,
   clienteNome,
+  clienteFiltro,
   onClose,
   onCreated,
 }: {
   processoId?: string;
   clienteNome?: string;
+  clienteFiltro?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -231,11 +271,21 @@ function NovoAcordoModal({
   const [nParcelas, setNParcelas] = useState("1");
   const [primeiroVenc, setPrimeiroVenc] = useState(hojeISO());
   const [parcelas, setParcelas] = useState<Array<{ valor: string; venc: string }>>([]);
+  const [formaPagamento, setFormaPagamento] = useState("");
+  const [banco, setBanco] = useState("");
+  const [agencia, setAgencia] = useState("");
+  const [conta, setConta] = useState("");
+  const [pix, setPix] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!processoId) getProcessos().then(setProcessos);
   }, [processoId]);
+
+  // Na ficha do cliente, só mostra os processos daquele cliente.
+  const processosDisponiveis = clienteFiltro
+    ? processos.filter((p) => normalizarNome(p.cliente_nome) === normalizarNome(clienteFiltro))
+    : processos;
 
   function gerarParcelas() {
     const n = Math.max(1, Math.min(360, parseInt(nParcelas) || 1));
@@ -275,6 +325,11 @@ function NovoAcordoModal({
           valor: parseFloat(p.valor.replace(",", ".")) || 0,
           data_vencimento: p.venc || undefined,
         })),
+        forma_pagamento: formaPagamento.trim() || undefined,
+        banco: banco.trim() || undefined,
+        agencia: agencia.trim() || undefined,
+        conta: conta.trim() || undefined,
+        pix: pix.trim() || undefined,
       });
       onCreated();
     } finally {
@@ -288,7 +343,7 @@ function NovoAcordoModal({
         {!processoId && (
           <ComboBox
             label="Processo *"
-            options={processos.map((p) => ({ value: p.id, label: `${p.numero || "Sem número"} · ${p.cliente_nome}` }))}
+            options={processosDisponiveis.map((p) => ({ value: p.id, label: `${p.numero || "Sem número"} · ${p.cliente_nome}` }))}
             value={procId}
             onChange={setProcId}
             placeholder="Selecione o processo do acordo"
@@ -327,11 +382,119 @@ function NovoAcordoModal({
           </div>
         )}
 
+        <div className="space-y-3 rounded-xl border border-gray-100 p-3">
+          <p className="text-xs font-semibold text-gray-500">Dados de pagamento (opcional)</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              label="Forma de pagamento"
+              placeholder="—"
+              options={[
+                { value: "PIX", label: "PIX" },
+                { value: "Transferência/TED", label: "Transferência / TED" },
+                { value: "Boleto", label: "Boleto" },
+                { value: "Depósito", label: "Depósito" },
+                { value: "Dinheiro", label: "Dinheiro" },
+                { value: "Cartão", label: "Cartão" },
+                { value: "Outro", label: "Outro" },
+              ]}
+              value={formaPagamento}
+              onChange={(e) => setFormaPagamento(e.target.value)}
+            />
+            <Input label="Chave PIX" placeholder="CPF, e-mail, telefone..." value={pix} onChange={(e) => setPix(e.target.value)} />
+            <Input label="Banco" value={banco} onChange={(e) => setBanco(e.target.value)} />
+            <Input label="Agência" value={agencia} onChange={(e) => setAgencia(e.target.value)} />
+            <Input label="Conta" value={conta} onChange={(e) => setConta(e.target.value)} />
+          </div>
+        </div>
+
         <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
           <Button type="submit" disabled={saving || !procId || parcelas.length === 0}>
             {saving ? "Salvando..." : "Salvar acordo"}
           </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function EditarAcordoModal({
+  grupo,
+  onClose,
+  onSaved,
+}: {
+  grupo: Grupo;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const d = grupo.primeira;
+  const [titulo, setTitulo] = useState(grupo.titulo ?? "");
+  const [direcao, setDirecao] = useState<AcordoDirecao>(grupo.direcao);
+  const [formaPagamento, setFormaPagamento] = useState(d?.forma_pagamento ?? "");
+  const [banco, setBanco] = useState(d?.banco ?? "");
+  const [agencia, setAgencia] = useState(d?.agencia ?? "");
+  const [conta, setConta] = useState(d?.conta ?? "");
+  const [pix, setPix] = useState(d?.pix ?? "");
+  const [observacoes, setObservacoes] = useState(d?.observacoes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await updateAcordoPagamento(grupo.grupoId, {
+        titulo: titulo.trim() || "Acordo",
+        direcao,
+        forma_pagamento: formaPagamento.trim() || undefined,
+        banco: banco.trim() || undefined,
+        agencia: agencia.trim() || undefined,
+        conta: conta.trim() || undefined,
+        pix: pix.trim() || undefined,
+        observacoes: observacoes.trim() || undefined,
+      });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Editar dados do acordo" size="lg">
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="Título do acordo" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Select
+            label="Direção"
+            options={[{ value: "receber", label: "A receber (entra)" }, { value: "pagar", label: "A pagar (sai)" }]}
+            value={direcao}
+            onChange={(e) => setDirecao(e.target.value as AcordoDirecao)}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Select
+            label="Forma de pagamento"
+            placeholder="—"
+            options={[
+              { value: "PIX", label: "PIX" },
+              { value: "Transferência/TED", label: "Transferência / TED" },
+              { value: "Boleto", label: "Boleto" },
+              { value: "Depósito", label: "Depósito" },
+              { value: "Dinheiro", label: "Dinheiro" },
+              { value: "Cartão", label: "Cartão" },
+              { value: "Outro", label: "Outro" },
+            ]}
+            value={formaPagamento}
+            onChange={(e) => setFormaPagamento(e.target.value)}
+          />
+          <Input label="Chave PIX" placeholder="CPF, e-mail, telefone..." value={pix} onChange={(e) => setPix(e.target.value)} />
+          <Input label="Banco" value={banco} onChange={(e) => setBanco(e.target.value)} />
+          <Input label="Agência" value={agencia} onChange={(e) => setAgencia(e.target.value)} />
+          <Input label="Conta" value={conta} onChange={(e) => setConta(e.target.value)} />
+        </div>
+        <Input label="Observações" value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
+        <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
         </div>
       </form>
     </Modal>

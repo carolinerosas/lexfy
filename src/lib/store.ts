@@ -334,6 +334,9 @@ export async function getAcordoParcelasByProcesso(processoId: string): Promise<A
   return (data ?? []) as AcordoParcela[];
 }
 
+// Dados de pagamento do acordo (repetidos em todas as parcelas do grupo).
+type AcordoPagamento = Pick<AcordoParcela, "forma_pagamento" | "banco" | "agencia" | "conta" | "pix" | "observacoes">;
+
 // Cria um acordo com N parcelas (todas com o mesmo grupo_id).
 export async function createAcordo(input: {
   processo_id: string;
@@ -341,7 +344,7 @@ export async function createAcordo(input: {
   direcao: AcordoParcela["direcao"];
   titulo?: string;
   parcelas: Array<{ valor: number; data_vencimento?: string; pago?: boolean; data_pagamento?: string }>;
-}): Promise<void> {
+} & AcordoPagamento): Promise<void> {
   const grupo_id = generateId();
   const total = input.parcelas.length;
   const linhas = input.parcelas.map((p, i) => ({
@@ -357,11 +360,23 @@ export async function createAcordo(input: {
     data_vencimento: p.data_vencimento,
     pago: p.pago ?? false,
     data_pagamento: p.data_pagamento,
+    forma_pagamento: input.forma_pagamento,
+    banco: input.banco,
+    agencia: input.agencia,
+    conta: input.conta,
+    pix: input.pix,
+    observacoes: input.observacoes,
     created_at: now(),
     updated_at: now(),
     user_id: USER_ID,
   }));
   const { error } = await supabase.from("acordo_parcelas").insert(linhas);
+  if (error) throw new Error(error.message);
+}
+
+// Atualiza os dados de pagamento de todas as parcelas de um acordo (grupo).
+export async function updateAcordoPagamento(grupoId: string, dados: AcordoPagamento & { titulo?: string; direcao?: AcordoParcela["direcao"] }): Promise<void> {
+  const { error } = await supabase.from("acordo_parcelas").update({ ...dados, updated_at: now() }).eq("grupo_id", grupoId);
   if (error) throw new Error(error.message);
 }
 
