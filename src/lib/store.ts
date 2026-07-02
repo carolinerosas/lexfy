@@ -339,7 +339,7 @@ type AcordoPagamento = Pick<AcordoParcela, "forma_pagamento" | "banco" | "agenci
 
 // Cria um acordo com N parcelas (todas com o mesmo grupo_id).
 export async function createAcordo(input: {
-  processo_id: string;
+  processo_id?: string;
   cliente_nome?: string;
   direcao: AcordoParcela["direcao"];
   titulo?: string;

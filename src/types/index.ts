@@ -190,7 +190,7 @@ export type AcordoDirecao = "receber" | "pagar";
 export interface AcordoParcela {
   id: string;
   grupo_id: string;
-  processo_id: string;
+  processo_id?: string;
   cliente_nome?: string;
   direcao: AcordoDirecao;
   titulo?: string;

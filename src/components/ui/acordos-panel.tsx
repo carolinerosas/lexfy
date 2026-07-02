@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, CheckCircle2, ArrowDownCircle, ArrowUpCircle, Handshake } from "lucide-react";
+import { Plus, Trash2, Pencil, CheckCircle2, ArrowDownCircle, ArrowUpCircle, Handshake, ChevronRight } from "lucide-react";
 import { Modal } from "./modal";
 import { Input } from "./input";
 import { Button } from "./button";
@@ -43,7 +43,7 @@ type Grupo = {
   grupoId: string;
   titulo?: string;
   direcao: AcordoDirecao;
-  processoId: string;
+  processoId?: string;
   clienteNome?: string;
   primeira?: AcordoParcela;
   parcelas: AcordoParcela[];
@@ -84,6 +84,21 @@ export function AcordosPanel({
   const [novoOpen, setNovoOpen] = useState(false);
   const [editando, setEditando] = useState<AcordoParcela | null>(null);
   const [editandoAcordo, setEditandoAcordo] = useState<Grupo | null>(null);
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
+  const [procNumero, setProcNumero] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!processoId) getProcessos().then((ps) => setProcNumero(new Map(ps.map((p) => [p.id, p.numero]))));
+  }, [processoId]);
+
+  function alternarAberto(grupoId: string) {
+    setAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(grupoId)) next.delete(grupoId);
+      else next.add(grupoId);
+      return next;
+    });
+  }
 
   const load = useCallback(async () => {
     setParcelas(processoId ? await getAcordoParcelasByProcesso(processoId) : await getAcordoParcelas());
@@ -141,35 +156,44 @@ export function AcordosPanel({
           {grupos.map((g) => {
             const receber = g.direcao === "receber";
             const saldo = Math.max(0, g.total - g.pago);
+            const aberto = abertos.has(g.grupoId);
             return (
               <div key={g.grupoId} className="rounded-xl border border-gray-100">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 bg-gray-50/60 px-4 py-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-gray-900">{g.titulo || "Acordo"}</p>
-                      <Badge variant={receber ? "success" : "warning"}>{receber ? "a receber" : "a pagar"}</Badge>
-                      {!processoId && g.clienteNome && <span className="text-xs text-gray-500">· {g.clienteNome}</span>}
+                <div className={`flex items-center gap-2 bg-gray-50/60 px-4 py-3 ${aberto ? "border-b border-gray-100" : ""}`}>
+                  <button type="button" onClick={() => alternarAberto(g.grupoId)} className="flex min-w-0 flex-1 items-start gap-2 text-left">
+                    <ChevronRight className={`mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold text-gray-900">{g.titulo || "Acordo"}</p>
+                        <Badge variant={receber ? "success" : "warning"}>{receber ? "a receber" : "a pagar"}</Badge>
+                        {!processoId && (
+                          <span className="text-xs text-gray-500">
+                            · {g.processoId && procNumero.get(g.processoId) ? `Proc ${procNumero.get(g.processoId)}` : "sem processo"}
+                            {!clienteFiltro && g.clienteNome ? ` · ${g.clienteNome}` : ""}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {g.parcelas.length} parcela(s) · Total {formatCurrency(g.total)} · Pago {formatCurrency(g.pago)} · Falta {formatCurrency(saldo)}
+                      </p>
+                      {aberto && (() => {
+                        const d = g.primeira;
+                        const partes = [
+                          d?.forma_pagamento,
+                          d?.pix ? `PIX: ${d.pix}` : "",
+                          d?.banco ? `Banco ${d.banco}` : "",
+                          d?.agencia ? `Ag ${d.agencia}` : "",
+                          d?.conta ? `C/C ${d.conta}` : "",
+                        ].filter(Boolean);
+                        return partes.length > 0 ? (
+                          <p className="mt-1 text-xs text-gray-600"><span className="font-semibold text-gray-500">Pagamento:</span> {partes.join(" · ")}</p>
+                        ) : null;
+                      })()}
+                      {aberto && g.primeira?.observacoes && <p className="mt-0.5 text-xs text-gray-500">{g.primeira.observacoes}</p>}
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {g.parcelas.length} parcela(s) · Total {formatCurrency(g.total)} · Pago {formatCurrency(g.pago)} · Falta {formatCurrency(saldo)}
-                    </p>
-                    {(() => {
-                      const d = g.primeira;
-                      const partes = [
-                        d?.forma_pagamento,
-                        d?.pix ? `PIX: ${d.pix}` : "",
-                        d?.banco ? `Banco ${d.banco}` : "",
-                        d?.agencia ? `Ag ${d.agencia}` : "",
-                        d?.conta ? `C/C ${d.conta}` : "",
-                      ].filter(Boolean);
-                      return partes.length > 0 ? (
-                        <p className="mt-1 text-xs text-gray-600"><span className="font-semibold text-gray-500">Pagamento:</span> {partes.join(" · ")}</p>
-                      ) : null;
-                    })()}
-                    {g.primeira?.observacoes && <p className="mt-0.5 text-xs text-gray-500">{g.primeira.observacoes}</p>}
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <button onClick={() => setEditandoAcordo(g)} title="Editar dados de pagamento" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                  </button>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button onClick={() => setEditandoAcordo(g)} title="Editar dados do acordo" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button onClick={() => excluirAcordo(g)} title="Excluir acordo" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-600">
@@ -177,6 +201,7 @@ export function AcordosPanel({
                     </button>
                   </div>
                 </div>
+                {aberto && (
                 <ul className="divide-y divide-gray-50">
                   {g.parcelas.map((p) => {
                     const venc = p.data_vencimento ? new Date(p.data_vencimento + "T00:00:00") : null;
@@ -216,6 +241,7 @@ export function AcordosPanel({
                     );
                   })}
                 </ul>
+                )}
               </div>
             );
           })}
@@ -309,15 +335,16 @@ function NovoAcordoModal({
     setParcelas((arr) => arr.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)));
   }
 
-  const clienteDoProcesso = processoId ? clienteNome : processos.find((p) => p.id === procId)?.cliente_nome;
+  const clienteDoProcesso = processoId ? clienteNome : (processos.find((p) => p.id === procId)?.cliente_nome ?? clienteNome);
+  const podeSalvar = parcelas.length > 0 && (!!procId || !!clienteNome);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!procId || parcelas.length === 0) return;
+    if (!podeSalvar) return;
     setSaving(true);
     try {
       await createAcordo({
-        processo_id: procId,
+        processo_id: procId || undefined,
         cliente_nome: clienteDoProcesso,
         direcao,
         titulo: titulo.trim() || "Acordo",
@@ -341,13 +368,16 @@ function NovoAcordoModal({
     <Modal open onClose={onClose} title="Novo acordo (parcelamento)" size="lg">
       <form onSubmit={submit} className="space-y-4">
         {!processoId && (
-          <ComboBox
-            label="Processo *"
-            options={processosDisponiveis.map((p) => ({ value: p.id, label: `${p.numero || "Sem número"} · ${p.cliente_nome}` }))}
-            value={procId}
-            onChange={setProcId}
-            placeholder="Selecione o processo do acordo"
-          />
+          <div>
+            <ComboBox
+              label={clienteNome ? "Processo de referência (opcional)" : "Processo *"}
+              options={processosDisponiveis.map((p) => ({ value: p.id, label: `${p.numero || "Sem número"} · ${p.cliente_nome}` }))}
+              value={procId}
+              onChange={setProcId}
+              placeholder={clienteNome ? "Sem processo — fica só na ficha do cliente" : "Selecione o processo do acordo"}
+            />
+            {clienteNome && <p className="mt-1 text-xs text-gray-400">Sem processo, o acordo fica só na ficha de {clienteNome}.</p>}
+          </div>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Título do acordo" placeholder="Ex.: Acordo — ação de cobrança" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
@@ -409,7 +439,7 @@ function NovoAcordoModal({
 
         <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
-          <Button type="submit" disabled={saving || !procId || parcelas.length === 0}>
+          <Button type="submit" disabled={saving || !podeSalvar}>
             {saving ? "Salvando..." : "Salvar acordo"}
           </Button>
         </div>
