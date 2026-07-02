@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   DollarSign, Plus, Trash2, TrendingUp, TrendingDown, Pencil,
-  ArrowDownCircle, CalendarClock, CheckCircle2,
+  ArrowDownCircle, ArrowUpCircle, CalendarClock, CheckCircle2,
   Receipt, AlertTriangle, Wallet, X, ChevronRight,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +52,8 @@ const contaCategoriaOptions = [
 const contaCategoriaLabel = Object.fromEntries(contaCategoriaOptions.map((opt) => [opt.value, opt.label]));
 
 interface ProcInfo { numero: string; clienteNome: string; clienteId?: string; }
+
+type Movimento = { tipo: "entrada" | "saida"; data: string; descricao: string; cliente?: string; processoNumero?: string; valor: number; origem?: string };
 
 interface ModalState {
   editing: Honorario | null;
@@ -138,6 +140,8 @@ export default function FinanceiroPage() {
   const [recebendo, setRecebendo] = useState<HonorarioFull | null>(null);
   const [view, setView] = useState<FinView | null>(null);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
+  const [anoTimeline, setAnoTimeline] = useState("");
+  const [mesAberto, setMesAberto] = useState<string | null>(null);
 
   // Pula para os honorários de uma letra (mesmo esquema da seção Clientes).
   function irParaLetra(l: string) {
@@ -260,36 +264,49 @@ export default function FinanceiroPage() {
     if (!ancoraPorLetra.has(l)) ancoraPorLetra.set(l, g.chave);
   }
 
-  // Linha do tempo: entradas (honorários recebidos) e saídas (contas pagas) por mês.
-  const mesesMap = new Map<string, { entradas: number; saidas: number }>();
+  // Linha do tempo: cada entrada/saída (com cliente e processo) agrupada por mês.
+  const movimentos: Movimento[] = [];
   for (const h of honorarios) {
     if (h.categoria === "pagamento" && h.data_recebimento) {
-      const m = h.data_recebimento.slice(0, 7);
-      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
-      e.entradas += h.valor;
-      mesesMap.set(m, e);
+      const info = procInfo.get(h.processo_id);
+      movimentos.push({ tipo: "entrada", data: h.data_recebimento, descricao: h.descricao, cliente: info?.clienteNome ?? h.processo?.cliente_nome, processoNumero: info?.numero, valor: h.valor });
     }
   }
   for (const c of contas) {
     if (c.status === "paga" && c.data_pagamento) {
-      const m = c.data_pagamento.slice(0, 7);
-      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
-      e.saidas += Number(c.valor || 0);
-      mesesMap.set(m, e);
+      movimentos.push({ tipo: "saida", data: c.data_pagamento, descricao: c.descricao, valor: Number(c.valor || 0), origem: "Conta do escritório" });
     }
   }
   for (const p of acordos) {
     if (p.pago && p.data_pagamento) {
-      const m = p.data_pagamento.slice(0, 7);
-      const e = mesesMap.get(m) ?? { entradas: 0, saidas: 0 };
-      if (p.direcao === "receber") e.entradas += p.valor;
-      else e.saidas += p.valor;
-      mesesMap.set(m, e);
+      const info = p.processo_id ? procInfo.get(p.processo_id) : undefined;
+      movimentos.push({
+        tipo: p.direcao === "receber" ? "entrada" : "saida",
+        data: p.data_pagamento,
+        descricao: `${p.titulo || "Acordo"} — parcela ${p.numero}/${p.total_parcelas}`,
+        cliente: p.cliente_nome ?? info?.clienteNome,
+        processoNumero: info?.numero,
+        valor: p.valor,
+        origem: "Acordo",
+      });
     }
   }
-  const linhaTempo = [...mesesMap.entries()]
-    .map(([mes, v]) => ({ mes, ...v, saldo: v.entradas - v.saidas }))
+
+  const mesesMapa = new Map<string, { entradas: number; saidas: number; movimentos: Movimento[] }>();
+  for (const mv of movimentos) {
+    const m = mv.data.slice(0, 7);
+    const e = mesesMapa.get(m) ?? { entradas: 0, saidas: 0, movimentos: [] };
+    if (mv.tipo === "entrada") e.entradas += mv.valor;
+    else e.saidas += mv.valor;
+    e.movimentos.push(mv);
+    mesesMapa.set(m, e);
+  }
+  const linhaTempo = [...mesesMapa.entries()]
+    .map(([mes, v]) => ({ mes, entradas: v.entradas, saidas: v.saidas, saldo: v.entradas - v.saidas, movimentos: v.movimentos.sort((a, b) => b.data.localeCompare(a.data)) }))
     .sort((a, b) => b.mes.localeCompare(a.mes));
+  const anosTimeline = [...new Set(linhaTempo.map((m) => m.mes.slice(0, 4)))].sort((a, b) => b.localeCompare(a));
+  const anoAtivo = anoTimeline || anosTimeline[0] || String(new Date().getFullYear());
+  const mesesDoAno = linhaTempo.filter((m) => m.mes.slice(0, 4) === anoAtivo);
 
   async function handleDelete(h: Honorario) {
     if (!window.confirm("Excluir este lançamento?")) return;
@@ -517,23 +534,88 @@ export default function FinanceiroPage() {
 
       {linhaTempo.length > 0 && (
         <Card className="mb-6">
-          <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-5 py-3">
-            <CalendarClock className="w-4 h-4 text-gray-500" />
-            <h2 className="text-sm font-bold text-gray-900">Linha do tempo</h2>
-            <span className="text-xs text-gray-400">entradas e saídas por mês</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-3.5">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-gray-500" />
+              <h2 className="text-sm font-bold text-gray-900">Linha do tempo</h2>
+            </div>
+            <div className="flex items-center gap-1 rounded-lg bg-white p-0.5 ring-1 ring-gray-200">
+              {anosTimeline.map((ano) => (
+                <button
+                  key={ano}
+                  type="button"
+                  onClick={() => { setAnoTimeline(ano); setMesAberto(null); }}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${ano === anoAtivo ? "bg-[#21181d] text-white" : "text-gray-500 hover:bg-gray-100"}`}
+                >
+                  {ano}
+                </button>
+              ))}
+            </div>
           </div>
-          <ul className="divide-y divide-gray-50">
-            {linhaTempo.map((m) => (
-              <li key={m.mes} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3">
-                <span className="w-36 shrink-0 text-sm font-semibold capitalize text-gray-900">{mesLabel(m.mes)}</span>
-                <span className="text-xs text-gray-500">Entradas: <strong className="text-green-700">{formatCurrency(m.entradas)}</strong></span>
-                <span className="text-xs text-gray-500">Saídas: <strong className="text-red-600">{formatCurrency(m.saidas)}</strong></span>
-                <span className={`ml-auto text-sm font-black tabular-nums ${m.saldo >= 0 ? "text-green-700" : "text-red-600"}`}>
-                  {m.saldo >= 0 ? "+" : "−"}{formatCurrency(Math.abs(m.saldo))}
-                </span>
-              </li>
-            ))}
-          </ul>
+
+          {(() => {
+            const totEnt = mesesDoAno.reduce((s, m) => s + m.entradas, 0);
+            const totSai = mesesDoAno.reduce((s, m) => s + m.saidas, 0);
+            return (
+              <div className="grid grid-cols-3 gap-px border-b border-gray-100 bg-gray-100">
+                <div className="bg-white px-4 py-3 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">Entradas {anoAtivo}</p>
+                  <p className="text-sm font-black tabular-nums text-green-700">{formatCurrency(totEnt)}</p>
+                </div>
+                <div className="bg-white px-4 py-3 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">Saídas {anoAtivo}</p>
+                  <p className="text-sm font-black tabular-nums text-red-600">{formatCurrency(totSai)}</p>
+                </div>
+                <div className="bg-white px-4 py-3 text-center">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">Saldo {anoAtivo}</p>
+                  <p className={`text-sm font-black tabular-nums ${totEnt - totSai >= 0 ? "text-green-700" : "text-red-600"}`}>{formatCurrency(totEnt - totSai)}</p>
+                </div>
+              </div>
+            );
+          })()}
+
+          {mesesDoAno.length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-gray-400">Nada movimentado em {anoAtivo}.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {mesesDoAno.map((m) => {
+                const aberto = mesAberto === m.mes;
+                return (
+                  <li key={m.mes}>
+                    <button type="button" onClick={() => setMesAberto(aberto ? null : m.mes)} className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-50/60">
+                      <ChevronRight className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
+                      <span className="w-28 shrink-0 text-sm font-semibold capitalize text-gray-900">{mesLabel(m.mes).replace(` de ${anoAtivo}`, "")}</span>
+                      <span className="hidden text-xs text-gray-500 sm:inline">↑ <strong className="text-green-700">{formatCurrency(m.entradas)}</strong></span>
+                      <span className="hidden text-xs text-gray-500 sm:inline">↓ <strong className="text-red-600">{formatCurrency(m.saidas)}</strong></span>
+                      <span className={`ml-auto text-sm font-black tabular-nums ${m.saldo >= 0 ? "text-green-700" : "text-red-600"}`}>
+                        {m.saldo >= 0 ? "+" : "−"}{formatCurrency(Math.abs(m.saldo))}
+                      </span>
+                    </button>
+                    {aberto && (
+                      <ul className="divide-y divide-gray-50 border-t border-gray-50 bg-gray-50/40">
+                        {m.movimentos.map((mv, i) => (
+                          <li key={i} className="flex flex-wrap items-center gap-3 px-5 py-2.5 pl-12 sm:flex-nowrap">
+                            <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${mv.tipo === "entrada" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}>
+                              {mv.tipo === "entrada" ? <ArrowDownCircle className="h-4 w-4" /> : <ArrowUpCircle className="h-4 w-4" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-gray-900">{mv.descricao}</p>
+                              <p className="truncate text-xs text-gray-400">
+                                {[mv.cliente, mv.processoNumero ? `Proc ${mv.processoNumero}` : "", mv.origem, formatDate(mv.data)].filter(Boolean).join(" · ")}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 text-sm font-bold tabular-nums ${mv.tipo === "entrada" ? "text-green-700" : "text-red-600"}`}>
+                              {mv.tipo === "entrada" ? "+" : "−"}{formatCurrency(mv.valor)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Card>
       )}
 
