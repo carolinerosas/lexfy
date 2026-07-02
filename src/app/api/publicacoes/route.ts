@@ -28,6 +28,7 @@ const PUBLICATION_SEARCH_DAYS = 45;
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
 const USER_ID = "lexfy_shared";
 const SYNC_STATUS_ID = "daily_publicacoes";
+const DOU_ENABLED = process.env.PUBLICACOES_DOU_ENABLED === "true";
 const SCRAPER_URL = process.env.NEXT_PUBLIC_SCRAPER_URL || "";
 const SCRAPER_KEY = process.env.NEXT_PUBLIC_SCRAPER_KEY || "";
 
@@ -209,6 +210,11 @@ function formatDateISO(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = String(date.getFullYear());
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function dateRangeRecentISO(days: number): string[] {
+  const hoje = hojeSaoPaulo();
+  return Array.from({ length: Math.max(1, days) }, (_, index) => formatDateISO(addDays(hoje, -index)));
 }
 
 function formatDateBRFromISO(dateISO: string): string {
@@ -423,28 +429,29 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
 }
 
 async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Promise<PubEncontrada[]> {
-  const hoje = hojeSaoPaulo();
-  const inicio = addDays(hoje, -(PUBLICATION_SEARCH_DAYS - 1));
   const numero = oabNumero?.replace(/\D/g, "");
   const uf = oabUF.trim().toUpperCase() || "RJ";
-  const buscas: URLSearchParams[] = [];
+  const buscas: Record<string, string>[] = [];
 
   if (numero) {
-    buscas.push(new URLSearchParams({
+    buscas.push({
       numeroOab: numero,
       ufOab: uf,
-    }));
-  }
-
-  if (nome?.trim()) {
-    buscas.push(new URLSearchParams({
+    });
+  } else if (nome?.trim()) {
+    buscas.push({
       nomeAdvogado: nome.trim(),
-    }));
+    });
   }
 
   const porHash = new Map<string, PubEncontrada>();
+  const jobs = dateRangeRecentISO(PUBLICATION_SEARCH_DAYS).flatMap((data) =>
+    buscas.map((filtro) => ({ data, filtro }))
+  );
+  let successfulRequests = 0;
+  let lastError: Error | null = null;
 
-  for (const filtro of buscas) {
+  async function buscarDia({ data, filtro }: { data: string; filtro: Record<string, string> }) {
     let pagina = 1;
     let totalPaginas = 1;
 
@@ -452,9 +459,10 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
       const params = new URLSearchParams({
         pagina: String(pagina),
         itensPorPagina: "100",
-        dataDisponibilizacaoInicio: formatDateISO(inicio),
-        dataDisponibilizacaoFim: formatDateISO(hoje),
-        ...Object.fromEntries(filtro.entries()),
+        dataDisponibilizacaoInicio: data,
+        dataDisponibilizacaoFim: data,
+        meio: "D",
+        ...filtro,
       });
       const url = `${COMUNICA_API_URL}/comunicacao?${params.toString()}`;
 
@@ -463,10 +471,11 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
         signal: AbortSignal.timeout(15000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      successfulRequests += 1;
 
-      const data = (await res.json()) as DjenResponse;
-      const items = data.items ?? [];
-      totalPaginas = Math.max(1, Math.ceil((data.count ?? items.length) / 100));
+      const responseData = (await res.json()) as DjenResponse;
+      const items = responseData.items ?? [];
+      totalPaginas = Math.max(1, Math.ceil((responseData.count ?? items.length) / 100));
 
       for (const item of items) {
         const pub = mapDjenItem(item);
@@ -476,6 +485,18 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
       pagina += 1;
     } while (pagina <= totalPaginas && pagina <= 10);
   }
+
+  for (let index = 0; index < jobs.length; index += 4) {
+    const chunk = jobs.slice(index, index + 4);
+    const settled = await Promise.allSettled(chunk.map((job) => buscarDia(job)));
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        lastError = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+      }
+    }
+  }
+
+  if (successfulRequests === 0 && lastError) throw lastError;
 
   return [...porHash.values()];
 }
@@ -495,7 +516,7 @@ async function buscarDJENViaScraper(nome?: string, oabNumero?: string, oabUF = "
       oabUF,
       dias: PUBLICATION_SEARCH_DAYS,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(90000),
   });
 
   if (!res.ok) {
@@ -516,7 +537,7 @@ async function executarBuscaPublicacoes(input: {
   const resultados: PubEncontrada[] = [];
   const erros: string[] = [];
 
-  if (nome) {
+  if (DOU_ENABLED && nome) {
     try {
       const items = await buscarDOU(nome);
       resultados.push(...items);

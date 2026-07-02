@@ -13,6 +13,9 @@ const PUBLICACOES_DAILY_ENABLED = process.env.JUSTIO_PUBLICACOES_DAILY_ENABLED !
 const PUBLICACOES_SEARCH_DAYS = Number(process.env.JUSTIO_PUBLICACOES_SEARCH_DAYS || 45);
 const SYNC_STATUS_ID = "daily_publicacoes";
 const COMUNICA_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
+const COMUNICA_PORTAL_URL = "https://comunica.pje.jus.br";
+const PUBLICACOES_BROWSER_FALLBACK = process.env.JUSTIO_PUBLICACOES_BROWSER_FALLBACK !== "false";
+const PUBLICACOES_FORCE_BROWSER = process.env.JUSTIO_PUBLICACOES_FORCE_BROWSER === "true";
 
 const app = Fastify({ logger: true });
 let publicacoesTimer = null;
@@ -89,6 +92,11 @@ function normalizeDateISO(date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function dateRangeRecentISO(days) {
+  const hoje = new Date();
+  return Array.from({ length: Math.max(1, Number(days) || 1) }, (_, index) => normalizeDateISO(addDays(hoje, -index)));
+}
+
 function addDays(date, days) {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -145,29 +153,54 @@ function generateId() {
   return crypto.randomUUID();
 }
 
-async function buscarDjen({ nome, oabNumero, oabUF = "RJ", dias = PUBLICACOES_SEARCH_DAYS }) {
-  const hoje = new Date();
-  const inicio = addDays(hoje, -(Number(dias) - 1));
+function criarFiltrosDjen({ nome, oabNumero, oabUF = "RJ" }) {
   const filtros = [];
   const numero = onlyDigits(oabNumero);
   const uf = String(oabUF || "RJ").trim().toUpperCase() || "RJ";
 
   if (numero) filtros.push({ numeroOab: numero, ufOab: uf });
-  if (nome?.trim()) filtros.push({ nomeAdvogado: nome.trim() });
+  else if (nome?.trim()) filtros.push({ nomeAdvogado: nome.trim() });
 
+  return filtros;
+}
+
+function buildDjenParams({ pagina = 1, dataInicio, dataFim, filtro }) {
+  return new URLSearchParams({
+    pagina: String(pagina),
+    itensPorPagina: "100",
+    dataDisponibilizacaoInicio: dataInicio,
+    dataDisponibilizacaoFim: dataFim,
+    meio: "D",
+    ...filtro,
+  });
+}
+
+function collectDjenItems(porHash, items) {
+  for (const item of items || []) {
+    const hash = item.hash ?? String(item.id ?? simpleHash(JSON.stringify(item)));
+    if (hash && !porHash.has(hash)) porHash.set(hash, item);
+  }
+}
+
+async function buscarDjenDireto({ nome, oabNumero, oabUF = "RJ", dias = PUBLICACOES_SEARCH_DAYS }) {
+  const filtros = criarFiltrosDjen({ nome, oabNumero, oabUF });
   const porHash = new Map();
+  const jobs = dateRangeRecentISO(dias).flatMap((data) =>
+    filtros.map((filtro) => ({ data, filtro }))
+  );
+  let successfulRequests = 0;
+  let lastError = null;
 
-  for (const filtro of filtros) {
+  async function buscarDia({ data, filtro }) {
     let pagina = 1;
     let totalPaginas = 1;
 
     do {
-      const params = new URLSearchParams({
-        pagina: String(pagina),
-        itensPorPagina: "100",
-        dataDisponibilizacaoInicio: normalizeDateISO(inicio),
-        dataDisponibilizacaoFim: normalizeDateISO(hoje),
-        ...filtro,
+      const params = buildDjenParams({
+        pagina,
+        dataInicio: data,
+        dataFim: data,
+        filtro,
       });
       const res = await fetch(`${COMUNICA_API_URL}/comunicacao?${params.toString()}`, {
         headers: {
@@ -179,21 +212,184 @@ async function buscarDjen({ nome, oabNumero, oabUF = "RJ", dias = PUBLICACOES_SE
       });
 
       if (!res.ok) throw new Error(`DJEN HTTP ${res.status}`);
+      successfulRequests += 1;
 
-      const data = await res.json();
-      const items = data.items ?? [];
-      totalPaginas = Math.max(1, Math.ceil((data.count ?? items.length) / 100));
+      const responseData = await res.json();
+      const items = responseData.items ?? [];
+      totalPaginas = Math.max(1, Math.ceil((responseData.count ?? items.length) / 100));
 
-      for (const item of items) {
-        const hash = item.hash ?? String(item.id ?? simpleHash(JSON.stringify(item)));
-        if (hash && !porHash.has(hash)) porHash.set(hash, item);
-      }
+      collectDjenItems(porHash, items);
 
       pagina += 1;
     } while (pagina <= totalPaginas && pagina <= 10);
   }
 
+  for (let index = 0; index < jobs.length; index += 4) {
+    const chunk = jobs.slice(index, index + 4);
+    const settled = await Promise.allSettled(chunk.map((job) => buscarDia(job)));
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        lastError = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+      }
+    }
+  }
+
+  if (successfulRequests === 0 && lastError) throw lastError;
+
   return [...porHash.values()];
+}
+
+async function buscarDjenBrowser({ nome, oabNumero, oabUF = "RJ", dias = PUBLICACOES_SEARCH_DAYS }) {
+  const filtros = criarFiltrosDjen({ nome, oabNumero, oabUF });
+  if (!filtros.length) return [];
+
+  const datas = dateRangeRecentISO(dias);
+  const dataFim = datas[0];
+  const dataInicio = datas[datas.length - 1] || dataFim;
+  const porHash = new Map();
+  let successfulRequests = 0;
+  let lastError = null;
+
+  const browser = await getBrowser();
+  const ctx = await browser.newContext({
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+    locale: "pt-BR",
+    timezoneId: "America/Sao_Paulo",
+    viewport: { width: 1366, height: 768 },
+    extraHTTPHeaders: {
+      "Accept-Language": "pt-BR,pt;q=0.9",
+    },
+  });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+  });
+
+  async function abrirPortal() {
+    await page.goto(COMUNICA_PORTAL_URL, { waitUntil: "domcontentloaded", timeout: 30000 })
+      .catch(async () => {
+        await page.goto(`${COMUNICA_PORTAL_URL}/consulta`, { waitUntil: "domcontentloaded", timeout: 30000 });
+      });
+    await page.waitForLoadState("networkidle", { timeout: 12000 }).catch(() => null);
+  }
+
+  function parseDjenJson(text, label) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`${label} resposta invalida: ${text.slice(0, 220)}`);
+    }
+  }
+
+  async function fetchJsonNoNavegador(url) {
+    const apiRes = await ctx.request.get(url, {
+      timeout: 25000,
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        Referer: `${COMUNICA_PORTAL_URL}/`,
+        Origin: COMUNICA_PORTAL_URL,
+      },
+    });
+    const apiText = await apiRes.text();
+    if (apiRes.ok()) return parseDjenJson(apiText, "DJEN browser request");
+
+    const requestMessage = `DJEN browser request HTTP ${apiRes.status()}: ${apiText.slice(0, 220)}`;
+
+    try {
+      return await page.evaluate(async (targetUrl) => {
+        const res = await fetch(targetUrl, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json, text/plain, */*",
+          },
+        });
+        const text = await res.text();
+        if (!res.ok) {
+          throw new Error(`DJEN browser HTTP ${res.status}: ${text.slice(0, 220)}`);
+        }
+        try {
+          return JSON.parse(text);
+        } catch {
+          throw new Error(`DJEN browser page resposta invalida: ${text.slice(0, 220)}`);
+        }
+      }, url);
+    } catch (err) {
+      const pageMessage = err instanceof Error ? err.message : String(err);
+      throw new Error(`${requestMessage}; page fetch: ${pageMessage}`);
+    }
+  }
+
+  async function buscarPeriodo({ filtro, inicio, fim }) {
+    let pagina = 1;
+    let totalPaginas = 1;
+
+    do {
+      const params = buildDjenParams({
+        pagina,
+        dataInicio: inicio,
+        dataFim: fim,
+        filtro,
+      });
+      const url = `${COMUNICA_API_URL}/comunicacao?${params.toString()}`;
+      const responseData = await fetchJsonNoNavegador(url);
+      successfulRequests += 1;
+
+      const items = responseData.items ?? [];
+      totalPaginas = Math.max(1, Math.ceil((responseData.count ?? items.length) / 100));
+      collectDjenItems(porHash, items);
+
+      pagina += 1;
+    } while (pagina <= totalPaginas && pagina <= 10);
+  }
+
+  try {
+    await abrirPortal();
+
+    for (const filtro of filtros) {
+      try {
+        await buscarPeriodo({ filtro, inicio: dataInicio, fim: dataFim });
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+
+        for (let index = 0; index < datas.length; index += 1) {
+          try {
+            await buscarPeriodo({ filtro, inicio: datas[index], fim: datas[index] });
+          } catch (diaErr) {
+            lastError = diaErr instanceof Error ? diaErr : new Error(String(diaErr));
+          }
+        }
+      }
+    }
+  } finally {
+    await ctx.close().catch(() => null);
+  }
+
+  if (successfulRequests === 0 && lastError) throw lastError;
+  return [...porHash.values()];
+}
+
+async function buscarDjen(input) {
+  if (PUBLICACOES_FORCE_BROWSER) {
+    return buscarDjenBrowser(input);
+  }
+
+  try {
+    return await buscarDjenDireto(input);
+  } catch (err) {
+    const directMessage = err instanceof Error ? err.message : String(err);
+    if (!PUBLICACOES_BROWSER_FALLBACK) throw err;
+
+    app.log.warn({ error: directMessage }, "DJEN direto falhou; tentando fallback com navegador");
+
+    try {
+      return await buscarDjenBrowser(input);
+    } catch (browserErr) {
+      const browserMessage = browserErr instanceof Error ? browserErr.message : String(browserErr);
+      throw new Error(`DJEN direto: ${directMessage}; DJEN navegador: ${browserMessage}`);
+    }
+  }
 }
 
 function mapDjenPublicacao(item) {
@@ -395,13 +591,22 @@ app.get("/", async () => ({
   service: "lexfy-scraper",
   publicacoesDailyEnabled: PUBLICACOES_DAILY_ENABLED,
   publicacoesDailyHour: PUBLICACOES_DAILY_HOUR,
+  publicacoesBrowserFallback: PUBLICACOES_BROWSER_FALLBACK,
+  publicacoesForceBrowser: PUBLICACOES_FORCE_BROWSER,
   nextPublicacoesRunAt,
 }));
 
 app.post("/djen/publicacoes", async (req, reply) => {
   if (!checkAuth(req, reply)) return;
-  const items = await buscarDjen(req.body ?? {});
-  return { publicacoes: items.map(mapDjenPublicacao), count: items.length };
+  try {
+    const items = await buscarDjen(req.body ?? {});
+    return { publicacoes: items.map(mapDjenPublicacao), count: items.length };
+  } catch (err) {
+    return reply.code(502).send({
+      error: "djen_publicacoes_failed",
+      message: err instanceof Error ? err.message : "Nao foi possivel buscar publicacoes no DJEN.",
+    });
+  }
 });
 
 app.post("/publicacoes/sync", async (req, reply) => {

@@ -262,39 +262,76 @@ async function openAssistedLogin(url, sistema, numero) {
 
 async function buscarDjen({ nome, oabNumero, oabUF = "RJ", dias = 45 }) {
   const hoje = new Date();
-  const inicio = addDays(hoje, -(Number(dias) - 1));
+  const inicio = addDays(hoje, -(Math.max(1, Number(dias) || 45) - 1));
   const filtros = [];
   const numero = String(oabNumero || "").replace(/\D/g, "");
   const uf = String(oabUF || "RJ").trim().toUpperCase();
 
   if (numero) filtros.push({ numeroOab: numero, ufOab: uf });
-  if (nome?.trim()) filtros.push({ nomeAdvogado: nome.trim() });
+  else if (nome?.trim()) filtros.push({ nomeAdvogado: nome.trim() });
 
   const porHash = new Map();
+  let successfulRequests = 0;
+  let lastError = null;
 
-  for (const filtro of filtros) {
+  async function buscarPeriodo(filtro, dataInicio, dataFim) {
     let pagina = 1;
     let totalPaginas = 1;
     do {
       const params = new URLSearchParams({
         pagina: String(pagina),
         itensPorPagina: "100",
-        dataDisponibilizacaoInicio: normalizeDateISO(inicio),
-        dataDisponibilizacaoFim: normalizeDateISO(hoje),
+        dataDisponibilizacaoInicio: dataInicio,
+        dataDisponibilizacaoFim: dataFim,
+        meio: "D",
         ...filtro,
       });
-      const res = await fetch(`https://comunicaapi.pje.jus.br/api/v1/comunicacao?${params}`);
+      const res = await fetch(`https://comunicaapi.pje.jus.br/api/v1/comunicacao?${params}`, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36",
+          Accept: "application/json, text/html, */*",
+          "Accept-Language": "pt-BR,pt;q=0.9",
+        },
+        signal: AbortSignal.timeout(20000),
+      });
       if (!res.ok) throw new Error(`DJEN HTTP ${res.status}`);
+      successfulRequests += 1;
       const data = await res.json();
       const items = data.items ?? [];
       totalPaginas = Math.max(1, Math.ceil((data.count ?? items.length) / 100));
       for (const item of items) {
-        const hash = item.hash ?? String(item.id);
+        const hash = item.hash ?? String(item.id ?? simpleHash(JSON.stringify(item)));
         if (hash && !porHash.has(hash)) porHash.set(hash, item);
       }
       pagina += 1;
     } while (pagina <= totalPaginas && pagina <= 10);
   }
+
+  for (const filtro of filtros) {
+    try {
+      await buscarPeriodo(filtro, normalizeDateISO(inicio), normalizeDateISO(hoje));
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  if (successfulRequests === 0) {
+    const diasBusca = Math.max(1, Number(dias) || 45);
+    const jobs = Array.from({ length: diasBusca }, (_, index) => normalizeDateISO(addDays(new Date(), -index)))
+      .flatMap((data) => filtros.map((filtro) => ({ data, filtro })));
+
+    for (let index = 0; index < jobs.length; index += 4) {
+      const chunk = jobs.slice(index, index + 4);
+      const settled = await Promise.allSettled(chunk.map((job) => buscarPeriodo(job.filtro, job.data, job.data)));
+      for (const result of settled) {
+        if (result.status === "rejected") {
+          lastError = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+        }
+      }
+    }
+  }
+
+  if (successfulRequests === 0 && lastError) throw lastError;
 
   return [...porHash.values()];
 }

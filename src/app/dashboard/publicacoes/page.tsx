@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { getPublicacoes, createPublicacao, marcarPublicacaoLida, getProcessos, createPrazo, createProcesso, vincularPublicacoesAoProcesso } from "@/lib/store";
 import { parseCNJ } from "@/lib/datajud";
 import { getPerfilAdvogado, loadPerfilAdvogado } from "@/lib/perfil";
+import { sincronizarPublicacoesSyncLocal } from "@/lib/syncLocal";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo, PrazoTipo, Prioridade, ProcessoTipo } from "@/types";
 
@@ -211,6 +212,7 @@ type DjenResponse = {
 
 const DIRECT_DJEN_SEARCH_DAYS = 45;
 const DIRECT_DJEN_API_URL = "https://comunicaapi.pje.jus.br/api/v1";
+const SYNC_LOCAL_PUBLICACOES_ENABLED = process.env.NEXT_PUBLIC_PUBLICACOES_SYNC_LOCAL_ENABLED === "true";
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -223,6 +225,11 @@ function formatDateISO(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   const yyyy = String(date.getFullYear());
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function dateRangeRecentISO(days: number): string[] {
+  const hoje = new Date();
+  return Array.from({ length: Math.max(1, days) }, (_, index) => formatDateISO(addDays(hoje, -index)));
 }
 
 function simpleHash(value: string): string {
@@ -306,23 +313,24 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
 }
 
 async function buscarDjenDireto(perfil: Perfil): Promise<PubEncontrada[]> {
-  const hoje = new Date();
-  const inicio = addDays(hoje, -(DIRECT_DJEN_SEARCH_DAYS - 1));
   const numero = perfil.oab_numero?.replace(/\D/g, "");
   const uf = (perfil.oab_uf ?? "RJ").trim().toUpperCase() || "RJ";
-  const filtros: URLSearchParams[] = [];
+  const filtros: Record<string, string>[] = [];
 
   if (numero) {
-    filtros.push(new URLSearchParams({ numeroOab: numero, ufOab: uf }));
-  }
-
-  if (perfil.nome?.trim()) {
-    filtros.push(new URLSearchParams({ nomeAdvogado: perfil.nome.trim() }));
+    filtros.push({ numeroOab: numero, ufOab: uf });
+  } else if (perfil.nome?.trim()) {
+    filtros.push({ nomeAdvogado: perfil.nome.trim() });
   }
 
   const porHash = new Map<string, PubEncontrada>();
+  const jobs = dateRangeRecentISO(DIRECT_DJEN_SEARCH_DAYS).flatMap((data) =>
+    filtros.map((filtro) => ({ data, filtro }))
+  );
+  let successfulRequests = 0;
+  let lastError: Error | null = null;
 
-  for (const filtro of filtros) {
+  async function buscarDia({ data, filtro }: { data: string; filtro: Record<string, string> }) {
     let pagina = 1;
     let totalPaginas = 1;
 
@@ -330,16 +338,18 @@ async function buscarDjenDireto(perfil: Perfil): Promise<PubEncontrada[]> {
       const params = new URLSearchParams({
         pagina: String(pagina),
         itensPorPagina: "100",
-        dataDisponibilizacaoInicio: formatDateISO(inicio),
-        dataDisponibilizacaoFim: formatDateISO(hoje),
-        ...Object.fromEntries(filtro.entries()),
+        dataDisponibilizacaoInicio: data,
+        dataDisponibilizacaoFim: data,
+        meio: "D",
+        ...filtro,
       });
       const res = await fetch(`${DIRECT_DJEN_API_URL}/comunicacao?${params.toString()}`);
       if (!res.ok) throw new Error(`DJEN/CNJ direto: HTTP ${res.status}`);
+      successfulRequests += 1;
 
-      const data = (await res.json()) as DjenResponse;
-      const items = data.items ?? [];
-      totalPaginas = Math.max(1, Math.ceil((data.count ?? items.length) / 100));
+      const responseData = (await res.json()) as DjenResponse;
+      const items = responseData.items ?? [];
+      totalPaginas = Math.max(1, Math.ceil((responseData.count ?? items.length) / 100));
 
       for (const item of items) {
         const pub = mapDjenItem(item);
@@ -349,6 +359,18 @@ async function buscarDjenDireto(perfil: Perfil): Promise<PubEncontrada[]> {
       pagina += 1;
     } while (pagina <= totalPaginas && pagina <= 10);
   }
+
+  for (let index = 0; index < jobs.length; index += 4) {
+    const chunk = jobs.slice(index, index + 4);
+    const settled = await Promise.allSettled(chunk.map((job) => buscarDia(job)));
+    for (const result of settled) {
+      if (result.status === "rejected") {
+        lastError = result.reason instanceof Error ? result.reason : new Error(String(result.reason));
+      }
+    }
+  }
+
+  if (successfulRequests === 0 && lastError) throw lastError;
 
   return [...porHash.values()];
 }
@@ -506,6 +528,7 @@ export default function PublicacoesPage() {
       if (data.saved) {
         const hasDjenServerError = erros.some((e) => e.startsWith("DJEN/CNJ"));
         let imported = data.imported ?? 0;
+        let buscaFinal = agora;
 
         if (hasDjenServerError && (perfil.oab_numero || perfil.nome)) {
           try {
@@ -527,8 +550,20 @@ export default function PublicacoesPage() {
           }
         }
 
-        localStorage.setItem(ULTIMA_BUSCA_KEY, agora);
-        setUltimaBusca(agora);
+        if (SYNC_LOCAL_PUBLICACOES_ENABLED && erros.some((e) => e.startsWith("DJEN/CNJ"))) {
+          try {
+            const local = await sincronizarPublicacoesSyncLocal();
+            imported += local.imported ?? 0;
+            erros = erros.filter((e) => !e.startsWith("DJEN/CNJ"));
+            const localBusca = local.buscadoEm ?? agora;
+            buscaFinal = localBusca;
+          } catch (err) {
+            erros = [...erros, `Sync Local: ${err instanceof Error ? err.message : "erro desconhecido"}`];
+          }
+        }
+
+        localStorage.setItem(ULTIMA_BUSCA_KEY, buscaFinal);
+        setUltimaBusca(buscaFinal);
         await load();
 
         if (imported > 0) {
@@ -576,8 +611,31 @@ export default function PublicacoesPage() {
         setStatusMsg("Nenhuma publicação nova encontrada no período recente.");
       }
     } catch (err) {
-      setStatusTipo("erro");
-      setStatusMsg(`Falha: ${err instanceof Error ? err.message : "erro desconhecido"}`);
+      if (!SYNC_LOCAL_PUBLICACOES_ENABLED) {
+        setStatusTipo("erro");
+        setStatusMsg(`Falha: ${err instanceof Error ? err.message : "erro desconhecido"}. O CNJ bloqueou a busca em nuvem; para operar como SaaS, precisamos ativar uma API/provedor de publicacoes.`);
+        setBuscando(false);
+        return;
+      }
+
+      try {
+        const local = await sincronizarPublicacoesSyncLocal();
+        const imported = local.imported ?? 0;
+        const localBusca = local.buscadoEm ?? new Date().toISOString();
+        localStorage.setItem(ULTIMA_BUSCA_KEY, localBusca);
+        setUltimaBusca(localBusca);
+        await load();
+        if (imported > 0) {
+          setStatusTipo("ok");
+          setStatusMsg(`${imported} nova${imported > 1 ? "s" : ""} publicacao${imported > 1 ? "es" : ""} importada${imported > 1 ? "s" : ""} pelo Sync Local!`);
+        } else {
+          setStatusTipo("info");
+          setStatusMsg("Sync Local executou, mas nao encontrou publicacao nova no periodo recente.");
+        }
+      } catch (localErr) {
+        setStatusTipo("erro");
+        setStatusMsg(`Falha: ${err instanceof Error ? err.message : "erro desconhecido"} | Sync Local: ${localErr instanceof Error ? localErr.message : "erro desconhecido"}`);
+      }
     } finally {
       setBuscando(false);
     }
@@ -628,7 +686,7 @@ export default function PublicacoesPage() {
             <p className="text-amber-700">
               Acesse{" "}
               <Link href="/dashboard/configuracoes" className="underline font-medium">Configurações</Link>
-              {" "}e preencha seu nome e OAB para buscar publicações automaticamente no DOU, DJEN/CNJ e DJE-TJERJ.
+              {" "}e preencha seu nome e OAB para buscar publicações automaticamente no DJEN/CNJ e DJE-TJERJ.
             </p>
           </div>
         </div>

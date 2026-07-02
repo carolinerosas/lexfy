@@ -227,6 +227,7 @@ function NovoAcordoModal({
   const [titulo, setTitulo] = useState("");
   const [direcao, setDirecao] = useState<AcordoDirecao>("receber");
   const [total, setTotal] = useState("");
+  const [valorParcela, setValorParcela] = useState("");
   const [nParcelas, setNParcelas] = useState("1");
   const [primeiroVenc, setPrimeiroVenc] = useState(hojeISO());
   const [parcelas, setParcelas] = useState<Array<{ valor: string; venc: string }>>([]);
@@ -237,9 +238,17 @@ function NovoAcordoModal({
   }, [processoId]);
 
   function gerarParcelas() {
-    const n = Math.max(1, Math.min(60, parseInt(nParcelas) || 1));
-    const totalNum = parseFloat(total.replace(",", ".")) || 0;
-    const valores = totalNum > 0 ? splitValor(totalNum, n) : Array(n).fill(0);
+    const n = Math.max(1, Math.min(360, parseInt(nParcelas) || 1));
+    const parcelaNum = parseFloat(valorParcela.replace(",", ".")) || 0;
+    let valores: number[];
+    if (parcelaNum > 0) {
+      // Valor da parcela informado: todas iguais e o total é calculado (parcela × nº).
+      valores = Array(n).fill(parcelaNum);
+      setTotal(String(Math.round(parcelaNum * n * 100) / 100));
+    } else {
+      const totalNum = parseFloat(total.replace(",", ".")) || 0;
+      valores = totalNum > 0 ? splitValor(totalNum, n) : Array(n).fill(0);
+    }
     setParcelas(valores.map((v, i) => ({
       valor: v ? String(v) : "",
       venc: primeiroVenc ? addMonthsISO(primeiroVenc, i) : "",
@@ -294,9 +303,13 @@ function NovoAcordoModal({
             onChange={(e) => setDirecao(e.target.value as AcordoDirecao)}
           />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_120px_1fr_auto] sm:items-end">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Input label="Valor total" type="number" step="0.01" min="0" placeholder="0,00" value={total} onChange={(e) => setTotal(e.target.value)} />
-          <Input label="Nº parcelas" type="number" min="1" max="60" value={nParcelas} onChange={(e) => setNParcelas(e.target.value)} />
+          <Input label="Valor da parcela" type="number" step="0.01" min="0" placeholder="0,00" value={valorParcela} onChange={(e) => setValorParcela(e.target.value)} />
+          <Input label="Nº parcelas" type="number" min="1" value={nParcelas} onChange={(e) => setNParcelas(e.target.value)} />
+        </div>
+        <p className="-mt-2 text-xs text-gray-400">Preencha o <strong>valor total</strong> (divide em parcelas iguais) ou o <strong>valor da parcela</strong> (calcula o total = parcela × nº). Depois dá pra ajustar cada linha.</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <Input label="1º vencimento" type="date" value={primeiroVenc} onChange={(e) => setPrimeiroVenc(e.target.value)} />
           <Button type="button" variant="secondary" onClick={gerarParcelas}>Gerar parcelas</Button>
         </div>

@@ -126,6 +126,27 @@ export async function descobrirProcessosDjenSyncLocal(input: {
   return Array.isArray(data.processos) ? data.processos : [];
 }
 
+export async function sincronizarPublicacoesSyncLocal(): Promise<{
+  ok?: boolean;
+  total?: number;
+  imported?: number;
+  buscadoEm?: string;
+  message?: string;
+}> {
+  const url = getSyncLocalUrl().replace(/\/$/, "");
+  const res = await fetch(`${url}/publicacoes/sync`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ source: "justio-web" }),
+    signal: AbortSignal.timeout(90000),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || `Sync Local HTTP ${res.status}`);
+  }
+  return data;
+}
+
 export async function descobrirProcessosTribunaisSyncLocal(input: {
   nome?: string;
   oabNumero?: string;
