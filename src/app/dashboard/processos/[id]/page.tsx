@@ -163,6 +163,7 @@ type Tab =
   | "prazos"
   | "audiencias"
   | "honorarios"
+  | "acordos"
   | "atendimentos";
 
 const execucaoPenalTabs: Tab[] = ["incidentes", "calculo_pena", "beneficios_penais"];
@@ -361,6 +362,7 @@ export default function ProcessoDetailPage() {
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
     { key: "atendimentos", label: "Atendimentos", count: atendimentos.filter((a) => a.status === "agendado").length },
     { key: "honorarios", label: "Honorários", count: honorarios.length },
+    { key: "acordos", label: "Acordos", count: 0, showCount: false },
     { key: "resultado", label: "Resultado", count: hasResultado ? 1 : 0, showCount: false },
   ];
 
@@ -612,16 +614,16 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "honorarios" && (
-        <div className="space-y-6">
-          <HonorariosTab
-            honorarios={honorarios}
-            onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
-            onReceber={(h) => setHonRecebendo(h)}
-            onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
-          />
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
-            <AcordosPanel processoId={id} clienteNome={processo.cliente_nome} />
-          </div>
+        <HonorariosTab
+          honorarios={honorarios}
+          onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
+          onReceber={(h) => setHonRecebendo(h)}
+          onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
+        />
+      )}
+      {tab === "acordos" && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
+          <AcordosPanel processoId={id} clienteNome={processo.cliente_nome} />
         </div>
       )}
       {tab === "atendimentos" && (
