@@ -15,7 +15,6 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ComboBox } from "@/components/ui/combobox";
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
-import { AcordosPanel } from "@/components/ui/acordos-panel";
 import {
   getHonorariosWithProcesso, getProcessos, getClientes,
   createHonorario, updateHonorario, deleteHonorario,
@@ -514,12 +513,6 @@ export default function FinanceiroPage() {
             })}
           </ul>
         )}
-      </Card>
-
-      <Card className="mb-6">
-        <div className="p-4 sm:p-5">
-          <AcordosPanel onChanged={load} />
-        </div>
       </Card>
 
       {linhaTempo.length > 0 && (

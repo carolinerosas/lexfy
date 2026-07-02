@@ -132,7 +132,7 @@ export default function DashboardPage() {
       {(stats.prazosVencidos > 0 || stats.tarefasVencidas > 0 || stats.publicacoesNaoLidas > 0 || stats.movimentacoesNaoLidas > 0 || acordosAlerta.length > 0) && (
         <div className="mb-6 flex min-w-0 flex-wrap gap-3">
           {acordosAlerta.length > 0 && (
-            <Link href="/dashboard/financeiro" className="min-w-0 w-full sm:w-auto">
+            <Link href="/dashboard/agenda" className="min-w-0 w-full sm:w-auto">
               <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100">
                 <Handshake className="h-4 w-4 shrink-0" />
                 {acordosAlerta.length} parcela{acordosAlerta.length > 1 ? "s" : ""} de acordo vencendo (próx. {formatCurrency(acordosAlerta.reduce((s, p) => s + p.valor, 0))})

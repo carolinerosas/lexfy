@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, Pencil, CheckCircle2, ArrowDownCircle, ArrowUpCircle, Handshake, ChevronRight } from "lucide-react";
 import { Modal } from "./modal";
 import { Input } from "./input";
@@ -86,6 +86,7 @@ export function AcordosPanel({
   const [editandoAcordo, setEditandoAcordo] = useState<Grupo | null>(null);
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
   const [procNumero, setProcNumero] = useState<Map<string, string>>(new Map());
+  const [pagando, setPagando] = useState<AcordoParcela | null>(null);
 
   useEffect(() => {
     if (!processoId) getProcessos().then((ps) => setProcNumero(new Map(ps.map((p) => [p.id, p.numero]))));
@@ -116,10 +117,8 @@ export function AcordosPanel({
     onChanged?.();
   }
 
-  async function alternarPago(p: AcordoParcela) {
-    await updateAcordoParcela(p.id, p.pago
-      ? { pago: false, data_pagamento: undefined }
-      : { pago: true, data_pagamento: hojeISO() });
+  async function desmarcarPago(p: AcordoParcela) {
+    await updateAcordoParcela(p.id, { pago: false, data_pagamento: undefined });
     await recarregar();
   }
 
@@ -153,12 +152,18 @@ export function AcordosPanel({
         </div>
       ) : (
         <div className="space-y-4">
-          {grupos.map((g) => {
+          {(clienteFiltro ? [...grupos].sort((a, b) => (a.processoId ?? "￿").localeCompare(b.processoId ?? "￿")) : grupos).map((g, i, arr) => {
             const receber = g.direcao === "receber";
             const saldo = Math.max(0, g.total - g.pago);
             const aberto = abertos.has(g.grupoId);
+            const mostrarHeader = !!clienteFiltro && (i === 0 || arr[i - 1].processoId !== g.processoId);
+            const headerLabel = g.processoId && procNumero.get(g.processoId) ? `Processo ${procNumero.get(g.processoId)}` : "Sem processo vinculado";
             return (
-              <div key={g.grupoId} className="rounded-xl border border-gray-100">
+              <Fragment key={g.grupoId}>
+              {mostrarHeader && (
+                <p className={`text-xs font-bold uppercase tracking-wide text-gray-400 ${i === 0 ? "" : "pt-2"}`}>{headerLabel}</p>
+              )}
+              <div className="rounded-xl border border-gray-100">
                 <div className={`flex items-center gap-2 bg-gray-50/60 px-4 py-3 ${aberto ? "border-b border-gray-100" : ""}`}>
                   <button type="button" onClick={() => alternarAberto(g.grupoId)} className="flex min-w-0 flex-1 items-start gap-2 text-left">
                     <ChevronRight className={`mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
@@ -166,10 +171,10 @@ export function AcordosPanel({
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="text-sm font-bold text-gray-900">{g.titulo || "Acordo"}</p>
                         <Badge variant={receber ? "success" : "warning"}>{receber ? "a receber" : "a pagar"}</Badge>
-                        {!processoId && (
+                        {!processoId && !clienteFiltro && (
                           <span className="text-xs text-gray-500">
                             · {g.processoId && procNumero.get(g.processoId) ? `Proc ${procNumero.get(g.processoId)}` : "sem processo"}
-                            {!clienteFiltro && g.clienteNome ? ` · ${g.clienteNome}` : ""}
+                            {g.clienteNome ? ` · ${g.clienteNome}` : ""}
                           </span>
                         )}
                       </div>
@@ -224,7 +229,7 @@ export function AcordosPanel({
                         <span className="shrink-0 text-sm font-bold tabular-nums text-gray-900">{formatCurrency(p.valor)}</span>
                         <div className="flex shrink-0 items-center gap-0.5">
                           <button
-                            onClick={() => alternarPago(p)}
+                            onClick={() => (p.pago ? desmarcarPago(p) : setPagando(p))}
                             title={p.pago ? "Desmarcar" : "Marcar como pago"}
                             className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-semibold transition-colors ${p.pago ? "text-green-600 hover:bg-green-50" : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"}`}
                           >
@@ -243,6 +248,7 @@ export function AcordosPanel({
                 </ul>
                 )}
               </div>
+              </Fragment>
             );
           })}
         </div>
@@ -271,7 +277,55 @@ export function AcordosPanel({
           onSaved={() => { setEditandoAcordo(null); recarregar(); }}
         />
       )}
+      {pagando && (
+        <PagamentoParcelaModal
+          parcela={pagando}
+          onClose={() => setPagando(null)}
+          onSaved={() => { setPagando(null); recarregar(); }}
+        />
+      )}
     </div>
+  );
+}
+
+function PagamentoParcelaModal({
+  parcela,
+  onClose,
+  onSaved,
+}: {
+  parcela: AcordoParcela;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [data, setData] = useState(hojeISO());
+  const [saving, setSaving] = useState(false);
+
+  async function confirmar() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await updateAcordoParcela(parcela.id, { pago: true, data_pagamento: data || hojeISO() });
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Pagamento — parcela ${parcela.numero}/${parcela.total_parcelas}`} size="sm">
+      <div className="space-y-4">
+        <div className="rounded-lg bg-gray-50 px-3 py-2.5">
+          <p className="text-sm font-bold text-gray-900">{formatCurrency(parcela.valor)}</p>
+        </div>
+        <Input label="Quando foi pago? *" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Cancelar</Button>
+          <Button onClick={confirmar} disabled={!data || saving}>
+            <CheckCircle2 className="h-4 w-4" /> {saving ? "Salvando..." : "Confirmar pago"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
