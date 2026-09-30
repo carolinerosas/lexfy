@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, Search, Settings } from "lucide-react";
+import { ArrowLeft, LogOut, Mail, Search, Settings } from "lucide-react";
 import { SearchModal } from "@/components/ui/search-modal";
 import { MobileMenuButton } from "@/components/layout/mobile-drawer";
 
@@ -23,6 +23,14 @@ export function TopBar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      window.location.href = "/login";
+    }
+  }
 
   function handleBack() {
     if (typeof window !== "undefined") {
@@ -93,6 +101,16 @@ export function TopBar() {
               <p className="truncate text-[11px] text-gray-500">caroline@justio.com.br · OAB/RJ</p>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Sair"
+            aria-label="Sair do Justio"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </header>
 
