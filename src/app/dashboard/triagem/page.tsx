@@ -101,6 +101,12 @@ function buildClienteDados(draft: ImportDraft, primeiroProcesso?: ImportDraft["p
 
 async function preencherClienteExistente(cliente: Cliente, dados: Partial<Cliente>): Promise<void> {
   const atualizacao: Partial<Cliente> = {};
+  // Cadastro com nome incompleto ("Cleiton") recebe o nome completo importado.
+  const nomeAtual = normalize(cliente.nome);
+  const nomeNovo = normalize(dados.nome);
+  if (dados.nome && nomeNovo.length > nomeAtual.length && (!nomeAtual || nomeNovo.startsWith(`${nomeAtual} `))) {
+    atualizacao.nome = dados.nome.trim();
+  }
   if (!cliente.cpf && dados.cpf) atualizacao.cpf = dados.cpf;
   if (!cliente.rg && dados.rg) atualizacao.rg = dados.rg;
   if (!cliente.email && dados.email) atualizacao.email = dados.email;
@@ -286,7 +292,7 @@ export default function TriagemPage() {
         ].filter(Boolean).join("\n\n"),
       });
       if (clienteExistente) {
-        await preencherClienteExistente(clienteExistente, dadosCliente);
+        await preencherClienteExistente(clienteExistente, { ...dadosCliente, nome: draft.cliente?.nome });
       }
 
       const hoje = new Date().toISOString().slice(0, 10);
@@ -798,25 +804,28 @@ function ImportacaoAssistida({
   function selecionarCliente(clienteId: string) {
     if (!draft) return;
     const cliente = clientes.find((c) => c.id === clienteId);
+    // O que veio da importação prevalece; o cadastro só completa os campos vazios.
+    const atual = draft.cliente ?? {};
+    const campo = (importado?: string, cadastrado?: string) => importado?.trim() ? importado : cadastrado;
     onDraftChange({
       ...draft,
       cliente_id: clienteId,
       cliente: cliente ? {
-        ...(draft.cliente ?? {}),
-        nome: cliente.nome,
-        cpf: cliente.cpf,
-        rg: cliente.rg,
-        email: cliente.email,
-        celular: cliente.celular,
-        cep: cliente.cep,
-        logradouro: cliente.logradouro,
-        numero_end: cliente.numero_end,
-        complemento: cliente.complemento,
-        bairro: cliente.bairro,
-        cidade: cliente.cidade,
-        uf: cliente.uf,
-        observacoes: draft.cliente?.observacoes,
-      } : draft.cliente,
+        ...atual,
+        nome: campo(atual.nome, cliente.nome),
+        cpf: campo(atual.cpf, cliente.cpf),
+        rg: campo(atual.rg, cliente.rg),
+        email: campo(atual.email, cliente.email),
+        celular: campo(atual.celular, cliente.celular),
+        cep: campo(atual.cep, cliente.cep),
+        logradouro: campo(atual.logradouro, cliente.logradouro),
+        numero_end: campo(atual.numero_end, cliente.numero_end),
+        complemento: campo(atual.complemento, cliente.complemento),
+        bairro: campo(atual.bairro, cliente.bairro),
+        cidade: campo(atual.cidade, cliente.cidade),
+        uf: campo(atual.uf, cliente.uf),
+        observacoes: atual.observacoes,
+      } : atual,
       processos: draft.processos.map((proc) => ({ ...proc, processo_id: undefined })),
     });
   }
