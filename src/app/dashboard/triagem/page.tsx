@@ -409,7 +409,9 @@ export default function TriagemPage() {
       setDraft(null);
       setImportacaoAtiva(null);
       setTextoImportacao("");
-      setImportMsg(`Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s).`);
+      setImportMsg(draft.processos.length === 0
+        ? `Importação concluída: ${clienteExistente ? "cadastro do cliente existente completado" : "cliente criado"} (sem processo).`
+        : `Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s).`);
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Erro ao salvar importação.");
     } finally {
@@ -1125,13 +1127,24 @@ function ImportacaoAssistida({
                   {importacaoAtiva && <Badge variant="neutral">pendente do agente</Badge>}
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  {processosNovos} processo(s) novo(s), {processosExistentes} já existente(s)
+                  {draft.processos.length === 0
+                    ? "Só cadastro de cliente (sem processo)"
+                    : `${processosNovos} processo(s) novo(s), ${processosExistentes} já existente(s)`}
                 </p>
               </div>
-              <Button onClick={onSalvar} disabled={salvando || draft.processos.length === 0}>
+              <Button
+                onClick={onSalvar}
+                disabled={salvando || (draft.processos.length === 0 && !draft.cliente_id && !draft.cliente?.nome?.trim())}
+              >
                 <CheckCircle className="h-4 w-4" /> {salvando ? "Salvando..." : "Confirmar e salvar"}
               </Button>
             </div>
+
+            {draft.info?.length ? (
+              <div className="rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                {draft.info.join(" ")}
+              </div>
+            ) : null}
 
             {draft.avisos?.length ? (
               <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">

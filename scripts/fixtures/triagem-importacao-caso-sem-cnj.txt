@@ -1,0 +1,85 @@
+IMPORTAÇÃO — CASO FULANO DE TAL SILVA x MONTADORA EXEMPLO DO BRASIL
+
+CLIENTE
+Nome completo: Fulano de Tal Silva
+CPF: 529.982.247-25
+Endereço: Rua Exemplo da Silva, Residencial 588, Bairro Centro (o orçamento da concessionária registra Bairro Boa Sorte), São Paulo — SP, CEP 01001-000
+Telefone: não informado
+E-mail: não informado
+
+TIPO DE AÇÃO
+Ação de reparação de danos materiais e morais, de natureza consumerista, fundada na responsabilidade objetiva do fabricante por defeito do produto (art. 12 do Código de Defesa do Consumidor), decorrente do acionamento espontâneo do airbag em veículo objeto de campanhas de recall, somada à falha do dever de informar sobre o recall e à recusa da concessionária em substituir o conjunto.
+
+Situação processual: ação ainda NÃO ajuizada. Não há número CNJ. Fase de coleta de provas, anterior à notificação extrajudicial da fabricante.
+Comarca pretendida: São Paulo — SP
+Distribuição: não ocorrida
+
+PARTE CONTRÁRIA
+Montadora Exemplo do Brasil Ltda. (fabricante)
+Concessionária envolvida: Concessionária Modelo Veículos Ltda., CNPJ 00.000.000/0001-91, Rua Comercial, 50, São Paulo — SP, telefone (24) 3000-0000, e-mail nfe@concessionariamodelo.com.br, inscrição estadual 78600007
+
+VEÍCULO
+Montadora Civic LXS, ano/modelo 2007, cor prata
+Placa ABC1D23
+Chassi 9XXXX00000X000000
+Combustível gasolina/GNV
+CRLV nº 000000000000, DETRAN/SP, exercício 2019, expedido em Campinas em 13/12/2019
+Atenção: o CRLV registra como proprietário BELTRANO ANTIGO, CPF 000.000.001-91, com alienação fiduciária em favor de Aymoré Crédito, Financiamento e Investimento S/A e anotação de "veículo modificado". A transferência para Fulano, que adquiriu o automóvel em 2019, aparentemente não foi averbada no DETRAN. Pendência de maior risco do caso, por eventual discussão de legitimidade ativa.
+
+FATOS
+Fulano adquiriu o Montadora Civic 2007 em 2019. Em 2025, em data não precisamente determinada, mas anterior a novembro de 2025, o airbag do veículo disparou de forma espontânea enquanto ele dirigia, sem qualquer colisão prévia. O disparo lhe retirou a visibilidade e o controle da direção, e o automóvel colidiu contra veículo de terceiro que estava estacionado e imobilizado em via pública do Bairro Boa Sorte, em São Paulo.
+
+Não houve registro de boletim de ocorrência. Fulano compôs-se diretamente e de forma amigável com o terceiro atingido, arcando integralmente com o reparo do veículo dele.
+
+A Montadora emitiu campanhas de recall relativas ao sistema de airbag dos veículos dessa geração, mas Fulano sustenta nunca ter sido notificado. Em 14/11/2025 procurou a concessionária Concessionária Modelo Veículos para a substituição do conjunto de airbag, tendo recebido orçamento de R$ 30.918,86, sem que a substituição fosse realizada em garantia ou em campanha de recall.
+
+Observação técnica relevante para a estratégia: as campanhas de recall da Montadora no Brasil referem-se ao insuflador Takata, cujo defeito é a ruptura do inflador no momento da deflagração em colisão, e não o disparo espontâneo. A tese precisa, portanto, apoiar-se no defeito autônomo do sistema de retenção suplementar (SRS) à luz do art. 12, § 1º, do CDC, cabendo à fabricante a prova das excludentes do § 3º, e não exclusivamente na falha de notificação do recall.
+
+VALORES
+Reparo do veículo do terceiro (Terceiro Um): R$ 14.500,00 — pago
+Serviço de pintura (Pintor Dois Exemplo): R$ 3.800,00 — pago
+Serviço de lanternagem e reparação estrutural (Lanterneiro Três Exemplo): R$ 4.500,00 — pago
+Subtotal de reparos: R$ 22.800,00
+Sistema de airbag não substituído, conforme orçamento da concessionária Montadora: R$ 30.918,86
+Total do dano material apurado: R$ 53.718,86
+Dano moral: a arbitrar
+
+TERCEIROS E DECLARANTES
+Terceiro Um Exemplo — terceiro atingido no acidente. CPF 000.000.002-72, RG 11.111.111-1. Residente na Rua Vizinha, nº 381, Bairro Boa Sorte, São Paulo — SP. Recebeu R$ 14.500,00 e deu a questão por encerrada. Declaração redigida, pendente de assinatura.
+
+Pintor Dois Exemplo, conhecido como "Pintor" — prestador do serviço de pintura. CPF 000.000.003-53, cédula de identidade nº 22.222.222-2 expedida pelo DETRAN/SP em 26/02/2007, nascido em 01/01/1970, natural de São Paulo — SP, filho de Pai Exemplo e Mãe Exemplo. Recebeu R$ 3.800,00. Declaração redigida, pendente de assinatura.
+
+Lanterneiro Três Exemplo, conhecido como "Lanterneiro" — prestador dos serviços de lanternagem e reparação estrutural. CPF 000.000.004-34, cédula de identidade nº 3333333 IPF/RJ, CNH nº de registro 00000000000, categoria B, emitida em 08/09/2025 e válida até 04/09/2028, primeira habilitação em 28/11/1969, nascido em 01/01/1950 em Santos — SP, filho de Pai Exemplo e Mãe Exemplo. Recebeu R$ 4.500,00. Declaração redigida, pendente de assinatura. Sua oficina aparece nomeada como "Oficina Exemplo" em ordem de serviço que registra a placa ABC1D23.
+
+DOCUMENTOS JÁ ORGANIZADOS
+Dossiê probatório com 15 anexos numerados, capa e relação paginada, em (pasta do cliente)
+Anexo 01 — CRLV e Bilhete de Seguro DPVAT
+Anexo 02 — envelope de correspondência registrada e-Carta/Correios, postado em 15/10/2025 na unidade CTC Jaguaré/SPM, em São Paulo, endereçado a Fulano (conteúdo não localizado; possível convocação de recall — dado incerto)
+Anexo 03 e 04 — orçamento da concessionária Montadora, Documento Auxiliar de Venda nº 0000774451, de 14/11/2025, no valor de R$ 30.918,86, discriminando módulo de airbag do condutor, módulo do passageiro, dois sensores de colisão, unidade SRS e dois conjuntos de cinto de segurança
+Anexo 05 — orçamento M.C. Car Estética Automotiva, de 13/10/2025, veículo placa ABC1D23
+Anexo 06 — nota de serviço Prestador Exemplo, radiador, R$ 150,00, em nome de "Lanterneiro"
+Anexo 07 — nota fiscal Jalicar Auto Peças, DANFE nº 000.065.232
+Anexo 08 — nota fiscal Auto Jafet Comércio de Peças, DANFE nº 000.109.758
+Anexo 09 — nota fiscal Eduardo A. Bernardi ME, DANFE nº 000.013.865
+Anexo 10 — nota fiscal GDA Cooler Autoparts
+Anexo 11 — ordem de serviço AURO / S.F. da Silva, CNPJ 00.000.000/0002-72, atendimento em 13/10/2025, cliente "Oficina Exemplo", veículo Montadora Civic placa ABC 1D23, alinhamento e câmber, R$ 150,00
+Anexo 12 — nota de venda Posto São Francisco, R$ 25,00
+Anexo 13 — documentos de identificação de Pintor Dois Exemplo, três folhas
+Anexo 14 — CNH de Lanterneiro Três Exemplo
+Anexo 15 — comprovante de rendimentos Bradesco, competência outubro/2025, líquido de R$ 1.000,00, destinado a instruir eventual pedido de gratuidade de justiça
+Também produzidos: parecer jurídico de uso interno, nota de conferência dos anexos e as três minutas de declaração, em PDF e em Word.
+
+PENDÊNCIAS E PRAZOS
+Prioritário: obter CRLV atual, documento da aquisição de 2019 e situação do gravame junto à Aymoré, para resolver a titularidade do veículo
+Prioritário: comprovantes de pagamento dos R$ 14.500,00, R$ 3.800,00 e R$ 4.500,00, que hoje não constam do acervo
+Colher as três assinaturas nas declarações, com duas testemunhas cada
+Obter cópia do documento de identidade de Terceiro Um
+Localizar a carta recebida no envelope do Anexo 02 e fotografar o verso do envelope, onde consta o remetente
+Oficiar ao SAC da Montadora e à concessionária requerendo histórico oficial de recalls da placa ABC1D23, prova de envio das convocações e motivação escrita da recusa de substituição
+Esclarecer a titularidade das notas fiscais dos Anexos 07 a 10, emitidas em nome de Terceira Pessoa e não de Fulano
+Apurar quando e por quem foi feita a conversão para GNV, diante da anotação de "veículo modificado" no CRLV, e avaliar a necessidade de perícia técnica sobre a causa do disparo
+Após reunir as provas, promover a notificação extrajudicial da fabricante antes do ajuizamento
+
+Nenhum prazo processual em curso, por não haver ação distribuída.
+
+Advogada responsável: Advogada Exemplo, OAB/RJ 000.000

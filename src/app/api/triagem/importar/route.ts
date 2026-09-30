@@ -1,48 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createTriagemImportacao, registrarCoworkImportacao } from "@/lib/store";
+import { buscarCep } from "@/lib/format";
+import {
+  CNJ_RE, INFO_SEM_CNJ, aplicarCep, cleanLine, extractLabeled, extrairEntidades, sanearCliente,
+} from "@/lib/triagem-extracao";
 import type { TriagemImportDraft } from "@/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
 type ImportDraft = TriagemImportDraft;
 
 function uniq<T>(arr: T[]): T[] {
   return [...new Set(arr)];
-}
-
-function cleanLine(value?: string): string | undefined {
-  return value?.replace(/\s+/g, " ").trim() || undefined;
-}
-
-function onlyDigits(value?: string): string | undefined {
-  const digits = value?.replace(/\D/g, "");
-  return digits || undefined;
-}
-
-function normalizeCep(value?: string): string | undefined {
-  const digits = onlyDigits(value);
-  if (!digits || digits.length !== 8) return cleanLine(value);
-  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
-}
-
-function normalizeUf(value?: string): string | undefined {
-  const raw = cleanLine(value);
-  if (!raw) return undefined;
-  const upper = raw.toUpperCase();
-  const sigla = upper.match(/^[A-Z]{2}$/)?.[0];
-  if (sigla) return sigla;
-
-  const ascii = upper.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const estados: Record<string, string> = {
-    "RIO DE JANEIRO": "RJ",
-    "SAO PAULO": "SP",
-    "MINAS GERAIS": "MG",
-    "ESPIRITO SANTO": "ES",
-  };
-  return Object.entries(estados).find(([nome]) => ascii.includes(nome))?.[1];
 }
 
 function inferTribunal(numero: string): { tribunal?: string; uf?: string } {
@@ -63,47 +35,22 @@ function inferTipo(texto: string): string {
   return "civel";
 }
 
-function extractLabeled(texto: string, labels: string[]): string | undefined {
-  const joined = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const re = new RegExp(`(?:^|\\n)\\s*(?:${joined})\\s*[:\\-]\\s*([^\\n]+)`, "i");
-  return cleanLine(texto.match(re)?.[1]);
+function labeled(texto: string, labels: string[]): string | undefined {
+  return extractLabeled(texto, labels) || undefined;
 }
 
 function fallbackImport(texto: string): ImportDraft {
-  const numeros = uniq(texto.match(/\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b/g) ?? []);
-  const email = cleanLine(texto.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]);
-  const celular = cleanLine(texto.match(/(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?(?:9\s*)?\d{4}[-\s]?\d{4}/)?.[0]);
-  const cpf = onlyDigits(texto.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)?.[0]);
-  const rg = cleanLine(extractLabeled(texto, ["rg", "identidade", "documento de identidade"]) || texto.match(/\b\d{1,2}\.?\d{3}\.?\d{3}-?[\dXx]\b/)?.[0]);
-  const cep = normalizeCep(extractLabeled(texto, ["cep"]) || texto.match(/\b\d{5}-?\d{3}\b/)?.[0]);
-  const logradouro = extractLabeled(texto, ["endereço", "endereÃ§o", "endereco", "logradouro", "rua", "avenida", "av"]);
-  const numeroEnd = extractLabeled(texto, ["número", "nÃºmero", "numero", "nº", "nÂº", "n"]);
-  const complemento = extractLabeled(texto, ["complemento"]);
-  const bairro = extractLabeled(texto, ["bairro"]);
-  const cidade = extractLabeled(texto, ["cidade", "município", "municÃ­pio", "municipio"]);
-  const uf = normalizeUf(extractLabeled(texto, ["uf", "estado"]));
-  const nome = extractLabeled(texto, ["cliente", "nome", "requerente", "autor", "autora", "parte ativa"]);
-  const parteContraria = extractLabeled(texto, ["parte contrária", "parte contraria", "réu", "reu", "ré", "re", "polo passivo"]);
-  const comarca = extractLabeled(texto, ["comarca", "foro"]);
-  const vara = extractLabeled(texto, ["vara", "cartório", "cartorio", "juízo", "juizo"]);
-  const unidadePrisional = extractLabeled(texto, ["unidade prisional", "presidio", "presídio", "cadeia", "penitenciaria", "penitenciária"]);
+  const numeros = uniq(texto.match(CNJ_RE) ?? []);
+  // Extração escopada por entidade: dados do cliente só saem do bloco do cliente.
+  const entidades = extrairEntidades(texto);
+  const cliente = entidades.cliente;
+  const comarca = labeled(texto, ["comarca", "foro"]);
+  const vara = labeled(texto, ["vara", "cartório", "cartorio", "juízo", "juizo"]);
+  const unidadePrisional = labeled(texto, ["unidade prisional", "presidio", "presídio", "cadeia", "penitenciaria", "penitenciária"]);
   const tipo = inferTipo(texto);
 
   return {
-    cliente: {
-      nome,
-      cpf,
-      rg,
-      email,
-      celular,
-      cep,
-      logradouro,
-      numero_end: numeroEnd,
-      complemento,
-      bairro,
-      cidade,
-      uf,
-    },
+    cliente,
     processos: numeros.map((numero) => ({
       numero,
       titulo: tipo === "familia" ? "Processo de família" : tipo === "juri" ? "Processo do júri" : tipo === "criminal" ? "Processo criminal" : "Processo importado",
@@ -112,40 +59,59 @@ function fallbackImport(texto: string): ImportDraft {
       comarca,
       vara,
       tipo,
-      parte_contraria: parteContraria,
-      cliente_nome: nome,
-      cliente_cpf_cnpj: cpf,
+      parte_contraria: entidades.parte_contraria,
+      cliente_nome: cliente.nome,
+      cliente_cpf_cnpj: cliente.cpf,
       unidade_prisional: unidadePrisional,
     })),
     movimentacoes: [],
-    avisos: numeros.length === 0 ? ["Não encontrei número CNJ no texto. Confira os dados antes de salvar."] : [],
+    avisos: [],
+    info: numeros.length === 0 ? [INFO_SEM_CNJ] : [],
   };
 }
 
-function normalizeDraft(value: Partial<ImportDraft>, texto: string): ImportDraft {
+function normalizeDraft(value: Partial<ImportDraft> & { parte_contraria?: { nome?: string } }, texto: string): ImportDraft {
   const fallback = fallbackImport(texto);
+  const entidades = extrairEntidades(texto);
   const processos = Array.isArray(value.processos) ? value.processos : fallback.processos;
-  const cliente = {
-    ...fallback.cliente,
-    ...(value.cliente ?? {}),
-  };
+  // A IA manda; a leitura básica (já escopada no bloco do cliente) só completa lacunas.
+  // Depois, tudo passa pelo saneamento: dado que só existe no bloco de outra entidade é descartado.
+  const ia = Object.fromEntries(
+    Object.entries(value.cliente ?? {}).filter(([, v]) => typeof v === "string" && v.trim())
+  ) as NonNullable<ImportDraft["cliente"]>;
+  const { cliente, avisos: avisosSaneamento } = sanearCliente({ ...fallback.cliente, ...ia }, entidades);
   const observacoesDoCaso = cleanLine(cliente.observacoes);
   delete cliente.observacoes;
+  const parteContraria = cleanLine(value.parte_contraria?.nome) || entidades.parte_contraria;
+  const processosComNumero = processos.filter((p) => p?.numero);
 
   return {
     cliente,
-    processos: processos
-      .filter((p) => p?.numero)
-      .map((p) => ({
-        ...p,
-        numero: p.numero.trim(),
-        titulo: cleanLine(p.titulo) || "Processo importado",
-        descricao: cleanLine(p.descricao) || observacoesDoCaso || fallback.processos.find((fp) => fp.numero === p.numero)?.descricao || "Importado pela triagem assistida.",
-        tipo: cleanLine(p.tipo) || inferTipo(texto),
-      })),
+    processos: processosComNumero.map((p) => ({
+      ...p,
+      numero: p.numero.trim(),
+      titulo: cleanLine(p.titulo) || "Processo importado",
+      descricao: cleanLine(p.descricao) || observacoesDoCaso || fallback.processos.find((fp) => fp.numero === p.numero)?.descricao || "Importado pela triagem assistida.",
+      tipo: cleanLine(p.tipo) || inferTipo(texto),
+      parte_contraria: cleanLine(p.parte_contraria) || parteContraria,
+    })),
     movimentacoes: Array.isArray(value.movimentacoes) ? value.movimentacoes.filter((m) => m?.descricao) : [],
-    avisos: [...(fallback.avisos ?? []), ...(Array.isArray(value.avisos) ? value.avisos : [])],
+    avisos: [...avisosSaneamento, ...(Array.isArray(value.avisos) ? value.avisos : [])],
+    info: processosComNumero.length === 0 ? [INFO_SEM_CNJ] : [],
   };
+}
+
+/** O CEP é a fonte de rua/bairro/cidade/UF; do texto ficam só número e complemento. */
+async function enriquecerComCep(draft: ImportDraft): Promise<ImportDraft> {
+  const cep = draft.cliente?.cep;
+  if (!draft.cliente || !cep || cep.replace(/\D/g, "").length !== 8) return draft;
+  const end = await Promise.race([
+    buscarCep(cep),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+  ]);
+  if (!end) return draft;
+  const { cliente, avisos } = aplicarCep(draft.cliente, end);
+  return { ...draft, cliente, avisos: [...(draft.avisos ?? []), ...avisos] };
 }
 
 function extractJson(text: string): Partial<ImportDraft> | undefined {
@@ -210,7 +176,7 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      const draft = fallbackImport(input);
+      const draft = await enriquecerComCep(fallbackImport(input));
       if (persistir) {
         const importacao = await createTriagemImportacao({
           texto_original: input,
@@ -240,10 +206,12 @@ Responda SOMENTE JSON válido, sem markdown, neste formato:
     "cidade": "",
     "uf": ""
   },
+  "parte_contraria": { "nome": "", "cpf_cnpj": "", "email": "", "telefone": "" },
+  "terceiros": [{ "nome": "", "papel": "", "cpf": "", "rg": "" }],
   "processos": [{
     "numero": "CNJ",
     "titulo": "",
-    "descricao": "resumo e observaÃ§Ãµes do caso, nunca observaÃ§Ãµes do cliente",
+    "descricao": "resumo e observações do caso, nunca observações do cliente",
     "tribunal": "",
     "uf": "",
     "comarca": "",
@@ -259,6 +227,12 @@ Responda SOMENTE JSON válido, sem markdown, neste formato:
   "movimentacoes": [{ "processo_numero": "", "data_movimentacao": "YYYY-MM-DD", "descricao": "", "tipo": "", "fonte": "" }],
   "avisos": []
 }
+Regras de entidade (obrigatórias):
+- Cada pessoa ou empresa do texto é uma entidade separada. Os campos de "cliente" só podem vir do trecho que descreve o cliente. E-mail, telefone, documento ou endereço da parte contrária, de concessionária/empresa ou de terceiros NUNCA vão para "cliente".
+- Se o texto disser que um dado do cliente "não foi informado", "não consta" ou equivalente, deixe o campo vazio.
+- "rg" é só documento de identidade de pessoa física. Inscrição estadual, CNPJ, CNH ou qualquer outro número não são RG.
+- Decomponha o endereço: "logradouro" só com o nome da rua, "numero_end" só com o número, bairro, cidade e UF em seus campos. Ignore comentários entre parênteses.
+- "processos" só recebe processos com número CNJ. Caso ainda não ajuizado ou texto sem CNJ: "processos": [].
 Sempre que o texto descrever um andamento, movimentação, decisão, despacho, intimação ou evento de um processo, gere uma entrada correspondente em "movimentacoes", com "processo_numero" igual ao número do processo — MESMO que esse processo também apareça em "processos" como novo cadastro. A "descricao" da movimentação deve conter o andamento em si.
 Não invente dados. Se faltar algo, omita ou deixe vazio.`;
 
@@ -280,7 +254,7 @@ Não invente dados. Se faltar algo, omita ou deixe vazio.`;
     });
 
     if (!res.ok) {
-      const draft = fallbackImport(input);
+      const draft = await enriquecerComCep(fallbackImport(input));
       if (persistir) {
         const importacao = await createTriagemImportacao({
           texto_original: input,
@@ -297,7 +271,7 @@ Não invente dados. Se faltar algo, omita ou deixe vazio.`;
     const text = data.content?.filter((b) => b.type === "text").map((b) => b.text ?? "").join("\n") ?? "";
     const parsed = extractJson(text);
 
-    const draft = normalizeDraft(parsed ?? {}, input);
+    const draft = await enriquecerComCep(normalizeDraft(parsed ?? {}, input));
 
     if (persistir) {
       const importacao = await createTriagemImportacao({

@@ -417,6 +417,8 @@ export interface TriagemImportDraft {
     fonte?: string;
   }>;
   avisos?: string[];
+  /** Mensagens informativas (ex.: importação só de cliente, sem CNJ) — não são alerta. */
+  info?: string[];
 }
 
 export interface TriagemImportacao {
