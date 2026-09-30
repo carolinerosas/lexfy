@@ -14,7 +14,7 @@ import {
   getTriagemLeads, updateTriagemLead, deleteTriagemLead,
   getTriagemImportacoes, updateTriagemImportacao, deleteTriagemImportacao,
   createCliente, updateCliente, createAtendimento, getClientes, getProcessos,
-  createProcesso, createMovimentacao, updateProcesso,
+  createProcesso, createMovimentacao, updateProcesso, createAnotacao,
 } from "@/lib/store";
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import { partesDoProcesso } from "@/lib/processo-partes";
@@ -276,7 +276,10 @@ export default function TriagemPage() {
           .filter((p) => p.nome?.trim())
           .map((p) => ({ ...p, nome: p.nome.trim(), papel: p.papel || "Litisconsorte" }));
 
-      const primeiroProcesso = draft.processos[0];
+      // "Sem processo associado" marcado na revisão: ignora processos e movimentações.
+      const processosDraft = draft.sem_processo ? [] : draft.processos;
+      const movimentacoesDraft = draft.sem_processo ? [] : draft.movimentacoes ?? [];
+      const primeiroProcesso = processosDraft[0];
       const clienteEscolhido = draft.cliente_id ? clientes.find((c) => c.id === draft.cliente_id) : undefined;
       const clienteExistente = draft.cliente_id === ""
         ? undefined
@@ -306,7 +309,7 @@ export default function TriagemPage() {
       const comMovimentacao = new Set<string>();
 
       // 1) Resolve cada processo: cria se for novo, reaproveita se já existe.
-      for (const proc of draft.processos) {
+      for (const proc of processosDraft) {
         const existente = proc.processo_id
           ? processos.find((p) => p.id === proc.processo_id)
           : processos.find((p) => sameProcess(p.numero, proc.numero));
@@ -369,11 +372,11 @@ export default function TriagemPage() {
 
       let movs = 0;
       // 2) Movimentações explícitas detectadas pela IA.
-      for (const mov of draft.movimentacoes ?? []) {
+      for (const mov of movimentacoesDraft) {
         const alvo = mov.processo_numero
           ? processosPorNumero.get(digits(mov.processo_numero))
-          : draft.processos.length === 1
-            ? processosPorNumero.get(digits(draft.processos[0].numero))
+          : processosDraft.length === 1
+            ? processosPorNumero.get(digits(processosDraft[0].numero))
             : undefined;
         if (!alvo || !mov.descricao?.trim()) continue;
         await createMovimentacao({
@@ -390,7 +393,7 @@ export default function TriagemPage() {
 
       // 3) Garante uma movimentação por processo (novo OU existente), com o andamento
       //    do import — sem duplicar quando a IA já gerou uma para o mesmo processo.
-      for (const proc of draft.processos) {
+      for (const proc of processosDraft) {
         const alvo = processosPorNumero.get(digits(proc.numero));
         if (!alvo || comMovimentacao.has(alvo.id)) continue;
         const conteudo = buildProcessoDescricao(proc, observacoesCaso);
@@ -407,6 +410,22 @@ export default function TriagemPage() {
         movs += 1;
       }
 
+      // 4) O texto importado vira anotação: na pasta de cada processo ou, sem processo, na do cliente.
+      const textoOriginal = textoImportacao.trim();
+      if (textoOriginal) {
+        const titulo = `Importação da triagem — ${new Date().toLocaleDateString("pt-BR")}`;
+        const alvosProcesso = [...new Set(processosDraft
+          .map((proc) => processosPorNumero.get(digits(proc.numero))?.id)
+          .filter((id): id is string => Boolean(id)))];
+        if (alvosProcesso.length) {
+          for (const processoId of alvosProcesso) {
+            await createAnotacao({ processo_id: processoId, cliente_id: cliente.id, titulo, conteudo: textoOriginal });
+          }
+        } else {
+          await createAnotacao({ cliente_id: cliente.id, titulo, conteudo: textoOriginal });
+        }
+      }
+
       if (importacaoAtiva) {
         await updateTriagemImportacao(importacaoAtiva.id, { status: "aprovada" });
       }
@@ -415,9 +434,9 @@ export default function TriagemPage() {
       setDraft(null);
       setImportacaoAtiva(null);
       setTextoImportacao("");
-      setImportMsg(draft.processos.length === 0
-        ? `Importação concluída: ${clienteExistente ? "cadastro do cliente existente completado" : "cliente criado"} (sem processo).`
-        : `Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s).`);
+      setImportMsg(processosDraft.length === 0
+        ? `Importação concluída: ${clienteExistente ? "cadastro do cliente existente completado" : "cliente criado"} (sem processo). O texto foi salvo como anotação na pasta do cliente.`
+        : `Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s). O texto foi salvo como anotação no(s) processo(s).`);
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Erro ao salvar importação.");
     } finally {
@@ -1136,14 +1155,23 @@ function ImportacaoAssistida({
                   {importacaoAtiva && <Badge variant="neutral">pendente do agente</Badge>}
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  {draft.processos.length === 0
-                    ? "Só cadastro de cliente (sem processo)"
-                    : `${processosNovos} processo(s) novo(s), ${processosExistentes} já existente(s)`}
+                  {draft.sem_processo || draft.processos.length === 0
+                    ? "Só cadastro de cliente (sem processo) — o texto vai como anotação na pasta do cliente"
+                    : `${processosNovos} processo(s) novo(s), ${processosExistentes} já existente(s) — o texto vai como anotação no processo`}
                 </p>
+                <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300"
+                    checked={Boolean(draft.sem_processo)}
+                    onChange={(e) => onDraftChange({ ...draft, sem_processo: e.target.checked })}
+                  />
+                  Não existe processo associado
+                </label>
               </div>
               <Button
                 onClick={onSalvar}
-                disabled={salvando || (draft.processos.length === 0 && !draft.cliente_id && !draft.cliente?.nome?.trim())}
+                disabled={salvando || ((draft.sem_processo || draft.processos.length === 0) && !draft.cliente_id && !draft.cliente?.nome?.trim())}
               >
                 <CheckCircle className="h-4 w-4" /> {salvando ? "Salvando..." : "Confirmar e salvar"}
               </Button>
@@ -1191,6 +1219,7 @@ function ImportacaoAssistida({
               </div>
             </div>
 
+            {!draft.sem_processo && (
             <div className="space-y-3">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
@@ -1403,8 +1432,9 @@ function ImportacaoAssistida({
                 })
               )}
             </div>
+            )}
 
-            {draft.movimentacoes?.length ? (
+            {!draft.sem_processo && draft.movimentacoes?.length ? (
               <div className="rounded-xl border border-gray-100 p-4">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Movimentações detectadas</p>
                 <div className="space-y-4">

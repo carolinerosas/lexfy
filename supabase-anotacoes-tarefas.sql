@@ -45,3 +45,10 @@ on public.tarefas
 for all
 using (true)
 with check (true);
+
+-- Anotações também podem pertencer direto ao cliente (importação sem processo).
+alter table public.anotacoes alter column processo_id drop not null;
+alter table public.anotacoes add column if not exists cliente_id text references public.clientes(id) on delete cascade;
+alter table public.anotacoes drop constraint if exists anotacoes_dono_chk;
+alter table public.anotacoes add constraint anotacoes_dono_chk check (processo_id is not null or cliente_id is not null);
+create index if not exists anotacoes_cliente_id_idx on public.anotacoes(cliente_id);

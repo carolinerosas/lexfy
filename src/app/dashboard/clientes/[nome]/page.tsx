@@ -20,7 +20,7 @@ import {
   getCliente, getClientes, updateCliente, deleteCliente,
   getProcessos, updateProcesso,
   getProcessosByCliente, getHonorariosByCliente,
-  getAtendimentosByCliente, getPrazosByCliente, getAudienciasByCliente,
+  getAtendimentosByCliente, getPrazosByCliente, getAudienciasByCliente, getAnotacoesByCliente,
 } from "@/lib/store";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { formatCPF, formatRG, formatCEP, buscarCep } from "@/lib/format";
@@ -33,7 +33,7 @@ import {
   profissaoOptions,
   valuesToOptions,
 } from "@/lib/cadastro-options";
-import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia } from "@/types";
+import type { Cliente, Processo, Honorario, Atendimento, Prazo, Audiencia, Anotacao } from "@/types";
 import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal";
 import { AcordosPanel } from "@/components/ui/acordos-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
@@ -56,6 +56,7 @@ export default function ClienteDetailPage() {
   const [processos, setProcessos] = useState<Processo[]>([]);
   const [honorarios, setHonorarios] = useState<Honorario[]>([]);
   const [atendimentos, setAtendimentos] = useState<Atendimento[]>([]);
+  const [anotacoes, setAnotacoes] = useState<Anotacao[]>([]);
   const [prazos, setPrazos] = useState<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -69,13 +70,15 @@ export default function ClienteDetailPage() {
     setCliente(c);
     const dedup = <T extends { id: string }>(arr: T[]) =>
       arr.filter((item, i, self) => self.findIndex((x) => x.id === item.id) === i);
-    const [procId, honId, atenId, prazId, audId] = await Promise.all([
+    const [procId, honId, atenId, prazId, audId, anots] = await Promise.all([
       getProcessosByCliente(c.id),
       getHonorariosByCliente(c.id),
       getAtendimentosByCliente(c.id),
       getPrazosByCliente(c.id),
       getAudienciasByCliente(c.id),
+      getAnotacoesByCliente(c.id).catch(() => [] as Anotacao[]),
     ]);
+    setAnotacoes(anots);
     setProcessos(dedup(procId));
     setHonorarios(dedup(honId));
     setAtendimentos(dedup(atenId));
@@ -216,6 +219,22 @@ export default function ClienteDetailPage() {
           <CardContent className="p-5">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Observações</p>
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{cliente.observacoes}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {anotacoes.length > 0 && (
+        <Card className="mb-6">
+          <CardContent className="space-y-3 p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Anotações</p>
+            {anotacoes.map((a) => (
+              <details key={a.id} className="rounded-lg border border-gray-100 px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium text-gray-800">
+                  {a.titulo || "Anotação"} <span className="font-normal text-gray-400">· {formatDateTime(a.created_at)}</span>
+                </summary>
+                <p className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{a.conteudo}</p>
+              </details>
+            ))}
           </CardContent>
         </Card>
       )}

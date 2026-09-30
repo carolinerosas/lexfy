@@ -815,6 +815,25 @@ export async function getAnotacoesByProcesso(processoId: string): Promise<Anotac
   return (data ?? []) as Anotacao[];
 }
 
+export async function getAnotacoesByCliente(clienteId: string): Promise<Anotacao[]> {
+  const { data, error } = await supabase
+    .from("anotacoes")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .is("processo_id", null)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    if (isMissingTable(error)) {
+      return getLocalRows<Anotacao>("anotacoes")
+        .filter((a) => a.cliente_id === clienteId && !a.processo_id)
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    }
+    throw new Error(error.message);
+  }
+  return (data ?? []) as Anotacao[];
+}
+
 export async function createAnotacao(
   input: Omit<Anotacao, "id" | "created_at" | "updated_at" | "user_id">
 ): Promise<Anotacao> {

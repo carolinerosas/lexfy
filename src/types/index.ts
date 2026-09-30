@@ -419,6 +419,8 @@ export interface TriagemImportDraft {
   avisos?: string[];
   /** Mensagens informativas (ex.: importação só de cliente, sem CNJ) — não são alerta. */
   info?: string[];
+  /** Marcado na revisão: não há processo associado, salva só o cliente. */
+  sem_processo?: boolean;
 }
 
 export interface TriagemImportacao {
@@ -457,7 +459,9 @@ export interface Publicacao {
 
 export interface Anotacao {
   id: string;
-  processo_id: string;
+  /** Anotação de processo OU direto na pasta do cliente (ao menos um dos dois). */
+  processo_id?: string;
+  cliente_id?: string;
   titulo?: string;
   conteudo: string;
   created_at: string;
