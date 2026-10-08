@@ -17,7 +17,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { getPublicacoes, getTriagemNovosCount, getBriefingsNaoLidos } from "@/lib/store";
+import { getPublicacoesNaoLidasCount, getTriagemNovosCount, getBriefingsNaoLidos } from "@/lib/store";
 
 export type NavBadge = "triagem" | "publicacoes" | "briefing";
 
@@ -48,19 +48,22 @@ export function useNavBadges() {
   useEffect(() => {
     let ativo = true;
     async function refresh() {
+      // Só contagens (head: true): baixar as publicações inteiras aqui estourava a cota de egress do Supabase.
+      if (document.visibilityState === "hidden") return;
       const [pubs, triagem, briefings] = await Promise.all([
-        getPublicacoes(),
+        getPublicacoesNaoLidasCount(),
         getTriagemNovosCount(),
         getBriefingsNaoLidos(),
       ]);
       if (!ativo) return;
-      setPubNaoLidas(pubs.filter((p) => !p.lida).length);
+      setPubNaoLidas(pubs);
       setTriagemNovos(triagem);
       setBriefingNaoLidos(briefings);
     }
     refresh();
-    const id = setInterval(refresh, 5000);
-    return () => { ativo = false; clearInterval(id); };
+    const id = setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { ativo = false; clearInterval(id); document.removeEventListener("visibilitychange", refresh); };
   }, []);
 
   return function getBadge(key?: NavBadge): number {

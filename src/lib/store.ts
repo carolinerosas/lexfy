@@ -546,6 +546,14 @@ export async function getPublicacoes(): Promise<Publicacao[]> {
   return (data ?? []) as Publicacao[];
 }
 
+export async function getPublicacoesNaoLidasCount(): Promise<number> {
+  const { count } = await supabase
+    .from("publicacoes")
+    .select("*", { count: "exact", head: true })
+    .eq("lida", false);
+  return count ?? 0;
+}
+
 export async function createPublicacao(
   input: Omit<Publicacao, "id" | "created_at" | "user_id">
 ): Promise<Publicacao> {
