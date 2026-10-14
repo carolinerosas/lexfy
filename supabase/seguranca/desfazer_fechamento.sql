@@ -1,0 +1,28 @@
+-- Desfaz o fechamento (recria as policies como estavam em 14/10/2026).
+create policy justio_acordo_parcelas_all on public.acordo_parcelas for all to public using (true) with check (true);
+create policy justio_anotacoes_all on public.anotacoes for all to public using (true) with check (true);
+create policy justio_atendimentos_all on public.atendimentos for all to public using (true) with check (true);
+create policy justio_audiencias_all on public.audiencias for all to public using (true) with check (true);
+create policy justio_autos_arquivos_all on public.autos_arquivos for all to public using (true) with check (true);
+create policy justio_autos_paginas_all on public.autos_paginas for all to public using (true) with check (true);
+create policy justio_briefings_all on public.briefings for all to public using (true) with check (true);
+create policy justio_clientes_all on public.clientes for all to public using (true) with check (true);
+create policy justio_contas_escritorio_all on public.contas_escritorio for all to public using (true) with check (true);
+create policy justio_cowork_importacoes_all on public.cowork_importacoes for all to public using (true) with check (true);
+create policy justio_documentos_table_insert on public.documentos for insert to anon, authenticated with check (user_id = 'lexfy_shared');
+create policy justio_documentos_table_select on public.documentos for select to anon, authenticated using (user_id = 'lexfy_shared');
+create policy justio_documentos_table_delete on public.documentos for delete to anon, authenticated using (user_id = 'lexfy_shared');
+create policy justio_honorarios_all on public.honorarios for all to public using (true) with check (true);
+create policy justio_modelos_documentos_all on public.modelos_documentos for all to public using (true) with check (true);
+create policy justio_movimentacoes_all on public.movimentacoes for all to public using (true) with check (true);
+create policy justio_perfil_advogado_all on public.perfil_advogado for all to public using (true) with check (true);
+create policy justio_prazos_all on public.prazos for all to public using (true) with check (true);
+create policy justio_processos_all on public.processos for all to public using (true) with check (true);
+create policy justio_publicacoes_all on public.publicacoes for all to public using (true) with check (true);
+create policy justio_publicacoes_sync_status_all on public.publicacoes_sync_status for all to public using (true) with check (true);
+create policy justio_tarefas_all on public.tarefas for all to public using (true) with check (true);
+create policy justio_telegram_propostas_all on public.telegram_propostas for all to public using (true) with check (true);
+create policy justio_triagem_importacoes_all on public.triagem_importacoes for all to public using (true) with check (true);
+create policy justio_documentos_delete on storage.objects for delete to anon, authenticated using (bucket_id = 'documentos' and (storage.foldername(name))[1] = 'lexfy_shared');
+create policy justio_documentos_insert on storage.objects for insert to anon, authenticated with check (bucket_id = 'documentos' and (storage.foldername(name))[1] = 'lexfy_shared');
+create policy justio_documentos_select on storage.objects for select to anon, authenticated using (bucket_id = 'documentos' and (storage.foldername(name))[1] = 'lexfy_shared');
