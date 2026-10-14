@@ -405,9 +405,9 @@ export default function AudienciaAoVivoPage() {
       {aviso && <p className="mb-4 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700">{aviso}</p>}
 
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
-        {/* Transcrição */}
-        <Card>
-          <CardContent className="py-4 px-5">
+        {/* Transcrição: ocupa a altura toda da linha, com os botões colados no fim da caixa */}
+        <Card className="flex flex-col">
+          <CardContent className="flex flex-1 flex-col py-4 px-5">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-gray-900 mr-1">Transcrição</span>
               {falantes.map((f) => (
@@ -416,7 +416,8 @@ export default function AudienciaAoVivoPage() {
                 </button>
               ))}
             </div>
-            <div className="h-[55vh] overflow-y-auto space-y-3 pr-1">
+            <div className="relative min-h-[55vh] flex-1">
+            <div className="absolute inset-0 overflow-y-auto space-y-3 pr-1">
               {trechos.length === 0 && !parcial && (
                 <p className="py-16 text-center text-sm text-gray-400">
                   Aperte &quot;Iniciar gravação&quot; e deixe o celular ou o microfone perto de quem fala.
@@ -431,6 +432,7 @@ export default function AudienciaAoVivoPage() {
               ))}
               {parcial && <p className="text-sm italic text-gray-400">{parcial}</p>}
               <div ref={fimRef} />
+            </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
               <Button size="sm" variant="outline" disabled={!trechos.length} onClick={() => salvar(`Transcrição — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, textoTranscricao())}>
