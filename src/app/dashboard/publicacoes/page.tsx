@@ -17,6 +17,7 @@ import { getPerfilAdvogado, loadPerfilAdvogado } from "@/lib/perfil";
 import { sincronizarPublicacoesSyncLocal } from "@/lib/syncLocal";
 import { formatDate } from "@/lib/utils";
 import type { Publicacao, Processo, PrazoTipo, Prioridade, ProcessoTipo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const CNJ_REGEX = /\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/;
 
@@ -1006,7 +1007,7 @@ function PrazoModal({
           <Input label="Data do prazo *" type="date" value={dataPrazo} onChange={(e) => setDataPrazo(e.target.value)} />
           <Select label="Prioridade" options={prioridadeOptions} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)} />
         </div>
-        <Select label="Tipo" options={prazoTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as PrazoTipo)} />
+        <SelectComOutro label="Tipo" category="prazo_tipo" baseOptions={prazoTipoOptions} value={tipo} onChange={(v) => setTipo(v as PrazoTipo)} />
         <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
           <p className="text-xs text-gray-500 mb-1 font-medium">Teor da publicação:</p>
           <p className="text-xs text-gray-600 whitespace-pre-line">{publicacao.conteudo?.slice(0, 400)}</p>
@@ -1132,7 +1133,7 @@ function AdicionarProcessoModal({
         <Input label="Título / Classe" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Tribunal" value={tribunal} onChange={(e) => setTribunal(e.target.value)} />
-          <Select label="Tipo" options={processoTipoOptions} value={tipo} onChange={(e) => setTipo(e.target.value as ProcessoTipo)} />
+          <SelectComOutro label="Tipo" category="processo_tipo" baseOptions={processoTipoOptions} value={tipo} onChange={(v) => setTipo(v as ProcessoTipo)} />
         </div>
         <Input label="Órgão / Comarca / Vara" value={comarca} onChange={(e) => setComarca(e.target.value)} />
         {partesInfo && (
@@ -1187,7 +1188,7 @@ function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: 
         <ComboBox label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={setProcessoId} />
         <Input label="Título / Resumo" placeholder="Ex: Despacho — intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Select label="Diário / Fonte" options={diarioOptions} placeholder="Selecione..." value={diario} onChange={(e) => setDiario(e.target.value)} />
+          <SelectComOutro label="Diário / Fonte" category="publicacao_diario" baseOptions={diarioOptions} placeholder="Selecione..." value={diario} onChange={(v) => setDiario(v)} />
           <Input label="Data de Publicação" type="date" value={dataPub} onChange={(e) => setDataPub(e.target.value)} />
         </div>
         <Textarea label="Conteúdo / Teor" placeholder="Cole aqui o teor da publicação..." rows={4} value={conteudo} onChange={(e) => setConteudo(e.target.value)} />

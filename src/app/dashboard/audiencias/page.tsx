@@ -14,6 +14,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { getAudienciasWithProcesso, getProcessos, createAudiencia, updateAudiencia, deleteAudiencia } from "@/lib/store";
 import { formatDate, formatDateTime, daysUntil } from "@/lib/utils";
 import type { Audiencia, Processo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const audienciaTipoOptions = [
   { value: "instrucao", label: "Instrução" },
@@ -197,7 +198,7 @@ function NovaAudienciaModal({ open, onClose, onCreated }: { open: boolean; onClo
       <form onSubmit={submit} className="space-y-4">
         <ComboBox label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={setProcessoId} />
         <Input label="Título *" placeholder="Ex: Audiência de Instrução" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <Select label="Tipo" options={audienciaTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+        <SelectComOutro label="Tipo" category="audiencia_tipo" baseOptions={audienciaTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <Input label="Local" placeholder="Fórum, Sala 3, Zoom..." value={local} onChange={(e) => setLocal(e.target.value)} />
         <div className="flex justify-end gap-3"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit" disabled={!processoId}>Salvar</Button></div>

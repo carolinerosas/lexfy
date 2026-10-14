@@ -12,6 +12,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { VoiceTextarea } from "@/components/ui/voice-textarea";
 import { createAtendimento, getProcessos, getClientes } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const tipoOptions = [
   { value: "consulta_inicial", label: "Consulta Inicial" },
@@ -191,7 +192,7 @@ export default function NovoAtendimentoPage() {
               }
             />
             <div className="grid gap-4 md:grid-cols-4">
-              <Select label="Tipo" options={tipoOptions} placeholder="Tipo..." value={form.tipo} onChange={(e) => set("tipo", e.target.value)} />
+              <SelectComOutro label="Tipo" category="atendimento_tipo" baseOptions={tipoOptions} placeholder="Tipo..." value={form.tipo} onChange={(v) => set("tipo", v)} />
               <Input label="Data e Hora *" type="datetime-local" value={form.data_hora} onChange={(e) => set("data_hora", e.target.value)} required />
               <Input label="Duração (min)" type="number" min="15" step="15" placeholder="60" value={form.duracao_min} onChange={(e) => set("duracao_min", e.target.value)} />
               <Select label="Situação" options={statusOptions} value={form.status} onChange={(e) => set("status", e.target.value)} />

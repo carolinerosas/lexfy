@@ -1618,7 +1618,7 @@ function AtendimentosTab({
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900">{formatDateTime(a.data_hora)}</p>
-                      {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo]}</span>}
+                      {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo] ?? a.tipo}</span>}
                     </div>
                     {a.notas && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{a.notas}</p>}
                   </div>
@@ -1717,7 +1717,7 @@ function NovoPrazoModal({ open, onClose, processoId, onCreated }: { open: boolea
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Recurso de Apelação" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select label="Tipo" options={prazoTipoOptions} placeholder="Selecione..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+          <SelectComOutro label="Tipo" category="prazo_tipo" baseOptions={prazoTipoOptions} placeholder="Selecione..." value={tipo} onChange={(v) => setTipo(v)} />
           <Select label="Prioridade" options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]} value={prioridade} onChange={(e) => setPrioridade(e.target.value)} />
         </div>
         <Input label="Data Limite *" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
@@ -1744,7 +1744,7 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
     <Modal open={open} onClose={onClose} title="Nova Audiência" size="sm">
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Audiência de Instrução" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <Select label="Tipo" options={audienciaTipoOptions} placeholder="Selecione..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+        <SelectComOutro label="Tipo" category="audiencia_tipo" baseOptions={audienciaTipoOptions} placeholder="Selecione..." value={tipo} onChange={(v) => setTipo(v)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <Input label="Local" placeholder="Fórum, sala, online..." value={local} onChange={(e) => setLocal(e.target.value)} />
         <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
@@ -1869,7 +1869,7 @@ function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }:
             onChange={(e) => setValor(e.target.value)}
             required
           />
-          <Select label="Tipo" options={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+          <SelectComOutro label="Tipo" category="honorario_tipo" baseOptions={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
         </div>
 
         {isCobranca ? (
@@ -1939,7 +1939,7 @@ function NovoAtendimentoModal({ open, onClose, processoId, clienteNome, onCreate
       <form onSubmit={submit} className="space-y-4">
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select label="Tipo" options={tipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+          <SelectComOutro label="Tipo" category="atendimento_tipo" baseOptions={tipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
           <Input label="Duração (min)" type="number" min="15" step="15" value={duracao} onChange={(e) => setDuracao(e.target.value)} />
         </div>
         <Textarea label="Anotações / Pauta" placeholder="Assuntos a tratar..." rows={3} value={notas} onChange={(e) => setNotas(e.target.value)} />

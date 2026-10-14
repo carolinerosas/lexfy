@@ -23,6 +23,7 @@ import {
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Honorario, Processo, Cliente, ContaEscritorio, AcordoParcela } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const honorarioTipoOptions = [
   { value: "contratual", label: "Contratual" },
@@ -787,11 +788,12 @@ function ContaEscritorioModal({
           />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select
+          <SelectComOutro
             label="Categoria"
-            options={contaCategoriaOptions}
+            category="conta_escritorio_categoria"
+            baseOptions={contaCategoriaOptions}
             value={categoria}
-            onChange={(e) => setCategoria(e.target.value as ContaEscritorio["categoria"])}
+            onChange={(v) => setCategoria(v as ContaEscritorio["categoria"])}
           />
           <Select
             label="Status"
@@ -1005,7 +1007,7 @@ function HonorarioModal({
           {isPagamento ? (
             <Input label="Data do recebimento" type="date" value={data} onChange={(e) => setData(e.target.value)} />
           ) : (
-            <Select label="Tipo" options={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+            <SelectComOutro label="Tipo" category="honorario_tipo" baseOptions={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
           )}
         </div>
 

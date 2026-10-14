@@ -29,6 +29,7 @@ import {
 import type { Cliente } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, daysUntil } from "@/lib/utils";
 import type { Atendimento, AtendimentoStatus, Processo, ProcessoTipo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const tipoOptions = [
   { value: "consulta_inicial", label: "Consulta Inicial" },
@@ -240,7 +241,7 @@ export default function AtendimentosPage() {
                             {isToday && a.status === "agendado" && <Badge variant="default">Hoje</Badge>}
                           </div>
                           <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                            {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo]}</span>}
+                            {a.tipo && <span className="text-xs text-gray-400">{tipoLabel[a.tipo] ?? a.tipo}</span>}
                             {a.processo && (
                               <>
                                 <span className="text-gray-200">·</span>
@@ -351,7 +352,7 @@ function AtendimentoDetail({
             <p className="text-xl font-bold text-gray-900">{atendimento.cliente_nome}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={statusVariant[atendimento.status]}>{statusLabel[atendimento.status]}</Badge>
-              {atendimento.tipo && <span className="text-xs text-gray-500">{tipoLabel[atendimento.tipo]}</span>}
+              {atendimento.tipo && <span className="text-xs text-gray-500">{tipoLabel[atendimento.tipo] ?? atendimento.tipo}</span>}
             </div>
             </div>
 
@@ -621,11 +622,12 @@ function ConverterAtendimentoModal({
             onChange={(e) => setTitulo(e.target.value)}
             required
           />
-          <Select
+          <SelectComOutro
             label="Tipo"
-            options={processoTipoOptions}
+            category="processo_tipo"
+            baseOptions={processoTipoOptions}
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as ProcessoTipo)}
+            onChange={(v) => setTipo(v as ProcessoTipo)}
           />
         </div>
 
@@ -784,12 +786,13 @@ function NovoAtendimentoModal({
           required
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Select
+          <SelectComOutro
             label="Tipo de Atendimento"
-            options={tipoOptions}
+            category="atendimento_tipo"
+            baseOptions={tipoOptions}
             placeholder="Tipo..."
             value={form.tipo}
-            onChange={(e) => set("tipo", e.target.value)}
+            onChange={(v) => set("tipo", v)}
           />
           <Input
             label="Data e Hora *"
@@ -857,13 +860,13 @@ function CriarPrazoModal({
       <p className="text-xs text-gray-500 mb-4">Cliente: <strong>{clienteNome}</strong></p>
       <form onSubmit={submit} className="space-y-4">
         <Input label="Título *" placeholder="Ex: Entregar documentos" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
-        <Select label="Tipo" options={[
+        <SelectComOutro label="Tipo" category="prazo_tipo" baseOptions={[
           { value: "recurso", label: "Recurso" },
           { value: "contestacao", label: "Contestação" },
           { value: "peticao", label: "Petição" },
           { value: "contrarrazoes", label: "Contrarrazões" },
           { value: "outro", label: "Outro" },
-        ]} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+        ]} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
         <Input label="Data Limite *" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

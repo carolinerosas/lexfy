@@ -14,6 +14,7 @@ import {
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { AcordoParcela, AcordoDirecao, Processo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 function normalizarNome(v?: string): string {
   return (v ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
@@ -469,10 +470,11 @@ function NovoAcordoModal({
         <div className="space-y-3 rounded-xl border border-gray-100 p-3">
           <p className="text-xs font-semibold text-gray-500">Dados de pagamento (opcional)</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Select
+            <SelectComOutro
               label="Forma de pagamento"
+              category="forma_pagamento"
               placeholder="—"
-              options={[
+              baseOptions={[
                 { value: "PIX", label: "PIX" },
                 { value: "Transferência/TED", label: "Transferência / TED" },
                 { value: "Boleto", label: "Boleto" },
@@ -482,7 +484,7 @@ function NovoAcordoModal({
                 { value: "Outro", label: "Outro" },
               ]}
               value={formaPagamento}
-              onChange={(e) => setFormaPagamento(e.target.value)}
+              onChange={(v) => setFormaPagamento(v)}
             />
             <Input label="Chave PIX" placeholder="CPF, e-mail, telefone..." value={pix} onChange={(e) => setPix(e.target.value)} />
             <Input label="Banco" value={banco} onChange={(e) => setBanco(e.target.value)} />
@@ -555,10 +557,11 @@ function EditarAcordoModal({
           />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select
+          <SelectComOutro
             label="Forma de pagamento"
+            category="forma_pagamento"
             placeholder="—"
-            options={[
+            baseOptions={[
               { value: "PIX", label: "PIX" },
               { value: "Transferência/TED", label: "Transferência / TED" },
               { value: "Boleto", label: "Boleto" },
@@ -568,7 +571,7 @@ function EditarAcordoModal({
               { value: "Outro", label: "Outro" },
             ]}
             value={formaPagamento}
-            onChange={(e) => setFormaPagamento(e.target.value)}
+            onChange={(v) => setFormaPagamento(v)}
           />
           <Input label="Chave PIX" placeholder="CPF, e-mail, telefone..." value={pix} onChange={(e) => setPix(e.target.value)} />
           <Input label="Banco" value={banco} onChange={(e) => setBanco(e.target.value)} />

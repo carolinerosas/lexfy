@@ -12,6 +12,7 @@ import { ComboBox } from "@/components/ui/combobox";
 import { getPrazosWithProcesso, getProcessos, createPrazo, updatePrazo, deletePrazo } from "@/lib/store";
 import { formatDate, daysUntil, prazoColor } from "@/lib/utils";
 import type { Prazo, Processo } from "@/types";
+import { SelectComOutro } from "@/components/ui/select-com-outro";
 
 const prazoTipoOptions = [
   { value: "recurso", label: "Recurso" },
@@ -159,7 +160,7 @@ function NovoPrazoModal({ open, onClose, onCreated }: { open: boolean; onClose: 
         />
         <Input label="Título *" placeholder="Ex: Recurso de Apelação" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select label="Tipo" options={prazoTipoOptions} placeholder="Tipo..." value={tipo} onChange={(e) => setTipo(e.target.value)} />
+          <SelectComOutro label="Tipo" category="prazo_tipo" baseOptions={prazoTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
           <Select label="Prioridade" options={[{ value: "alta", label: "Alta" }, { value: "media", label: "Média" }, { value: "baixa", label: "Baixa" }]} value={prioridade} onChange={(e) => setPrioridade(e.target.value)} />
         </div>
         <Input label="Data Limite *" type="date" value={data} onChange={(e) => setData(e.target.value)} required />
