@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Copy, FileText, Gavel, Lightbulb, Mic, Pause, Save, Square } from "lucide-react";
+import { ArrowLeft, ClipboardList, Copy, NotebookPen, FileText, Gavel, Lightbulb, Mic, Pause, Save, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
 import { createAnotacao, getAudienciasWithProcesso } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
 import type { Audiencia, Processo } from "@/types";
@@ -70,6 +71,11 @@ export default function AudienciaAoVivoPage() {
   const [analisando, setAnalisando] = useState<Modo | null>(null);
   const [peca, setPeca] = useState<{ modo: Exclude<Modo, "dicas">; texto: string } | null>(null);
   const [aviso, setAviso] = useState("");
+  const [roteiro, setRoteiro] = useState("");
+  const [notas, setNotas] = useState("");
+  const [roteiroNome, setRoteiroNome] = useState("");
+  const [editandoRoteiro, setEditandoRoteiro] = useState(false);
+  const [area, setArea] = useState<"auto" | "criminal" | "familia" | "geral">("auto");
 
   const wsRef = useRef<WebSocket | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
@@ -89,8 +95,18 @@ export default function AudienciaAoVivoPage() {
           trechos: Trecho[];
           nomes: Record<number, string>;
           dicas: Dica[];
+          roteiro?: string;
+          notas?: string;
+          roteiroNome?: string;
+          area?: "auto" | "criminal" | "familia" | "geral";
           segundos: number;
         } | null;
+        if (salvo?.roteiro) {
+          setRoteiro(salvo.roteiro);
+          setRoteiroNome(salvo.roteiroNome ?? "");
+        }
+        if (salvo?.area) setArea(salvo.area);
+        if (salvo?.notas) setNotas(salvo.notas);
         if (salvo?.trechos?.length) {
           setTrechos(salvo.trechos);
           setNomes(salvo.nomes ?? {});
@@ -107,11 +123,11 @@ export default function AudienciaAoVivoPage() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(chaveLocal, JSON.stringify({ trechos, nomes, dicas, segundos }));
+      localStorage.setItem(chaveLocal, JSON.stringify({ trechos, nomes, dicas, segundos, roteiro, roteiroNome, area, notas }));
     } catch {
       // armazenamento indisponível: segue sem backup
     }
-  }, [chaveLocal, trechos, nomes, dicas, segundos]);
+  }, [chaveLocal, trechos, nomes, dicas, segundos, roteiro, roteiroNome, area, notas]);
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -241,7 +257,15 @@ export default function AudienciaAoVivoPage() {
       const res = await fetch("/api/audiencia/analisar", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ processo_id: audiencia?.processo_id, audiencia_id: audiencia?.id, transcricao, modo }),
+        body: JSON.stringify({
+          processo_id: audiencia?.processo_id,
+          audiencia_id: audiencia?.id,
+          transcricao,
+          modo,
+          roteiro: roteiro || undefined,
+          notas: notas || undefined,
+          area: area === "auto" ? undefined : area,
+        }),
       });
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Erro ${res.status}`);
       const leitor = res.body.getReader();
@@ -291,6 +315,26 @@ export default function AudienciaAoVivoPage() {
     if (!audiencia) return;
     await createAnotacao({ processo_id: audiencia.processo_id, titulo, conteudo });
     setAviso(`"${titulo}" salvo nas anotações do processo.`);
+  }
+
+  async function lerArquivoRoteiro(arquivo: File) {
+    try {
+      let texto: string;
+      if (arquivo.name.toLowerCase().endsWith(".docx")) {
+        const mod = (await import("mammoth")) as unknown as {
+          default?: { extractRawText: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> };
+          extractRawText?: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
+        };
+        const mammoth = mod.default ?? mod;
+        texto = (await mammoth.extractRawText!({ arrayBuffer: await arquivo.arrayBuffer() })).value;
+      } else {
+        texto = await arquivo.text();
+      }
+      setRoteiro(texto.trim());
+      setRoteiroNome(arquivo.name);
+    } catch (e) {
+      setErro(`Não consegui ler o roteiro: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 
   function renomear(f: number) {
@@ -403,6 +447,59 @@ export default function AudienciaAoVivoPage() {
         <div className="space-y-4">
           <Card>
             <CardContent className="py-4 px-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <ClipboardList className="w-4 h-4" /> Roteiro
+                </span>
+                <select
+                  value={area}
+                  onChange={(e) => setArea(e.target.value as typeof area)}
+                  className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                  title="Perfil da advogada que assessora esta audiência"
+                >
+                  <option value="auto">Área: pelo processo</option>
+                  <option value="criminal">Advogada criminal</option>
+                  <option value="familia">Advogada de família</option>
+                  <option value="geral">Geral</option>
+                </select>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {roteiro ? `Usando: ${roteiroNome || "roteiro colado"} (${roteiro.split(/\s+/).length} palavras)` : "Inclua o roteiro que você preparou: as dicas e as alegações partem dele."}
+              </p>
+              <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setEditandoRoteiro(true)}>
+                {roteiro ? "Ver ou trocar roteiro" : "Incluir roteiro de audiência"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="py-4 px-5">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <NotebookPen className="w-4 h-4" /> Minhas anotações
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!notas.trim()}
+                  onClick={() => salvar(`Anotações da audiência — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, notas)}
+                  title={livre ? "Baixar .txt" : "Salvar no processo"}
+                >
+                  <Save className="w-4 h-4" />
+                </Button>
+              </div>
+              <textarea
+                value={notas}
+                onChange={(e) => setNotas(e.target.value)}
+                rows={6}
+                className="w-full rounded-lg border border-gray-200 p-3 text-sm"
+                placeholder="Suas impressões e considerações. As dicas, os requerimentos e as alegações levam em conta o que você escrever aqui."
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="py-4 px-5">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
                   <Lightbulb className="w-4 h-4" /> Dicas
@@ -458,6 +555,39 @@ export default function AudienciaAoVivoPage() {
           )}
         </div>
       </div>
+      <Modal open={editandoRoteiro} onClose={() => setEditandoRoteiro(false)} title="Roteiro de audiência" size="lg">
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600">
+            Enviar arquivo (.docx, .txt ou .md)
+            <input
+              type="file"
+              accept=".docx,.txt,.md"
+              className="mt-1 block w-full text-sm"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) lerArquivoRoteiro(f);
+              }}
+            />
+          </label>
+          <p className="text-xs text-gray-400">ou cole o texto abaixo</p>
+          <textarea
+            value={roteiro}
+            onChange={(e) => {
+              setRoteiro(e.target.value);
+              if (!roteiroNome) setRoteiroNome("roteiro colado");
+            }}
+            rows={14}
+            className="w-full rounded-lg border border-gray-200 p-3 text-sm"
+            placeholder="Perguntas para cada testemunha, teses, pontos que não podem faltar nas alegações…"
+          />
+          <div className="flex justify-between gap-3">
+            <Button variant="ghost" onClick={() => { setRoteiro(""); setRoteiroNome(""); }} disabled={!roteiro}>
+              Remover roteiro
+            </Button>
+            <Button onClick={() => setEditandoRoteiro(false)}>Pronto</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
