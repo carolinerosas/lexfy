@@ -58,9 +58,18 @@ export default function AudienciasPage() {
             {audiencias.filter((a) => !a.realizada).length} aguardando realização
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus className="w-4 h-4" /> Nova Audiência
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/audiencias/livre/ao-vivo"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            title="Transcrever uma audiência sem vincular a um processo"
+          >
+            <Mic className="w-4 h-4" /> Audiência livre
+          </Link>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus className="w-4 h-4" /> Nova Audiência
+          </Button>
+        </div>
       </div>
 
       <div className="mb-6 flex w-full gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1 sm:w-fit">

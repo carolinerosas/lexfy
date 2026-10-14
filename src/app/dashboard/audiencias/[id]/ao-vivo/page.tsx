@@ -55,6 +55,7 @@ function relogio(seg: number): string {
 
 export default function AudienciaAoVivoPage() {
   const { id } = useParams<{ id: string }>();
+  const livre = id === "livre"; // audiência avulsa, sem processo no Justio
   const chaveLocal = `justio_aovivo_${id}`;
 
   const [audiencia, setAudiencia] = useState<AudienciaComProcesso | null>(null);
@@ -82,7 +83,7 @@ export default function AudienciaAoVivoPage() {
   // --- carregar audiência e o backup local (se o navegador fechou no meio) ---
   useEffect(() => {
     getAudienciasWithProcesso().then((lista) => {
-      setAudiencia(lista.find((a) => a.id === id) ?? null);
+      if (!livre) setAudiencia(lista.find((a) => a.id === id) ?? null);
       try {
         const salvo = JSON.parse(localStorage.getItem(chaveLocal) ?? "null") as {
           trechos: Trecho[];
@@ -102,7 +103,7 @@ export default function AudienciaAoVivoPage() {
         // sem backup local
       }
     });
-  }, [id, chaveLocal]);
+  }, [id, chaveLocal, livre]);
 
   useEffect(() => {
     try {
@@ -231,7 +232,7 @@ export default function AudienciaAoVivoPage() {
 
   // --- análises do Claude ---
   async function analisar(modo: Modo) {
-    if (!audiencia || analisando) return;
+    if ((!audiencia && !livre) || analisando) return;
     const transcricao = textoTranscricao();
     if (!transcricao) return;
     setAnalisando(modo);
@@ -240,7 +241,7 @@ export default function AudienciaAoVivoPage() {
       const res = await fetch("/api/audiencia/analisar", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ processo_id: audiencia.processo_id, audiencia_id: audiencia.id, transcricao, modo }),
+        body: JSON.stringify({ processo_id: audiencia?.processo_id, audiencia_id: audiencia?.id, transcricao, modo }),
       });
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Erro ${res.status}`);
       const leitor = res.body.getReader();
@@ -277,6 +278,16 @@ export default function AudienciaAoVivoPage() {
 
   // --- salvar no processo ---
   async function salvar(titulo: string, conteudo: string) {
+    if (livre) {
+      // Sem processo: baixa um .txt para guardar na pasta do cliente.
+      const url = URL.createObjectURL(new Blob([conteudo], { type: "text/plain;charset=utf-8" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${titulo.replace(/[\\/:*?"<>|]/g, "-")}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     if (!audiencia) return;
     await createAnotacao({ processo_id: audiencia.processo_id, titulo, conteudo });
     setAviso(`"${titulo}" salvo nas anotações do processo.`);
@@ -304,7 +315,7 @@ export default function AudienciaAoVivoPage() {
   }
 
   const falantes = [...new Set(trechos.map((t) => t.falante))].sort();
-  const dataAudiencia = audiencia ? formatDateTime(audiencia.data_hora).split(" ")[0] : "";
+  const dataAudiencia = audiencia ? formatDateTime(audiencia.data_hora).split(" ")[0] : new Date().toLocaleDateString("pt-BR");
   const tituloPeca = peca?.modo === "alegacoes" ? "Alegações finais" : "Requerimentos finais";
 
   return (
@@ -317,7 +328,11 @@ export default function AudienciaAoVivoPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900">Audiência ao vivo</h1>
           <p className="text-sm text-gray-500 mt-1 break-words">
-            {audiencia ? `${audiencia.titulo} · ${audiencia.processo?.cliente_nome ?? "—"} · ${audiencia.processo?.numero ?? "—"}` : "Carregando…"}
+            {livre
+              ? "Audiência livre — sem processo vinculado"
+              : audiencia
+                ? `${audiencia.titulo} · ${audiencia.processo?.cliente_nome ?? "—"} · ${audiencia.processo?.numero ?? "—"}`
+                : "Carregando…"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -335,7 +350,7 @@ export default function AudienciaAoVivoPage() {
               </Button>
             </>
           ) : (
-            <Button onClick={iniciar} disabled={!audiencia}>
+            <Button onClick={iniciar} disabled={!audiencia && !livre}>
               <Mic className="w-4 h-4" /> {estado === "pausado" || trechos.length ? "Continuar gravação" : "Iniciar gravação"}
             </Button>
           )}
@@ -374,8 +389,8 @@ export default function AudienciaAoVivoPage() {
               <div ref={fimRef} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
-              <Button size="sm" variant="outline" disabled={!trechos.length} onClick={() => salvar(`Transcrição — ${audiencia?.titulo ?? "audiência"} (${dataAudiencia})`, textoTranscricao())}>
-                <Save className="w-4 h-4" /> Salvar transcrição no processo
+              <Button size="sm" variant="outline" disabled={!trechos.length} onClick={() => salvar(`Transcrição — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, textoTranscricao())}>
+                <Save className="w-4 h-4" /> {livre ? "Baixar transcrição (.txt)" : "Salvar transcrição no processo"}
               </Button>
               <Button size="sm" variant="ghost" disabled={!trechos.length || estado === "gravando"} onClick={novaAudiencia}>
                 Limpar tela
@@ -430,7 +445,7 @@ export default function AudienciaAoVivoPage() {
                     <Button size="sm" variant="ghost" disabled={!peca.texto} onClick={() => navigator.clipboard.writeText(peca.texto)} title="Copiar">
                       <Copy className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={!peca.texto || !!analisando} onClick={() => salvar(`${tituloPeca} — ${audiencia?.titulo ?? "audiência"} (${dataAudiencia})`, peca.texto)} title="Salvar no processo">
+                    <Button size="sm" variant="ghost" disabled={!peca.texto || !!analisando} onClick={() => salvar(`${tituloPeca} — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, peca.texto)} title={livre ? "Baixar .txt" : "Salvar no processo"}>
                       <Save className="w-4 h-4" />
                     </Button>
                   </div>

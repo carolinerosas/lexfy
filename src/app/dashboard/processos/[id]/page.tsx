@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
   RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote, Link2,
-  Shield, GitBranch,
+  Shield, GitBranch, Mic,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1051,6 +1051,13 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete }: { audiencias: 
                     <p className={`break-words text-sm font-medium ${a.realizada ? "line-through text-gray-400" : "text-gray-900"}`}>{a.titulo}</p>
                     <p className="text-xs text-gray-400 mt-0.5">{formatDateTime(a.data_hora)}{a.local ? ` · ${a.local}` : ""}</p>
                   </div>
+                  <Link
+                    href={`/dashboard/audiencias/${a.id}/ao-vivo`}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    title="Transcrever e acompanhar a audiência ao vivo"
+                  >
+                    <Mic className="w-3.5 h-3.5" /> Ao vivo
+                  </Link>
                   <button onClick={() => onDelete(a.id)} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </CardContent>

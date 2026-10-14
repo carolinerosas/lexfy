@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     transcricao?: string;
     modo?: Modo;
   };
-  if (!processo_id || !modo || !(modo in INSTRUCOES)) {
+  if (!modo || !(modo in INSTRUCOES)) {
     return NextResponse.json({ error: "Dados incompletos." }, { status: 400 });
   }
   if (!transcricao?.trim()) {
@@ -91,7 +91,10 @@ export async function POST(req: NextRequest) {
   }
 
   const client = new Anthropic({ apiKey: envLimpo("ANTHROPIC_API_KEY") });
-  const contexto = await contextoProcesso(processo_id, audiencia_id);
+  // Audiência livre (sem processo no Justio): só a transcrição.
+  const contexto = processo_id
+    ? await contextoProcesso(processo_id, audiencia_id)
+    : "Audiência avulsa, sem processo cadastrado no Justio. Use só a transcrição.";
 
   const stream = client.beta.messages.stream({
     model: MODEL,
