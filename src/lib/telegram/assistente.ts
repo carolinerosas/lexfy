@@ -64,6 +64,21 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     strict: true,
   },
   {
+    name: "consultar_agenda",
+    description:
+      "Agenda do escritório num período (todos os processos): audiências, prazos em aberto, atendimentos com clientes e tarefas com data. Use para perguntas como \"tem audiência essa semana?\", \"o que tenho amanhã?\", \"prazos do mês\".",
+    input_schema: {
+      type: "object",
+      properties: {
+        inicio: { type: "string", description: "Data inicial, formato AAAA-MM-DD" },
+        fim: { type: "string", description: "Data final (inclusive), formato AAAA-MM-DD" },
+      },
+      required: ["inicio", "fim"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
     name: "consultar_ciranda",
     description: "Lê a Ciranda (app da família da Carol): filhos (ids, nomes, escola e horário de aulas por dia da semana), compromissos dos próximos 60 dias, lista de compras, tarefas pessoais e contas de casa em aberto.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
@@ -113,7 +128,7 @@ Duas situações:
    Se ela falar de várias coisas na mesma mensagem, chame várias ferramentas propor_* de uma vez (uma para cada coisa).
    Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo não estiver no Justio e ela não pediu para cadastrar, use propor_triagem.
    Datas relativas ("sexta", "daqui a 15 dias") viram datas reais a partir de hoje. Prazo em dias úteis: avise que conferiu ou peça a data se houver dúvida.
-2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
+2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda. Pergunta sobre um período sem cliente específico ("tem audiência essa semana?", "o que tenho amanhã?") → consultar_agenda com as datas, nunca processo por processo. Responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
 
 Estilo: português do Brasil, mensagens curtas, tom de colega próxima. Texto puro (sem markdown, sem asteriscos). Datas no formato dd/mm/aaaa. Nunca invente andamentos, prazos ou decisões.`;
 }
@@ -178,6 +193,45 @@ async function buscarParcelas(termo: string) {
     .map((p) => ({ ...p, cliente: p.cliente_nome || clienteDoProcesso.get(p.processo_id) || "" }))
     .filter((p) => !alvo || semAcento(`${p.cliente} ${p.titulo ?? ""}`).includes(alvo))
     .slice(0, 20);
+}
+
+function diaSeguinte(data: string): string {
+  const d = new Date(`${data}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+async function consultarAgenda(inicio: string, fim: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) {
+    return { erro: "Datas devem estar no formato AAAA-MM-DD" };
+  }
+  const ate = diaSeguinte(fim);
+  const [audiencias, prazos, atendimentos, tarefas, processos] = await Promise.all([
+    supabase.from("audiencias").select("titulo,data_hora,local,tipo,realizada,processo_id")
+      .gte("data_hora", inicio).lt("data_hora", ate).order("data_hora"),
+    supabase.from("prazos").select("titulo,data_prazo,tipo,prioridade,processo_id")
+      .eq("concluido", false).gte("data_prazo", inicio).lt("data_prazo", ate).order("data_prazo"),
+    supabase.from("atendimentos").select("cliente_nome,data_hora,tipo,status,processo_id")
+      .gte("data_hora", inicio).lt("data_hora", ate).order("data_hora"),
+    supabase.from("tarefas").select("titulo,data_limite,prioridade,processo_id")
+      .eq("concluida", false).gte("data_limite", inicio).lt("data_limite", ate).order("data_limite"),
+    supabase.from("processos").select("id,numero,titulo,cliente_nome"),
+  ]);
+  const erro = [audiencias, prazos, atendimentos, tarefas, processos].find((r) => r.error)?.error;
+  if (erro) throw new Error(erro.message);
+  const porId = new Map((processos.data ?? []).map((p) => [p.id, p]));
+  const comProcesso = <T extends { processo_id: string | null }>(rows: T[] | null) =>
+    (rows ?? []).map(({ processo_id, ...r }) => {
+      const p = processo_id ? porId.get(processo_id) : undefined;
+      return { ...r, processo: p ? { numero: p.numero, titulo: p.titulo, cliente: p.cliente_nome } : null };
+    });
+  return {
+    periodo: { inicio, fim },
+    audiencias: comProcesso(audiencias.data),
+    prazos_em_aberto: comProcesso(prazos.data),
+    atendimentos: comProcesso(atendimentos.data),
+    tarefas_em_aberto: comProcesso(tarefas.data),
+  };
 }
 
 async function detalhesProcesso(processoId: string) {
@@ -265,6 +319,8 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
                   ? await buscarParcelas(input.termo)
                   : u.name === "buscar_honorarios"
                     ? await buscarHonorarios(input.termo)
+                    : u.name === "consultar_agenda"
+                      ? await consultarAgenda(input.inicio, input.fim)
                     : u.name === "consultar_ciranda"
                       ? await cirandaResumo()
                 : await detalhesProcesso(input.processo_id);
