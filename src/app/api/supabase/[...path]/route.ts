@@ -1,8 +1,9 @@
-import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { SUPABASE_URL } from "@/lib/supabase";
+import { sessaoValida } from "@/lib/acesso";
+import { COOKIE_SESSAO } from "@/lib/sessao";
 
-// Proxy do navegador para o Supabase: só para quem está logado (cookie justio_auth).
+// Proxy do navegador para o Supabase: só com sessão válida (assinada, no prazo e da senha atual).
 // O navegador nunca recebe chave do Supabase; aqui a requisição sai com a chave secreta.
 
 export const dynamic = "force-dynamic";
@@ -13,17 +14,8 @@ const SERVICOS_PERMITIDOS = new Set(["rest", "storage"]);
 const HEADERS_REPASSADOS = ["accept", "content-type", "prefer", "range", "x-client-info", "x-upsert", "cache-control"];
 const HEADERS_DEVOLVIDOS = ["content-type", "content-range", "preference-applied", "content-disposition", "etag", "last-modified"];
 
-function autenticado(req: NextRequest): boolean {
-  const token = req.cookies.get("justio_auth")?.value;
-  const secret = process.env.JUSTIO_SECRET_TOKEN;
-  if (!token || !secret) return false;
-  const a = Buffer.from(token);
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 async function repassar(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
-  if (!autenticado(req)) {
+  if (!(await sessaoValida(req.cookies.get(COOKIE_SESSAO)?.value))) {
     return NextResponse.json({ message: "Não autenticado" }, { status: 401 });
   }
 

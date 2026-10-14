@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import { JustioHexIcon } from "@/components/ui/justio-logo";
 
@@ -31,7 +32,8 @@ export default function LoginPage() {
         router.push("/dashboard");
         router.refresh();
       } else {
-        setError("Senha incorreta. Tente novamente.");
+        const corpo = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(res.status === 429 && corpo?.error ? corpo.error : "Usuário ou senha incorretos. Tente novamente.");
         setPassword("");
       }
     } catch {
@@ -118,12 +120,14 @@ export default function LoginPage() {
             >
               {loading ? "Entrando..." : "Entrar"}
             </button>
+
+            <div className="text-center pt-1">
+              <Link href="/login/esqueci" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                Esqueceu sua senha?
+              </Link>
+            </div>
           </form>
         </div>
-
-        <p className="text-center text-gray-700 text-xs mt-6">
-          caroline@justio.com.br
-        </p>
       </div>
     </div>
   );
