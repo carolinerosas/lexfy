@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { criarTokenRedefinicao } from "@/lib/acesso";
-import { enviarMensagem } from "@/lib/telegram/api";
+import { EMAIL_ACESSO, enviarEmail } from "@/lib/email";
+import { envLimpo } from "@/lib/env";
 
-// "Esqueci minha senha": manda um link de redefinição (30 min) para o Telegram da Carol.
-// A resposta é sempre a mesma, para não revelar nada a quem não é ela.
-
-const RESPOSTA = { ok: true, mensagem: "Se estiver tudo certo, o link chega no seu Telegram em instantes." };
+// "Esqueci minha senha": manda um link de redefinição (30 min) para o e-mail da Carol.
+// O link só abre a tela; a senha só muda ao salvar (robôs que abrem links de e-mail não gastam nada).
 
 function origemDoLink(req: NextRequest): string {
   // Em produção o link sempre aponta para o domínio oficial (não confiar no Host da requisição).
@@ -13,16 +12,16 @@ function origemDoLink(req: NextRequest): string {
 }
 
 export async function POST(req: NextRequest) {
-  const chatId = Number(process.env.TELEGRAM_CHAT_ID);
-  if (!chatId) return NextResponse.json({ error: "Telegram não configurado" }, { status: 500 });
-
   const token = await criarTokenRedefinicao();
   if (token) {
     const link = `${origemDoLink(req)}/login/redefinir?token=${encodeURIComponent(token)}`;
-    await enviarMensagem(
-      chatId,
-      `Pedido para redefinir a senha do Justio.\n\nAbra este link em até 30 minutos:\n${link}\n\nSe não foi você, ignore esta mensagem: a senha atual continua valendo.`
+    const enviado = await enviarEmail(
+      envLimpo("JUSTIO_EMAIL_ACESSO") ?? EMAIL_ACESSO,
+      "Redefinir a senha do Justio",
+      "Recebemos um pedido para redefinir a senha do Justio.\nO link vale por 30 minutos.\nSe não foi você, ignore este e-mail: a senha atual continua valendo.",
+      link
     );
+    if (!enviado) return NextResponse.json({ error: "Não consegui enviar o e-mail." }, { status: 502 });
   }
-  return NextResponse.json(RESPOSTA);
+  return NextResponse.json({ ok: true });
 }

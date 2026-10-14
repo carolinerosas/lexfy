@@ -4,7 +4,8 @@
 import { envLimpo } from "@/lib/env";
 
 export const COOKIE_SESSAO = "justio_auth";
-export const DURACAO_SESSAO_S = 60 * 60 * 24 * 30; // 30 dias
+export const DURACAO_SESSAO_S = 60 * 60 * 24 * 30; // 30 dias ("permanecer conectado")
+export const DURACAO_SESSAO_CURTA_S = 60 * 60 * 12; // 12 h; o cookie ainda some ao fechar o navegador
 
 export interface Sessao {
   v: number; // versão: muda quando a senha é trocada, derrubando sessões antigas
@@ -30,10 +31,10 @@ async function chave(): Promise<CryptoKey | null> {
   return crypto.subtle.importKey("raw", enc.encode(segredo), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 }
 
-export async function criarSessao(versao: number): Promise<string> {
+export async function criarSessao(versao: number, duracaoS = DURACAO_SESSAO_S): Promise<string> {
   const k = await chave();
   if (!k) throw new Error("JUSTIO_SECRET_TOKEN não configurado");
-  const sessao: Sessao = { v: versao, exp: Math.floor(Date.now() / 1000) + DURACAO_SESSAO_S };
+  const sessao: Sessao = { v: versao, exp: Math.floor(Date.now() / 1000) + duracaoS };
   const corpo = b64url(enc.encode(JSON.stringify(sessao)));
   const assinatura = new Uint8Array(await crypto.subtle.sign("HMAC", k, enc.encode(corpo)));
   return `${corpo}.${b64url(assinatura)}`;
