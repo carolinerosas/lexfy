@@ -1,42 +1,22 @@
 // Cérebro do bot do Telegram: entende o que a Carol mandou (texto ou áudio transcrito),
-// consulta o Justio e, quando é para registrar algo, PROPÕE o registro — quem grava é o
-// botão "Salvar" no Telegram, nunca o modelo direto.
+// consulta o Justio e, quando é para registrar algo, PROPÕE (ferramentas propor_*, em
+// propostas.ts) — quem grava é o botão "Salvar" no Telegram, nunca o modelo direto.
 import { envLimpo } from "@/lib/env";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
-import { createAnotacao, createHonorario, createMovimentacao, registrarRecebimento } from "@/lib/store";
+import { TIPOS, TIPO_POR_FERRAMENTA } from "@/lib/telegram/propostas";
 
 const MODEL = process.env.TELEGRAM_MODEL || "claude-opus-5-5";
 const MAX_VOLTAS = 6;
 
-export interface PropostaRegistro {
-  destino: "processo" | "cliente";
-  id: string;
-  rotulo: string;
-  tipo: "andamento" | "anotacao";
-  titulo?: string;
-  texto: string;
-  data: string; // AAAA-MM-DD
+export interface Proposta {
+  tipo: string;
+  dados: Record<string, unknown>;
 }
 
 export interface RespostaAssistente {
   texto: string;
-  proposta?: PropostaRegistro;
-  /** Texto a mandar para a Triagem quando o cliente/processo ainda não está no Justio. */
-  triagem?: string;
-  honorarios?: PropostaHonorarios;
-}
-
-export interface PropostaHonorarios {
-  processo_id: string;
-  rotulo: string;
-  descricao: string;
-  tipo: "contratual" | "sucumbencial" | "exito" | "outro";
-  valor_cobrado: number;
-  data_lancamento: string; // AAAA-MM-DD
-  vencimento?: string; // AAAA-MM-DD
-  valor_pago?: number;
-  data_pagamento?: string; // AAAA-MM-DD
+  propostas: Proposta[];
 }
 
 function semAcento(s: string): string {
@@ -73,69 +53,17 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     strict: true,
   },
   {
-    name: "propor_registro",
-    description:
-      "Propõe gravar um andamento ou anotação no Justio. NÃO grava: a Carol confirma num botão. Use quando ela relatar um fato a registrar (ex.: decisão em audiência). Só chame com um processo/cliente identificado sem ambiguidade pelo 'buscar'.",
+    name: "buscar_contas",
+    description: "Lista as contas do escritório (Financeiro) em aberto, filtrando por palavra da descrição se quiser. Use antes de marcar uma conta como paga.",
     input_schema: {
       type: "object",
-      properties: {
-        destino: { type: "string", enum: ["processo", "cliente"] },
-        id: { type: "string", description: "id do processo ou do cliente, vindo do 'buscar'" },
-        rotulo: {
-          type: "string",
-          description: "Como mostrar o destino à Carol, ex.: 'Raphael Souza — Execução Penal 0001234-56.2024.8.19.0001'",
-        },
-        tipo: {
-          type: "string",
-          enum: ["andamento", "anotacao"],
-          description: "andamento = fato do processo (decisão, audiência, despacho); anotacao = observação interna",
-        },
-        titulo: { type: "string", description: "Título curto (só para anotação)" },
-        texto: { type: "string", description: "Texto a gravar, objetivo e em linguagem jurídica correta" },
-        data: { type: "string", description: "Data do fato, AAAA-MM-DD" },
-      },
-      required: ["destino", "id", "rotulo", "tipo", "texto", "data"],
+      properties: { termo: { type: "string", description: "Palavra da descrição (vazio = todas em aberto)" } },
+      required: ["termo"],
       additionalProperties: false,
     },
+    strict: true,
   },
-  {
-    name: "propor_honorarios",
-    description:
-      "Propõe lançar honorários no financeiro do processo: a cobrança (valor cobrado) e, se ela disser, o pagamento recebido (valor e data) — o saldo fica em aberto automaticamente. NÃO grava: a Carol confirma num botão. Use sempre que ela falar de honorários, valor cobrado/combinado ou pagamento do cliente — nunca registre honorários como anotação.",
-    input_schema: {
-      type: "object",
-      properties: {
-        processo_id: { type: "string", description: "id do processo, vindo do 'buscar'" },
-        rotulo: { type: "string", description: "Cliente e processo, como em propor_registro" },
-        descricao: { type: "string", description: "Ex.: 'Honorários contratuais — defesa criminal'" },
-        tipo: { type: "string", enum: ["contratual", "sucumbencial", "exito", "outro"] },
-        valor_cobrado: { type: "number", description: "Valor total cobrado, em reais" },
-        data_lancamento: { type: "string", description: "Data da cobrança, AAAA-MM-DD" },
-        vencimento: { type: "string", description: "Vencimento do saldo, AAAA-MM-DD, se ela disser" },
-        valor_pago: { type: "number", description: "Valor já pago, em reais, se ela disser" },
-        data_pagamento: { type: "string", description: "Data do pagamento, AAAA-MM-DD" },
-      },
-      required: ["processo_id", "rotulo", "descricao", "tipo", "valor_cobrado", "data_lancamento"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "propor_triagem",
-    description:
-      "Propõe mandar a informação para a Triagem do Justio (onde a Carol aprova e cadastra clientes/processos novos). NÃO envia: a Carol confirma num botão. Use quando o 'buscar' não achar o cliente ou o processo.",
-    input_schema: {
-      type: "object",
-      properties: {
-        texto: {
-          type: "string",
-          description:
-            "Tudo que a Carol informou, organizado: nome do cliente, número do processo se houver, o fato/andamento e a data. Não invente nada.",
-        },
-      },
-      required: ["texto"],
-      additionalProperties: false,
-    },
-  },
+  ...Object.values(TIPOS).map((t) => t.ferramenta),
 ];
 
 function sistema(): string {
@@ -144,8 +72,16 @@ function sistema(): string {
 Você tem acesso ao Justio, o sistema do escritório dela, pelas ferramentas. Ela manda mensagens de texto ou áudios já transcritos (a transcrição pode errar nomes próprios — se o nome não bater exatamente, busque por partes do nome).
 
 Duas situações:
-1. Ela relata um fato para registrar (ex.: "juiz deferiu o extramuros do Raphael"): use "buscar" para achar o cliente/processo e chame "propor_registro". Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo ainda não estiver no Justio, chame "propor_triagem" para mandar a informação à Triagem.
-   Honorários (valor cobrado, combinado, pago) vão SEMPRE por "propor_honorarios", nunca como anotação. Se ela falar de honorários e também de um andamento na mesma mensagem, proponha os honorários e avise que o andamento pode ser mandado em seguida.
+1. Ela pede para registrar ou cadastrar algo: use "buscar" para achar o cliente/processo e chame a ferramenta propor_* certa:
+   - fato do processo (decisão, despacho, audiência realizada) → propor_registro tipo andamento; observação interna → propor_registro tipo anotacao;
+   - prazo → propor_prazo; tarefa / algo a fazer → propor_tarefa; audiência designada → propor_audiencia;
+   - reunião/consulta com cliente → propor_atendimento; acordo com parcelas → propor_acordo; honorários (valor cobrado, pago) → propor_honorarios, nunca anotação;
+   - sentença, pronúncia, pena, resultado → propor_resultado;
+   - conta/despesa do escritório → propor_conta (paga=true se ela já pagou); pagar conta já lançada → buscar_contas e propor_pagar_conta;
+   - cadastrar cliente → propor_cliente; cadastrar processo → propor_processo (com criar_cliente=true se o cliente não existir).
+   Se ela falar de várias coisas na mesma mensagem, chame várias ferramentas propor_* de uma vez (uma para cada coisa).
+   Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo não estiver no Justio e ela não pediu para cadastrar, use propor_triagem.
+   Datas relativas ("sexta", "daqui a 15 dias") viram datas reais a partir de hoje. Prazo em dias úteis: avise que conferiu ou peça a data se houver dúvida.
 2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
 
 Estilo: português do Brasil, mensagens curtas, tom de colega próxima. Texto puro (sem markdown, sem asteriscos). Datas no formato dd/mm/aaaa. Nunca invente andamentos, prazos ou decisões.`;
@@ -166,6 +102,16 @@ async function buscar(termo: string) {
     clientes: (clientes ?? []).filter((c) => casa(c.nome)).slice(0, 10),
     processos: (processos ?? []).filter((p) => casa(p.cliente_nome) || casa(p.titulo) || casa(p.numero)).slice(0, 15),
   };
+}
+
+async function buscarContas(termo: string) {
+  const { data } = await supabase
+    .from("contas_escritorio")
+    .select("id,descricao,valor,categoria,data_vencimento,status")
+    .neq("status", "paga")
+    .order("data_vencimento");
+  const alvo = semAcento(termo ?? "").trim();
+  return (data ?? []).filter((c) => !alvo || semAcento(`${c.descricao} ${c.categoria}`).includes(alvo)).slice(0, 20);
 }
 
 async function detalhesProcesso(processoId: string) {
@@ -223,7 +169,7 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
     } as Anthropic.Beta.MessageCreateParamsNonStreaming);
 
     if (res.stop_reason === "refusal") {
-      return { texto: "Não consegui processar essa mensagem. Tenta reformular?" };
+      return { texto: "Não consegui processar essa mensagem. Tenta reformular?", propostas: [] };
     }
 
     const usos = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
@@ -233,20 +179,23 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
       .join("\n")
       .trim();
 
-    const proposta = usos.find((u) => u.name === "propor_registro");
-    if (proposta) return { texto, proposta: proposta.input as PropostaRegistro };
-    const honorarios = usos.find((u) => u.name === "propor_honorarios");
-    if (honorarios) return { texto, honorarios: honorarios.input as PropostaHonorarios };
-    const triagem = usos.find((u) => u.name === "propor_triagem");
-    if (triagem) return { texto, triagem: (triagem.input as { texto: string }).texto };
-    if (res.stop_reason !== "tool_use" || usos.length === 0) return { texto: texto || "Pronto." };
+    const propostas = usos
+      .filter((u) => TIPO_POR_FERRAMENTA[u.name])
+      .map((u) => ({ tipo: TIPO_POR_FERRAMENTA[u.name], dados: u.input as Record<string, unknown> }));
+    if (propostas.length) return { texto, propostas };
+    if (res.stop_reason !== "tool_use" || usos.length === 0) return { texto: texto || "Pronto.", propostas: [] };
 
     messages.push({ role: "assistant", content: res.content });
     const resultados = await Promise.all(
       usos.map(async (u): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
         try {
           const input = u.input as Record<string, string>;
-          const saida = u.name === "buscar" ? await buscar(input.termo) : await detalhesProcesso(input.processo_id);
+          const saida =
+            u.name === "buscar"
+              ? await buscar(input.termo)
+              : u.name === "buscar_contas"
+                ? await buscarContas(input.termo)
+                : await detalhesProcesso(input.processo_id);
           return { type: "tool_result", tool_use_id: u.id, content: JSON.stringify(saida) };
         } catch (e) {
           return { type: "tool_result", tool_use_id: u.id, content: String(e), is_error: true };
@@ -255,64 +204,5 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
     );
     messages.push({ role: "user", content: resultados });
   }
-  return { texto: "Me perdi tentando achar isso no Justio. Pode mandar de novo com mais detalhes?" };
-}
-
-/** Manda para a Triagem pela mesma rota que a ponte do Cowork usa. */
-export async function enviarParaTriagem(texto: string): Promise<void> {
-  const base = process.env.JUSTIO_URL || "https://www.justio.com.br";
-  const res = await fetch(`${base}/api/triagem/importar`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${process.env.JUSTIO_AGENT_TOKEN ?? ""}`,
-    },
-    body: JSON.stringify({ texto, persistir: true, origem: "telegram" }),
-  });
-  if (!res.ok) throw new Error(`Triagem respondeu ${res.status}`);
-}
-
-/** Grava o registro que a Carol confirmou no botão. */
-export async function gravarRegistro(
-  p: Pick<PropostaRegistro, "destino" | "id" | "tipo" | "texto" | "data" | "titulo">
-): Promise<void> {
-  if (p.destino === "processo" && p.tipo === "andamento") {
-    const mov = await createMovimentacao({
-      processo_id: p.id,
-      descricao: p.texto,
-      data_movimentacao: p.data,
-      fonte: "Telegram",
-      lida: true,
-    });
-    if (!mov) throw new Error("O Justio não aceitou o andamento");
-    return;
-  }
-  await createAnotacao({
-    processo_id: p.destino === "processo" ? p.id : undefined,
-    cliente_id: p.destino === "cliente" ? p.id : undefined,
-    titulo: p.titulo || "Registro via Telegram",
-    conteudo: p.texto,
-  });
-}
-
-/** Lança a cobrança e, se houver, o pagamento (o saldo vira cobrança pendente). */
-export async function gravarHonorarios(h: Omit<PropostaHonorarios, "rotulo">): Promise<void> {
-  const cobranca = await createHonorario({
-    processo_id: h.processo_id,
-    descricao: h.descricao,
-    valor: h.valor_cobrado,
-    tipo: h.tipo,
-    categoria: "cobranca",
-    status: "pendente",
-    data_lancamento: h.data_lancamento,
-    data_vencimento: h.vencimento,
-  });
-  if (!cobranca) throw new Error("O Justio não aceitou a cobrança");
-  if (h.valor_pago && h.valor_pago > 0) {
-    await registrarRecebimento(cobranca, {
-      data: h.data_pagamento || h.data_lancamento,
-      valorRecebido: h.valor_pago,
-      vencimentoDiferenca: h.vencimento,
-    });
-  }
+  return { texto: "Me perdi tentando achar isso no Justio. Pode mandar de novo com mais detalhes?", propostas: [] };
 }

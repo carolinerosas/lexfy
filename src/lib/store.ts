@@ -486,6 +486,17 @@ export async function getContasEscritorio(): Promise<ContaEscritorio[]> {
     throw new Error(error.message);
   }
 
+  // As contas eram guardadas só no navegador antes de a tabela existir: sobe as que
+  // ficaram aqui para o banco (uma vez) e limpa a cópia local.
+  const locais = getLocalRows<ContaEscritorio>("contas_escritorio");
+  if (locais.length) {
+    const { error: erroMigracao } = await supabase.from("contas_escritorio").upsert(locais, { onConflict: "id" });
+    if (!erroMigracao) {
+      setLocalRows("contas_escritorio", []);
+      return getContasEscritorio();
+    }
+  }
+
   return (data ?? []) as ContaEscritorio[];
 }
 

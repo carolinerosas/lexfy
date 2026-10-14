@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { baixarArquivo, digitando, editarMensagem, enviarMensagem, responderBotao } from "@/lib/telegram/api";
 import { TranscricaoIndisponivel, transcreverAudio } from "@/lib/telegram/transcricao";
-import {
-  conversar,
-  enviarParaTriagem,
-  gravarHonorarios,
-  gravarRegistro,
-  type PropostaHonorarios,
-  type PropostaRegistro,
-} from "@/lib/telegram/assistente";
+import { conversar } from "@/lib/telegram/assistente";
+import { decidirProposta, guardarProposta, textoProposta } from "@/lib/telegram/propostas";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -29,90 +23,6 @@ interface TgUpdate {
   callback_query?: { id: string; data?: string; message?: { message_id: number; chat: { id: number }; text?: string } };
 }
 
-const TITULO_PROPOSTA = "📌 Registrar no Justio?";
-const TITULO_TRIAGEM = "📥 Não achei no Justio. Mandar para a Triagem?";
-const TITULO_HONORARIOS = "💰 Lançar honorários no Justio?";
-
-const TIPOS_HONORARIO = ["contratual", "sucumbencial", "exito", "outro"] as const;
-
-function reais(v: number): string {
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function lerReais(s: string): number {
-  return Number(s.replace(/[^\d,]/g, "").replace(",", "."));
-}
-
-function textoHonorarios(h: PropostaHonorarios): string {
-  const pago = h.valor_pago && h.valor_pago > 0 ? h.valor_pago : 0;
-  const saldo = Math.round((h.valor_cobrado - pago) * 100) / 100;
-  return [
-    TITULO_HONORARIOS,
-    `Onde: ${h.rotulo.replace(/\n+/g, " ")}`,
-    `Descrição: ${h.descricao.replace(/\n+/g, " ")}`,
-    `Tipo: ${h.tipo}`,
-    `Cobrado: ${reais(h.valor_cobrado)} em ${dataBR(h.data_lancamento)}`,
-    ...(pago ? [`Pago: ${reais(pago)} em ${dataBR(h.data_pagamento || h.data_lancamento)}`] : []),
-    `Saldo em aberto: ${reais(Math.max(0, saldo))}${h.vencimento ? ` — vence ${dataBR(h.vencimento)}` : ""}`,
-  ].join("\n");
-}
-
-function lerHonorarios(texto: string, dadosBotao: string): Omit<PropostaHonorarios, "rotulo"> {
-  const campo = (nome: string) => texto.match(new RegExp(`^${nome}: (.+)$`, "m"))?.[1];
-  const processoId = dadosBotao.split("|")[1];
-  const cobrado = campo("Cobrado")?.match(/^(.+) em (\d{2}\/\d{2}\/\d{4})$/);
-  const pago = campo("Pago")?.match(/^(.+) em (\d{2}\/\d{2}\/\d{4})$/);
-  const vence = campo("Saldo em aberto")?.match(/vence (\d{2}\/\d{2}\/\d{4})/);
-  const tipo = TIPOS_HONORARIO.find((t) => t === campo("Tipo"));
-  if (!processoId || !cobrado || !tipo) throw new Error("Proposta de honorários ilegível");
-  return {
-    processo_id: processoId,
-    descricao: campo("Descrição") ?? "Honorários",
-    tipo,
-    valor_cobrado: lerReais(cobrado[1]),
-    data_lancamento: dataISO(cobrado[2]),
-    vencimento: vence ? dataISO(vence[1]) : undefined,
-    valor_pago: pago ? lerReais(pago[1]) : undefined,
-    data_pagamento: pago ? dataISO(pago[2]) : undefined,
-  };
-}
-
-function dataBR(iso: string): string {
-  const [a, m, d] = iso.split("-");
-  return `${d}/${m}/${a}`;
-}
-
-function dataISO(br: string): string {
-  const [d, m, a] = br.split("/");
-  return `${a}-${m}-${d}`;
-}
-
-/** A proposta viaja no próprio texto da mensagem; o botão leva destino, tipo e id. */
-function textoProposta(p: PropostaRegistro): string {
-  const cabecalho = [
-    TITULO_PROPOSTA,
-    `Onde: ${p.rotulo.replace(/\n+/g, " ")}`,
-    `Tipo: ${p.tipo === "andamento" && p.destino === "processo" ? "Andamento" : "Anotação"}`,
-    `Data: ${dataBR(p.data)}`,
-    ...(p.tipo === "anotacao" && p.titulo ? [`Título: ${p.titulo.replace(/\n+/g, " ")}`] : []),
-  ];
-  return `${cabecalho.join("\n")}\n\n${p.texto}`;
-}
-
-function lerProposta(texto: string, dadosBotao: string) {
-  const [, codigo, id] = dadosBotao.split("|");
-  const [cabecalho, ...resto] = texto.split("\n\n");
-  const data = cabecalho.match(/^Data: (\d{2}\/\d{2}\/\d{4})$/m)?.[1];
-  if (!codigo || !id || !data) throw new Error("Proposta ilegível");
-  return {
-    destino: codigo[0] === "p" ? ("processo" as const) : ("cliente" as const),
-    tipo: codigo[1] === "m" ? ("andamento" as const) : ("anotacao" as const),
-    id,
-    data: dataISO(data),
-    titulo: cabecalho.match(/^Título: (.+)$/m)?.[1],
-    texto: resto.join("\n\n").trim(),
-  };
-}
 
 async function tratarMensagem(msg: TgMensagem) {
   const chatId = msg.chat.id;
@@ -150,84 +60,37 @@ async function tratarMensagem(msg: TgMensagem) {
   await digitando(chatId);
   const resposta = await conversar(texto);
 
-  if (resposta.proposta) {
-    const p = resposta.proposta;
-    const codigo = `${p.destino === "processo" ? "p" : "c"}${p.tipo === "andamento" && p.destino === "processo" ? "m" : "n"}`;
-    if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
-    await enviarMensagem(chatId, textoProposta(p), [
+  if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
+  // Uma mensagem com botões para cada coisa proposta; nada é gravado sem o "Salvar".
+  for (const p of resposta.propostas) {
+    const id = await guardarProposta(p.tipo, p.dados);
+    await enviarMensagem(chatId, textoProposta(p.tipo, p.dados), [
       [
-        { text: "✅ Salvar", callback_data: `s|${codigo}|${p.id}` },
-        { text: "❌ Cancelar", callback_data: "x" },
+        { text: "✅ Salvar", callback_data: `ok|${id}` },
+        { text: "❌ Cancelar", callback_data: `no|${id}` },
       ],
     ]);
-    return;
   }
-
-  if (resposta.honorarios) {
-    if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
-    await enviarMensagem(chatId, textoHonorarios(resposta.honorarios), [
-      [
-        { text: "✅ Lançar", callback_data: `h|${resposta.honorarios.processo_id}` },
-        { text: "❌ Cancelar", callback_data: "x" },
-      ],
-    ]);
-    return;
-  }
-
-  if (resposta.triagem) {
-    if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
-    await enviarMensagem(chatId, `${TITULO_TRIAGEM}\n\n${resposta.triagem}`, [
-      [
-        { text: "📥 Mandar", callback_data: "t" },
-        { text: "❌ Cancelar", callback_data: "x" },
-      ],
-    ]);
-    return;
-  }
-  await enviarMensagem(chatId, resposta.texto);
 }
 
 async function tratarBotao(cb: NonNullable<TgUpdate["callback_query"]>) {
   const msg = cb.message;
-  if (!msg?.text || !cb.data) return responderBotao(cb.id);
-
-  if (cb.data === "x") {
-    await responderBotao(cb.id, "Cancelado");
-    await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n❌ Cancelado — nada foi gravado.`);
+  const [acao, id] = (cb.data ?? "").split("|");
+  if (!msg?.text || !id || (acao !== "ok" && acao !== "no")) {
+    await responderBotao(cb.id, "Proposta antiga: manda de novo, por favor.");
     return;
   }
-  if (msg.text.endsWith("gravado no Justio.") || msg.text.endsWith("está na Triagem.")) {
-    return responderBotao(cb.id, "Já estava salvo");
-  }
-
-  if (cb.data.startsWith("h|")) {
-    try {
-      await gravarHonorarios(lerHonorarios(msg.text, cb.data));
-      await responderBotao(cb.id, "Lançado!");
-      await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n✅ Lançado — gravado no Justio.`);
-    } catch (e) {
-      await responderBotao(cb.id, "Erro ao lançar");
-      await enviarMensagem(msg.chat.id, `Não consegui lançar os honorários: ${e instanceof Error ? e.message : String(e)}`);
-    }
-    return;
-  }
-
-  if (cb.data === "t") {
-    try {
-      await enviarParaTriagem(msg.text.split("\n\n").slice(1).join("\n\n").trim());
-      await responderBotao(cb.id, "Enviado!");
-      await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n✅ Enviado — está na Triagem.`);
-    } catch (e) {
-      await responderBotao(cb.id, "Erro ao enviar");
-      await enviarMensagem(msg.chat.id, `Não consegui mandar para a Triagem: ${e instanceof Error ? e.message : String(e)}`);
-    }
-    return;
-  }
-
+  const salvar = acao === "ok";
   try {
-    await gravarRegistro(lerProposta(msg.text, cb.data));
-    await responderBotao(cb.id, "Salvo!");
-    await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n✅ Salvo — gravado no Justio.`);
+    const { jaDecidida } = await decidirProposta(id, salvar);
+    if (jaDecidida) {
+      await responderBotao(cb.id, "Essa já tinha sido decidida.");
+      return;
+    }
+    await responderBotao(cb.id, salvar ? "Salvo!" : "Cancelado");
+    await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}
+
+${salvar ? "✅ Salvo no Justio." : "❌ Cancelado — nada foi gravado."}`);
   } catch (e) {
     await responderBotao(cb.id, "Erro ao salvar");
     await enviarMensagem(msg.chat.id, `Não consegui gravar no Justio: ${e instanceof Error ? e.message : String(e)}`);
