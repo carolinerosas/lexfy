@@ -37,7 +37,7 @@ export function FormularioRedefinir({ token }: { token: string }) {
 
   if (!token) {
     return (
-      <CascaAcesso titulo="Link incompleto" subtitulo="Abra o link exatamente como chegou no Telegram.">
+      <CascaAcesso titulo="Link incompleto" subtitulo="Abra o link exatamente como chegou no e-mail.">
         <Link href="/login/esqueci" className="text-xs text-gray-400 hover:text-gray-200">Pedir um link novo</Link>
       </CascaAcesso>
     );

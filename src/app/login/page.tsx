@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
+  const [lembrar, setLembrar] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, lembrar }),
       });
 
       if (res.ok) {
@@ -108,6 +109,16 @@ export default function LoginPage() {
                 {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+
+            <label className="flex items-center gap-2 px-1 text-xs text-gray-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={lembrar}
+                onChange={(e) => setLembrar(e.target.checked)}
+                className="w-4 h-4 rounded accent-white"
+              />
+              Permanecer conectado
+            </label>
 
             {error && (
               <p className="text-red-400 text-xs font-medium px-1">{error}</p>

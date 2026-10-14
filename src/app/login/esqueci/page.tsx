@@ -18,15 +18,15 @@ export default function EsqueciPage() {
   }
 
   return (
-    <CascaAcesso titulo="Esqueceu sua senha?" subtitulo="Vamos mandar um link para criar uma senha nova no seu Telegram.">
+    <CascaAcesso titulo="Esqueceu sua senha?" subtitulo="Vamos mandar um link para criar uma senha nova no seu e-mail.">
       {estado === "enviado" ? (
         <p className="text-gray-300 text-sm leading-relaxed">
-          Pronto! Se estiver tudo certo, o link chega no seu Telegram em instantes. Ele vale por 30 minutos.
+          Pronto! O link chega no seu e-mail em instantes e vale por 30 minutos. Confira também o spam.
         </p>
       ) : (
         <div className="space-y-4">
           <button type="button" onClick={pedirLink} disabled={estado === "enviando"} className={classeBotao}>
-            {estado === "enviando" ? "Enviando..." : "Enviar link para o meu Telegram"}
+            {estado === "enviando" ? "Enviando..." : "Enviar link para o meu e-mail"}
           </button>
           {estado === "erro" && <p className="text-red-400 text-xs font-medium px-1">Não consegui enviar. Tente de novo em instantes.</p>}
         </div>
