@@ -119,7 +119,7 @@ export default function AudienciasPage() {
                         {a.local && <span className="flex items-center gap-1 text-xs text-gray-400"><MapPin className="w-3 h-3" />{a.local}</span>}
                       </div>
                     </div>
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:ml-auto sm:w-auto sm:shrink-0 sm:flex-nowrap">
                       {!a.realizada && (
                         <button
                           onClick={() => setRoteiroDe(a)}

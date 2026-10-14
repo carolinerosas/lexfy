@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { RoteiroModal } from "@/components/ui/roteiro-modal";
 import { createAnotacao, getAudienciasWithProcesso, updateAudiencia } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
+import { atoDaAudiencia } from "@/lib/audiencia/perfis";
 import type { Audiencia, Processo } from "@/types";
 
 // Audiência ao vivo: microfone → Deepgram (streaming, com separação de falantes) →
@@ -76,6 +77,7 @@ export default function AudienciaAoVivoPage() {
   const [roteiroNome, setRoteiroNome] = useState("");
   const [editandoRoteiro, setEditandoRoteiro] = useState(false);
   const [area, setArea] = useState<"auto" | "criminal" | "familia" | "geral">("auto");
+  const [ato, setAto] = useState<"auto" | "instrucao" | "custodia">("auto");
 
   const wsRef = useRef<WebSocket | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
@@ -142,6 +144,8 @@ export default function AudienciaAoVivoPage() {
     const t = setInterval(() => setSegundos((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, [estado]);
+
+  const atoEfetivo = ato === "auto" ? atoDaAudiencia(audiencia?.titulo) : ato;
 
   const nomeFalante = useCallback((f: number) => nomes[f] ?? `Voz ${f + 1}`, [nomes]);
 
@@ -269,6 +273,7 @@ export default function AudienciaAoVivoPage() {
           roteiro: roteiro || undefined,
           notas: notas || undefined,
           area: area === "auto" ? undefined : area,
+          ato: atoEfetivo,
         }),
       });
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Erro ${res.status}`);
@@ -344,7 +349,10 @@ export default function AudienciaAoVivoPage() {
 
   const falantes = [...new Set(trechos.map((t) => t.falante))].sort();
   const dataAudiencia = audiencia ? formatDateTime(audiencia.data_hora).split(" ")[0] : new Date().toLocaleDateString("pt-BR");
-  const tituloPeca = peca?.modo === "alegacoes" ? "Alegações finais" : "Requerimentos finais";
+  const custodia = atoEfetivo === "custodia";
+  const nomeRequerimentos = custodia ? "Requerimentos" : "Requerimentos finais";
+  const nomeAlegacoes = custodia ? "Sustentação oral" : "Alegações finais";
+  const tituloPeca = peca?.modo === "alegacoes" ? nomeAlegacoes : nomeRequerimentos;
 
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-6xl mx-auto">
@@ -485,10 +493,10 @@ export default function AudienciaAoVivoPage() {
 
           <div className="grid grid-cols-2 gap-2">
             <Button variant="outline" disabled={!trechos.length || !!analisando} onClick={() => analisar("requerimentos")}>
-              <FileText className="w-4 h-4" /> {analisando === "requerimentos" ? "Gerando…" : "Requerimentos finais"}
+              <FileText className="w-4 h-4" /> {analisando === "requerimentos" ? "Gerando…" : nomeRequerimentos}
             </Button>
             <Button disabled={!trechos.length || !!analisando} onClick={() => analisar("alegacoes")}>
-              <Gavel className="w-4 h-4" /> {analisando === "alegacoes" ? "Gerando…" : "Alegações finais"}
+              <Gavel className="w-4 h-4" /> {analisando === "alegacoes" ? "Gerando…" : nomeAlegacoes}
             </Button>
           </div>
 
@@ -529,6 +537,16 @@ export default function AudienciaAoVivoPage() {
                   <option value="criminal">Advogada criminal</option>
                   <option value="familia">Advogada de família</option>
                   <option value="geral">Geral</option>
+                </select>
+                <select
+                  value={ato}
+                  onChange={(e) => setAto(e.target.value as typeof ato)}
+                  className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                  title="Tipo de audiência"
+                >
+                  <option value="auto">Ato: pelo título</option>
+                  <option value="instrucao">Instrução</option>
+                  <option value="custodia">Custódia</option>
                 </select>
               </div>
               <p className="mt-2 text-xs text-gray-500">

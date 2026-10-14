@@ -3,7 +3,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { envLimpo } from "@/lib/env";
 import { ESTILO_CAROL, MODO_ORAL } from "@/lib/audiencia/estilo-carol";
-import { PERFIL, areaDoProcesso, type Area } from "@/lib/audiencia/perfis";
+import { PERFIL, areaDoProcesso, atoDaAudiencia, type Ato, type Area } from "@/lib/audiencia/perfis";
+import { PADRAO_CUSTODIA } from "@/lib/audiencia/criminal";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -19,7 +20,19 @@ const MODEL = process.env.AUDIENCIA_MODEL || "claude-opus-5-5";
 const ESFORCO: Record<Modo, "low" | "medium" | "high"> = { dicas: "low", requerimentos: "medium", alegacoes: "high" };
 const MAX_TOKENS: Record<Modo, number> = { dicas: 1500, requerimentos: 6000, alegacoes: 16000 };
 
-function instrucoes(modo: Modo, area: Area, temRoteiro: boolean): string {
+const INSTRUCOES_CUSTODIA: Record<Modo, string> = {
+  dicas: `Siga o PADRÃO DA EQUIPE — AUDIÊNCIA DE CUSTÓDIA. Leia a transcrição e dê no MÁXIMO 4 alertas curtos sobre o que acabou de acontecer: vício do checklist que apareceu (e que precisa ir para a ata), pergunta de mérito indevida, o que o MP requereu (se ainda não está claro, lembrar de pedir que conste em ata), pergunta que o juiz deixou de fazer (circunstâncias da prisão, direitos, tratamento, art. 8º, X), e se a defesa deve ou não entrar no fato.
+Se não houver nada novo relevante, responda só: Sem novidades relevantes.
+Não cite número de julgado; cite artigo, súmula ou resolução.
+Formato: um alerta por linha, começando com o emoji (⚠️ vício, 📝 consignar em ata, ❓ pedir ao juiz, ⚖️ tese). Frases curtas. Sem markdown.`,
+  requerimentos: `Monte a lista de REQUERIMENTOS da defesa para ditar agora, conforme o padrão (formulário do item "Requerimentos da defesa em toda custódia" + os vícios arguidos nesta audiência, cada um com pedido de registro em ata, + o que o MP requereu, registrado). Redação pronta para ditar, curta. Texto puro, itens numerados.`,
+  alegacoes: `Redija a SUSTENTAÇÃO ORAL da defesa para a custódia, 3 a 5 minutos, na estrutura do padrão (ratificação, vícios, flagrante não prende por si só, condições pessoais pelos documentos, ausência de periculum contemporâneo e provado, regime do art. 319 desenhado, pedidos nomeados corretamente).
+Pela transcrição, identifique o que o MP requereu e use o ROTEIRO A (MP pediu preventiva) ou o ROTEIRO B (MP não pediu); se ainda não estiver claro, escreva o A e, depois, um parágrafo curto de adaptação para o B. Se o MP não pediu preventiva ou pediu só medidas diversas, invoque a Súmula 676 do STJ.
+Onde faltar dado (Id. da petição, documentos, endereço), deixe [colchetes] para a Carol completar. Frase curta, para falar em pé. Texto puro, sem títulos.`,
+};
+
+function instrucoes(modo: Modo, area: Area, temRoteiro: boolean, ato: Ato): string {
+  if (ato === "custodia") return INSTRUCOES_CUSTODIA[modo];
   const roteiro = temRoteiro;
   if (modo === "dicas") {
     return `Leia a transcrição até agora e dê no MÁXIMO 4 dicas curtas e acionáveis, focadas no que acabou de acontecer:
@@ -84,11 +97,15 @@ async function contextoProcesso(processoId: string, audienciaId?: string) {
         .join("\n\n")}`
     );
   }
-  return { texto: partes.join("\n\n"), tipo: (proc.data as { tipo?: string } | null)?.tipo };
+  return {
+    texto: partes.join("\n\n"),
+    tipo: (proc.data as { tipo?: string } | null)?.tipo,
+    tituloAudiencia: (aud.data as { titulo?: string } | null)?.titulo,
+  };
 }
 
 export async function POST(req: NextRequest) {
-  const { processo_id, audiencia_id, transcricao, modo, roteiro, notas, area: areaEscolhida } = (await req.json()) as {
+  const { processo_id, audiencia_id, transcricao, modo, roteiro, notas, area: areaEscolhida, ato: atoEscolhido } = (await req.json()) as {
     processo_id?: string;
     audiencia_id?: string;
     transcricao?: string;
@@ -96,6 +113,7 @@ export async function POST(req: NextRequest) {
     roteiro?: string;
     notas?: string;
     area?: Area;
+    ato?: Ato;
   };
   if (!modo || !(modo in ESFORCO)) {
     return NextResponse.json({ error: "Dados incompletos." }, { status: 400 });
@@ -107,13 +125,15 @@ export async function POST(req: NextRequest) {
   // Audiência livre (sem processo no Justio): só a transcrição e o roteiro.
   const ctx = processo_id
     ? await contextoProcesso(processo_id, audiencia_id)
-    : { texto: "Audiência avulsa, sem processo cadastrado no Justio.", tipo: undefined };
+    : { texto: "Audiência avulsa, sem processo cadastrado no Justio.", tipo: undefined, tituloAudiencia: undefined };
   const area: Area = areaEscolhida && areaEscolhida in PERFIL ? areaEscolhida : areaDoProcesso(ctx.tipo);
+  const ato: Ato = atoEscolhido === "custodia" || atoEscolhido === "instrucao" ? atoEscolhido : atoDaAudiencia(ctx.tituloAudiencia);
   const temRoteiro = !!roteiro?.trim();
 
   const sistema = [
     PERFIL[area],
     "Você assessora a Carol (Caroline Fraga, OAB/RJ 165955) durante uma audiência que está acontecendo agora. A transcrição é automática: rótulos de falante podem estar trocados e nomes próprios podem vir errados; leve isso em conta e não trate erro de transcrição como contradição.",
+    ato === "custodia" ? PADRAO_CUSTODIA : "",
     `DADOS DO JUSTIO:\n${ctx.texto}`,
     temRoteiro ? `ROTEIRO DE AUDIÊNCIA PREPARADO PELA CAROL (perguntas, teses e estratégia já decididas):\n${roteiro!.slice(0, 60000)}` : "",
   ]
@@ -135,7 +155,7 @@ export async function POST(req: NextRequest) {
           notas?.trim()
             ? `ANOTAÇÕES DA CAROL DURANTE A AUDIÊNCIA (impressões e decisões dela; têm prioridade sobre as suas sugestões):\n${notas.slice(0, 20000)}\n\n`
             : ""
-        }---\n${instrucoes(modo, area, temRoteiro)}`,
+        }---\n${instrucoes(modo, area, temRoteiro, ato)}`,
       },
     ],
   } as Anthropic.Beta.MessageCreateParamsStreaming);
