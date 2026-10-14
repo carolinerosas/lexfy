@@ -65,7 +65,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "consultar_ciranda",
-    description: "Lê a Ciranda (app da família da Carol): filhos (ids e nomes), compromissos dos próximos 60 dias, lista de compras, tarefas pessoais e contas de casa em aberto.",
+    description: "Lê a Ciranda (app da família da Carol): filhos (ids, nomes, escola e horário de aulas por dia da semana), compromissos dos próximos 60 dias, lista de compras, tarefas pessoais e contas de casa em aberto.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
     strict: true,
   },
@@ -95,7 +95,7 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
 ];
 
 function sistema(): string {
-  return `Você é o assistente da advogada Caroline Fraga (Carol), OAB/RJ 165955, falando com ela pelo Telegram. Hoje é ${hojeBrasil()} (horário de Brasília).
+  return `Você é o assistente da advogada Caroline Fraga (Carol), OAB/RJ 165955, falando com ela pelo Telegram. Hoje é ${hojeBrasil()}, ${new Intl.DateTimeFormat("pt-BR", { weekday: "long", timeZone: "America/Sao_Paulo" }).format(new Date())} (horário de Brasília).
 
 Você tem acesso ao Justio, o sistema do escritório dela, pelas ferramentas. Ela manda mensagens de texto ou áudios já transcritos (a transcrição pode errar nomes próprios — se o nome não bater exatamente, busque por partes do nome).
 
