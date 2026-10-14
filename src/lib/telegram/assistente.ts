@@ -21,6 +21,8 @@ export interface PropostaRegistro {
 export interface RespostaAssistente {
   texto: string;
   proposta?: PropostaRegistro;
+  /** Texto a mandar para a Triagem quando o cliente/processo ainda não está no Justio. */
+  triagem?: string;
 }
 
 function semAcento(s: string): string {
@@ -82,6 +84,23 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "propor_triagem",
+    description:
+      "Propõe mandar a informação para a Triagem do Justio (onde a Carol aprova e cadastra clientes/processos novos). NÃO envia: a Carol confirma num botão. Use quando o 'buscar' não achar o cliente ou o processo.",
+    input_schema: {
+      type: "object",
+      properties: {
+        texto: {
+          type: "string",
+          description:
+            "Tudo que a Carol informou, organizado: nome do cliente, número do processo se houver, o fato/andamento e a data. Não invente nada.",
+        },
+      },
+      required: ["texto"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 function sistema(): string {
@@ -90,7 +109,7 @@ function sistema(): string {
 Você tem acesso ao Justio, o sistema do escritório dela, pelas ferramentas. Ela manda mensagens de texto ou áudios já transcritos (a transcrição pode errar nomes próprios — se o nome não bater exatamente, busque por partes do nome).
 
 Duas situações:
-1. Ela relata um fato para registrar (ex.: "juiz deferiu o extramuros do Raphael"): use "buscar" para achar o cliente/processo e chame "propor_registro". Se houver mais de um processo possível, pergunte qual antes de propor. Se não achar ninguém, diga isso.
+1. Ela relata um fato para registrar (ex.: "juiz deferiu o extramuros do Raphael"): use "buscar" para achar o cliente/processo e chame "propor_registro". Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo ainda não estiver no Justio, chame "propor_triagem" para mandar a informação à Triagem.
 2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
 
 Estilo: português do Brasil, mensagens curtas, tom de colega próxima. Texto puro (sem markdown, sem asteriscos). Datas no formato dd/mm/aaaa. Nunca invente andamentos, prazos ou decisões.`;
@@ -180,6 +199,8 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
 
     const proposta = usos.find((u) => u.name === "propor_registro");
     if (proposta) return { texto, proposta: proposta.input as PropostaRegistro };
+    const triagem = usos.find((u) => u.name === "propor_triagem");
+    if (triagem) return { texto, triagem: (triagem.input as { texto: string }).texto };
     if (res.stop_reason !== "tool_use" || usos.length === 0) return { texto: texto || "Pronto." };
 
     messages.push({ role: "assistant", content: res.content });
@@ -197,6 +218,20 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
     messages.push({ role: "user", content: resultados });
   }
   return { texto: "Me perdi tentando achar isso no Justio. Pode mandar de novo com mais detalhes?" };
+}
+
+/** Manda para a Triagem pela mesma rota que a ponte do Cowork usa. */
+export async function enviarParaTriagem(texto: string): Promise<void> {
+  const base = process.env.JUSTIO_URL || "https://www.justio.com.br";
+  const res = await fetch(`${base}/api/triagem/importar`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${process.env.JUSTIO_AGENT_TOKEN ?? ""}`,
+    },
+    body: JSON.stringify({ texto, persistir: true, origem: "telegram" }),
+  });
+  if (!res.ok) throw new Error(`Triagem respondeu ${res.status}`);
 }
 
 /** Grava o registro que a Carol confirmou no botão. */

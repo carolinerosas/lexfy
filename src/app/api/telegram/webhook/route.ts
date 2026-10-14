@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { baixarArquivo, digitando, editarMensagem, enviarMensagem, responderBotao } from "@/lib/telegram/api";
 import { TranscricaoIndisponivel, transcreverAudio } from "@/lib/telegram/transcricao";
-import { conversar, gravarRegistro, type PropostaRegistro } from "@/lib/telegram/assistente";
+import { conversar, enviarParaTriagem, gravarRegistro, type PropostaRegistro } from "@/lib/telegram/assistente";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,6 +23,7 @@ interface TgUpdate {
 }
 
 const TITULO_PROPOSTA = "📌 Registrar no Justio?";
+const TITULO_TRIAGEM = "📥 Não achei no Justio. Mandar para a Triagem?";
 
 function dataBR(iso: string): string {
   const [a, m, d] = iso.split("-");
@@ -109,6 +110,17 @@ async function tratarMensagem(msg: TgMensagem) {
     ]);
     return;
   }
+
+  if (resposta.triagem) {
+    if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
+    await enviarMensagem(chatId, `${TITULO_TRIAGEM}\n\n${resposta.triagem}`, [
+      [
+        { text: "📥 Mandar", callback_data: "t" },
+        { text: "❌ Cancelar", callback_data: "x" },
+      ],
+    ]);
+    return;
+  }
   await enviarMensagem(chatId, resposta.texto);
 }
 
@@ -121,7 +133,21 @@ async function tratarBotao(cb: NonNullable<TgUpdate["callback_query"]>) {
     await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n❌ Cancelado — nada foi gravado.`);
     return;
   }
-  if (msg.text.endsWith("gravado no Justio.")) return responderBotao(cb.id, "Já estava salvo");
+  if (msg.text.endsWith("gravado no Justio.") || msg.text.endsWith("está na Triagem.")) {
+    return responderBotao(cb.id, "Já estava salvo");
+  }
+
+  if (cb.data === "t") {
+    try {
+      await enviarParaTriagem(msg.text.split("\n\n").slice(1).join("\n\n").trim());
+      await responderBotao(cb.id, "Enviado!");
+      await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n✅ Enviado — está na Triagem.`);
+    } catch (e) {
+      await responderBotao(cb.id, "Erro ao enviar");
+      await enviarMensagem(msg.chat.id, `Não consegui mandar para a Triagem: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    return;
+  }
 
   try {
     await gravarRegistro(lerProposta(msg.text, cb.data));
