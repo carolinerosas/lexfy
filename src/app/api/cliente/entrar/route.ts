@@ -5,14 +5,14 @@ import { abrirSessao, conferirSenha, registrar, soDigitos, tentativasRecentes, t
 export const runtime = "nodejs";
 
 // Login do Portal do Cliente: CPF + senha. Mensagem de erro sempre igual (não revela se o
-// CPF existe) e trava por 15 min depois de 8 tentativas erradas.
+// CPF existe) e trava por 15 min depois de 5 tentativas erradas.
 export async function POST(req: NextRequest) {
   const { cpf, senha } = (await req.json().catch(() => ({}))) as { cpf?: string; senha?: string };
   const digitos = soDigitos(cpf ?? "");
   const erro = NextResponse.json({ error: "CPF ou senha incorretos." }, { status: 401 });
   if (digitos.length !== 11 || !senha) return erro;
 
-  if ((await tentativasRecentes(digitos)) >= 8) {
+  if ((await tentativasRecentes(digitos)) >= 5) {
     return NextResponse.json({ error: "Muitas tentativas. Tente de novo em 15 minutos." }, { status: 429 });
   }
 

@@ -19,7 +19,6 @@ import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { PortalPanel } from "@/components/ui/portal-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
   getProcesso, getProcessos, getClientes, createProcesso, createCliente, updateProcesso, deleteProcesso,
@@ -162,7 +161,6 @@ type Tab =
   | "anotacoes"
   | "documentos"
   | "autos"
-  | "portal"
   | "tarefas"
   | "prazos"
   | "audiencias"
@@ -361,7 +359,6 @@ export default function ProcessoDetailPage() {
     ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "autos", label: "Autos", count: 0, showCount: false },
-    { key: "portal", label: "Portal", count: 0, showCount: false },
     { key: "documentos", label: "Documentos", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
@@ -605,9 +602,6 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "autos" && <AutosPanel processoId={processo.id} />}
-      {tab === "portal" && (
-        <PortalPanel processoId={processo.id} processoTitulo={processo.titulo} clienteId={processo.cliente_id} clienteNome={processo.cliente_nome} />
-      )}
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
