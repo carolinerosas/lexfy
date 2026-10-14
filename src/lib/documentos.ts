@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, enviarStorage, urlStorageDireta } from "./supabase";
 
 const BUCKET = "documentos";
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -86,10 +86,7 @@ export async function anexarDocumento(input: {
 
   const id = crypto.randomUUID();
   const caminho = `${pasta(contexto, registroId)}/${Date.now()}_${id}_${nomeSeguro(arquivo.name)}`;
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(caminho, arquivo, {
-    contentType: "application/pdf",
-    upsert: false,
-  });
+  const { error: uploadError } = await enviarStorage(BUCKET, caminho, arquivo, "application/pdf");
   if (uploadError) throw documentoError(uploadError.message);
 
   const { error: insertError } = await supabase.from("documentos").insert({
@@ -116,7 +113,7 @@ export async function urlDocumento(caminho: string, download = false): Promise<s
     download ? { download: true } : undefined
   );
   if (error) throw documentoError(error.message);
-  return data.signedUrl;
+  return urlStorageDireta(data.signedUrl);
 }
 
 export async function excluirDocumento(documento: Pick<DocumentoArquivo, "id" | "caminho">): Promise<void> {

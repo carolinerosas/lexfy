@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, urlStorageDireta } from "./supabase";
 
 // Autos do processo em PDF: o navegador extrai o texto página por página e o Justio guarda
 // SÓ o texto (decisão da Carol: gastar o mínimo de espaço). O PDF continua no PC/OneDrive.
@@ -115,7 +115,7 @@ export async function excluirAutos(a: Pick<AutosArquivo, "id" | "caminho">): Pro
 export async function urlAutos(caminho: string): Promise<string> {
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(caminho, 60 * 10);
   if (error) throw new Error(error.message);
-  return data.signedUrl;
+  return urlStorageDireta(data.signedUrl);
 }
 
 /** Busca por palavras nos autos (busca textual em português, ignora acentos/plurais). */

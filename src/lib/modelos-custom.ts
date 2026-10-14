@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, enviarStorage, baixarStorage } from "./supabase";
 import { TOKENS_AUTO } from "./tokens-documento";
 
 const BUCKET = "documentos";
@@ -56,6 +56,14 @@ export async function listarModelos(): Promise<ModeloCustom[]> {
   }));
 }
 
+async function baixarModelo(caminho: string): Promise<{ data: Blob | null; error: { message: string } | null }> {
+  try {
+    return { data: await baixarStorage(BUCKET, caminho), error: null };
+  } catch (e) {
+    return { data: null, error: { message: e instanceof Error ? e.message : String(e) } };
+  }
+}
+
 export async function anexarModelo(input: { arquivo: File; nome: string }): Promise<void> {
   const nome = input.nome.trim();
   const arquivo = input.arquivo;
@@ -67,10 +75,7 @@ export async function anexarModelo(input: { arquivo: File; nome: string }): Prom
 
   const id = crypto.randomUUID();
   const caminho = `${USER_ID}/modelos/${Date.now()}_${id}_${nomeSeguro(arquivo.name)}`;
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(caminho, arquivo, {
-    contentType: DOCX_MIME,
-    upsert: false,
-  });
+  const { error: uploadError } = await enviarStorage(BUCKET, caminho, arquivo, DOCX_MIME);
   if (uploadError) throw modeloError(uploadError.message);
 
   const { error: insertError } = await supabase.from("modelos_documentos").insert({
@@ -102,7 +107,7 @@ export async function excluirModelo(modelo: Pick<ModeloCustom, "id" | "caminho">
  * (ex.: {{processo}}, {{acao}}, {{valor}}) — esses serão perguntados na hora de gerar.
  */
 export async function inspecionarModelo(caminho: string): Promise<string[]> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(caminho);
+  const { data, error } = await baixarModelo(caminho);
   if (error || !data) throw modeloError(error?.message ?? "Não consegui ler o modelo.");
   const buffer = await data.arrayBuffer();
 
@@ -135,7 +140,7 @@ export async function preencherModeloHtml(
   caminho: string,
   dados: Record<string, string>
 ): Promise<string> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(caminho);
+  const { data, error } = await baixarModelo(caminho);
   if (error || !data) throw modeloError(error?.message ?? "Não consegui baixar o modelo.");
   const buffer = await data.arrayBuffer();
 
@@ -187,7 +192,7 @@ export async function preencherModelo(
   caminho: string,
   dados: Record<string, string>
 ): Promise<Blob> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(caminho);
+  const { data, error } = await baixarModelo(caminho);
   if (error || !data) throw modeloError(error?.message ?? "Não consegui baixar o modelo.");
   const buffer = await data.arrayBuffer();
 
