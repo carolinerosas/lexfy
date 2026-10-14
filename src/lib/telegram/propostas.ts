@@ -16,10 +16,11 @@ import {
   createProcesso,
   createTarefa,
   registrarRecebimento,
+  updateAcordoParcela,
   updateContaEscritorio,
   updateProcesso,
 } from "@/lib/store";
-import type { AtendimentoTipo, AudienciaTipo, ContaEscritorioCategoria, PrazoTipo, Prioridade, ProcessoResultadoTipo } from "@/types";
+import type { Honorario, AtendimentoTipo, AudienciaTipo, ContaEscritorioCategoria, PrazoTipo, Prioridade, ProcessoResultadoTipo } from "@/types";
 
 type Dados = Record<string, unknown>;
 
@@ -117,7 +118,7 @@ export const TIPOS: Record<string, TipoProposta> = {
     titulo: "💰 Lançar honorários no Justio?",
     ferramenta: ferramenta(
       "propor_honorarios",
-      "Propõe lançar honorários no financeiro do processo: a cobrança e, se ela disser, o pagamento recebido (o saldo fica em aberto automaticamente). Use sempre que ela falar de honorários, valor cobrado/combinado ou pagamento do cliente; nunca como anotação.",
+      "Propõe lançar honorários NOVOS (cobrança que ainda não existe) no financeiro do processo: a cobrança e, se ela disser, o pagamento recebido (o saldo fica em aberto automaticamente). Use sempre que ela falar de honorários, valor cobrado/combinado ou pagamento do cliente; nunca como anotação.",
       {
         processo_id: PROCESSO_ID,
         rotulo: ROTULO,
@@ -356,6 +357,45 @@ export const TIPOS: Record<string, TipoProposta> = {
         pix: s(d.pix) || undefined,
         observacoes: s(d.observacoes) || undefined,
       });
+    },
+  },
+
+  receber_honorario: {
+    titulo: "💰 Dar baixa em honorários?",
+    ferramenta: ferramenta(
+      "propor_receber_honorario",
+      "Propõe registrar o recebimento de honorários JÁ LANÇADOS (cobrança em aberto achada com 'buscar_honorarios'). Pagamento parcial deixa o saldo em aberto; a mais, abate as próximas cobranças do processo.",
+      {
+        honorario_id: { type: "string" },
+        rotulo: { type: "string", description: "Ex.: 'Almir Souza — Honorários contratuais, R$ 3.000,00 em aberto'" },
+        valor_recebido: { type: "number" },
+        data_pagamento: { type: "string", description: "AAAA-MM-DD" },
+      },
+      ["honorario_id", "rotulo", "valor_recebido", "data_pagamento"]
+    ),
+    resumo: (d) => [`Cobrança: ${s(d.rotulo)}`, `Recebido: ${reais(d.valor_recebido)} em ${dataBR(d.data_pagamento)}`],
+    gravar: async (d) => {
+      const { data, error } = await supabase.from("honorarios").select("*").eq("id", s(d.honorario_id)).maybeSingle();
+      if (error || !data) throw new Error("Cobrança não encontrada");
+      await registrarRecebimento(data as Honorario, { data: s(d.data_pagamento), valorRecebido: n(d.valor_recebido) });
+    },
+  },
+
+  pagar_parcela: {
+    titulo: "🤝 Dar baixa em parcela de acordo?",
+    ferramenta: ferramenta(
+      "propor_pagar_parcela",
+      "Propõe marcar como paga/recebida uma parcela de acordo já lançado (ache a parcela com 'buscar_parcelas'). Sem número de parcela informado, use a parcela em aberto de vencimento mais antigo.",
+      {
+        parcela_id: { type: "string" },
+        rotulo: { type: "string", description: "Ex.: 'Acordo do Almir — parcela 3/10, R$ 500,00, vence 10/10/2026 (a receber)'" },
+        data_pagamento: { type: "string", description: "AAAA-MM-DD" },
+      },
+      ["parcela_id", "rotulo", "data_pagamento"]
+    ),
+    resumo: (d) => [`Parcela: ${s(d.rotulo)}`, `Paga em ${dataBR(d.data_pagamento)}`],
+    gravar: async (d) => {
+      await updateAcordoParcela(s(d.parcela_id), { pago: true, data_pagamento: s(d.data_pagamento) });
     },
   },
 

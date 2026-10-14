@@ -63,6 +63,28 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
     strict: true,
   },
+  {
+    name: "buscar_honorarios",
+    description: "Lista cobranças de honorários em aberto, filtrando pelo nome do cliente. Use antes de dar baixa em honorários já lançados.",
+    input_schema: {
+      type: "object",
+      properties: { termo: { type: "string", description: "Nome do cliente" } },
+      required: ["termo"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "buscar_parcelas",
+    description: "Lista parcelas de acordo em aberto, filtrando pelo nome do cliente ou título do acordo. Use antes de dar baixa em parcela.",
+    input_schema: {
+      type: "object",
+      properties: { termo: { type: "string", description: "Nome do cliente ou título do acordo" } },
+      required: ["termo"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
   ...Object.values(TIPOS).map((t) => t.ferramenta),
 ];
 
@@ -78,6 +100,8 @@ Duas situações:
    - reunião/consulta com cliente → propor_atendimento; acordo com parcelas → propor_acordo; honorários (valor cobrado, pago) → propor_honorarios, nunca anotação;
    - sentença, pronúncia, pena, resultado → propor_resultado;
    - conta/despesa do escritório → propor_conta (paga=true se ela já pagou); pagar conta já lançada → buscar_contas e propor_pagar_conta;
+   - cliente pagou honorários já lançados ("o Almir pagou 500 dos honorários") → buscar_honorarios e propor_receber_honorario (propor_honorarios é só para cobrança nova);
+   - parcela de acordo paga/recebida ("paguei o acordo do Almir") → buscar_parcelas e propor_pagar_parcela;
    - cadastrar cliente → propor_cliente; cadastrar processo → propor_processo (com criar_cliente=true se o cliente não existir).
    Se ela falar de várias coisas na mesma mensagem, chame várias ferramentas propor_* de uma vez (uma para cada coisa).
    Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo não estiver no Justio e ela não pediu para cadastrar, use propor_triagem.
@@ -112,6 +136,41 @@ async function buscarContas(termo: string) {
     .order("data_vencimento");
   const alvo = semAcento(termo ?? "").trim();
   return (data ?? []).filter((c) => !alvo || semAcento(`${c.descricao} ${c.categoria}`).includes(alvo)).slice(0, 20);
+}
+
+async function buscarHonorarios(termo: string) {
+  const [{ data: honorarios }, { data: processos }] = await Promise.all([
+    supabase
+      .from("honorarios")
+      .select("id,processo_id,descricao,valor,data_vencimento,tipo")
+      .eq("categoria", "cobranca")
+      .eq("status", "pendente")
+      .order("data_vencimento"),
+    supabase.from("processos").select("id,cliente_nome,titulo"),
+  ]);
+  const proc = new Map((processos ?? []).map((p) => [p.id, p]));
+  const alvo = semAcento(termo ?? "").trim();
+  return (honorarios ?? [])
+    .map((h) => ({ ...h, cliente: proc.get(h.processo_id)?.cliente_nome ?? "", processo: proc.get(h.processo_id)?.titulo ?? "" }))
+    .filter((h) => !alvo || semAcento(`${h.cliente} ${h.descricao}`).includes(alvo))
+    .slice(0, 20);
+}
+
+async function buscarParcelas(termo: string) {
+  const [{ data: parcelas }, { data: processos }] = await Promise.all([
+    supabase
+      .from("acordo_parcelas")
+      .select("id,processo_id,cliente_nome,titulo,direcao,numero,total_parcelas,valor,data_vencimento")
+      .eq("pago", false)
+      .order("data_vencimento"),
+    supabase.from("processos").select("id,cliente_nome"),
+  ]);
+  const clienteDoProcesso = new Map((processos ?? []).map((p) => [p.id, p.cliente_nome]));
+  const alvo = semAcento(termo ?? "").trim();
+  return (parcelas ?? [])
+    .map((p) => ({ ...p, cliente: p.cliente_nome || clienteDoProcesso.get(p.processo_id) || "" }))
+    .filter((p) => !alvo || semAcento(`${p.cliente} ${p.titulo ?? ""}`).includes(alvo))
+    .slice(0, 20);
 }
 
 async function detalhesProcesso(processoId: string) {
@@ -195,6 +254,10 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
               ? await buscar(input.termo)
               : u.name === "buscar_contas"
                 ? await buscarContas(input.termo)
+                : u.name === "buscar_parcelas"
+                  ? await buscarParcelas(input.termo)
+                  : u.name === "buscar_honorarios"
+                    ? await buscarHonorarios(input.termo)
                 : await detalhesProcesso(input.processo_id);
           return { type: "tool_result", tool_use_id: u.id, content: JSON.stringify(saida) };
         } catch (e) {
