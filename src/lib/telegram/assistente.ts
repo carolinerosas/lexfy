@@ -1,6 +1,7 @@
 // Cérebro do bot do Telegram: entende o que a Carol mandou (texto ou áudio transcrito),
 // consulta o Justio e, quando é para registrar algo, PROPÕE o registro — quem grava é o
 // botão "Salvar" no Telegram, nunca o modelo direto.
+import { envLimpo } from "@/lib/env";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
 import { createAnotacao, createMovimentacao } from "@/lib/store";
@@ -171,7 +172,7 @@ async function detalhesProcesso(processoId: string) {
 }
 
 export async function conversar(mensagem: string): Promise<RespostaAssistente> {
-  const client = new Anthropic();
+  const client = new Anthropic({ apiKey: envLimpo("ANTHROPIC_API_KEY") });
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: mensagem }];
 
   for (let volta = 0; volta < MAX_VOLTAS; volta++) {

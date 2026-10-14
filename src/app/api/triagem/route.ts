@@ -1,3 +1,4 @@
+import { envLimpo } from "@/lib/env";
 import { NextRequest, NextResponse } from "next/server";
 import { createTriagemLead } from "@/lib/store";
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       canal?: string;
     };
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = envLimpo("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return NextResponse.json({
         reply: "O atendimento automático ainda não foi ativado (falta configurar a chave da IA). Por favor, deixe seu nome e telefone que retornaremos.",

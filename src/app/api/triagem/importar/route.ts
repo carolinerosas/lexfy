@@ -1,3 +1,4 @@
+import { envLimpo } from "@/lib/env";
 import { NextRequest, NextResponse } from "next/server";
 import { createTriagemImportacao, registrarCoworkImportacao } from "@/lib/store";
 import { buscarCep } from "@/lib/format";
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
       if (unauthorized) return unauthorized;
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = envLimpo("ANTHROPIC_API_KEY");
     if (!apiKey) {
       const draft = await enriquecerComCep(fallbackImport(input));
       if (persistir) {
