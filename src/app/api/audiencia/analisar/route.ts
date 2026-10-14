@@ -140,38 +140,86 @@ export async function POST(req: NextRequest) {
     .filter(Boolean)
     .join("\n\n");
 
+  // Autos em PDF (aba "Autos"): o modelo pode pesquisar neles durante a análise.
+  const { count: paginasAutos } = processo_id
+    ? await supabase.from("autos_paginas").select("id", { count: "exact", head: true }).eq("processo_id", processo_id)
+    : { count: 0 };
+  const tools: Anthropic.Beta.BetaTool[] = paginasAutos
+    ? [
+        {
+          name: "pesquisar_autos",
+          description: `Pesquisa no texto dos autos do processo (${paginasAutos} páginas em PDF). Use para conferir o que um depoente disse antes (inquérito, depoimentos anteriores), laudos, reconhecimento, denúncia etc. Busca por palavras (sem acento, plurais tolerados); várias palavras = todas devem aparecer; use "or" para alternativas (ex.: "joao or silva"). Retorna as páginas mais relevantes. Cite como "autos, arquivo X, p. N".`,
+          input_schema: {
+            type: "object",
+            properties: { termos: { type: "string", description: "Palavras-chave: nomes, termos técnicos, fatos" } },
+            required: ["termos"],
+            additionalProperties: false,
+          },
+          strict: true,
+        },
+      ]
+    : [];
+
   const client = new Anthropic({ apiKey: envLimpo("ANTHROPIC_API_KEY") });
-  const stream = client.beta.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS[modo],
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: ESFORCO[modo] },
-    system: [{ type: "text", text: sistema, cache_control: { type: "ephemeral" } }],
-    messages: [
-      {
-        role: "user",
-        content: `TRANSCRIÇÃO ATÉ AGORA:\n${transcricao}\n\n${
-          notas?.trim()
-            ? `ANOTAÇÕES DA CAROL DURANTE A AUDIÊNCIA (impressões e decisões dela; têm prioridade sobre as suas sugestões):\n${notas.slice(0, 20000)}\n\n`
-            : ""
-        }---\n${instrucoes(modo, area, temRoteiro, ato)}`,
-      },
-    ],
-  } as Anthropic.Beta.MessageCreateParamsStreaming);
+  const messages: Anthropic.Beta.BetaMessageParam[] = [
+    {
+      role: "user",
+      content: `TRANSCRIÇÃO ATÉ AGORA:\n${transcricao}\n\n${
+        notas?.trim()
+          ? `ANOTAÇÕES DA CAROL DURANTE A AUDIÊNCIA (impressões e decisões dela; têm prioridade sobre as suas sugestões):\n${notas.slice(0, 20000)}\n\n`
+          : ""
+      }---\n${instrucoes(modo, area, temRoteiro, ato)}${
+        paginasAutos ? "\n\nOs autos estão disponíveis pela ferramenta pesquisar_autos: confira nos autos antes de apontar contradição com o que foi dito antes." : ""
+      }`,
+    },
+  ];
 
   const encoder = new TextEncoder();
   const corpo = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const ev of stream) {
-          if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
-            controller.enqueue(encoder.encode(ev.delta.text));
+        // Até 4 rodadas de pesquisa nos autos; o texto de cada rodada vai sendo enviado.
+        for (let rodada = 0; rodada < 5; rodada++) {
+          const stream = client.beta.messages.stream({
+            model: MODEL,
+            max_tokens: MAX_TOKENS[modo],
+            betas: ["server-side-fallback-2026-07-01"],
+            fallbacks: "default",
+            output_config: { effort: ESFORCO[modo] },
+            system: [{ type: "text", text: sistema, cache_control: { type: "ephemeral" } }],
+            ...(tools.length && rodada < 4 ? { tools } : {}),
+            messages,
+          } as Anthropic.Beta.MessageCreateParamsStreaming);
+
+          for await (const ev of stream) {
+            if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(ev.delta.text));
+            }
           }
+          const final = await stream.finalMessage();
+          if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n[O modelo recusou esta análise.]"));
+          if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n[Texto cortado pelo limite de tamanho.]"));
+          if (final.stop_reason !== "tool_use" || !processo_id) break;
+
+          const usos = final.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+          messages.push({ role: "assistant", content: final.content });
+          const resultados = await Promise.all(
+            usos.map(async (u): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
+              const termos = String((u.input as { termos?: string }).termos ?? "");
+              const { data, error } = await supabase.rpc("buscar_autos", { p_processo: processo_id, p_q: termos, p_limite: 5 });
+              if (error) return { type: "tool_result", tool_use_id: u.id, content: error.message, is_error: true };
+              const achados = (data ?? []) as { arquivo: string; pagina: number; trecho: string }[];
+              return {
+                type: "tool_result",
+                tool_use_id: u.id,
+                content: achados.length
+                  ? achados.map((r) => `[${r.arquivo}, p. ${r.pagina}]\n${r.trecho}`).join("\n\n---\n\n")
+                  : "Nada encontrado com esses termos.",
+              };
+            })
+          );
+          messages.push({ role: "user", content: resultados });
         }
-        const final = await stream.finalMessage();
-        if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n[O modelo recusou esta análise.]"));
-        if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n[Texto cortado pelo limite de tamanho.]"));
       } catch (e) {
         controller.enqueue(encoder.encode(`\n\n[Erro na análise: ${e instanceof Error ? e.message : String(e)}]`));
       } finally {

@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
+import { AutosPanel } from "@/components/ui/autos-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
   getProcesso, getProcessos, getClientes, createProcesso, createCliente, updateProcesso, deleteProcesso,
@@ -159,6 +160,7 @@ type Tab =
   | "resultado"
   | "anotacoes"
   | "documentos"
+  | "autos"
   | "tarefas"
   | "prazos"
   | "audiencias"
@@ -356,6 +358,7 @@ export default function ProcessoDetailPage() {
       { key: "beneficios_penais" as const, label: "Comutação/Indulto", count: beneficiosPenais.length },
     ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
+    { key: "autos", label: "Autos", count: 0, showCount: false },
     { key: "documentos", label: "Documentos", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
@@ -585,6 +588,7 @@ export default function ProcessoDetailPage() {
           onDelete={async (aid) => { await deleteAnotacao(aid); load(); }}
         />
       )}
+      {tab === "autos" && <AutosPanel processoId={processo.id} />}
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
