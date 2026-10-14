@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { COOKIE_SESSAO, lerSessao } from "@/lib/sessao";
 
-export function middleware(req: NextRequest) {
-  const token = req.cookies.get("justio_auth")?.value;
-  const secret = process.env.JUSTIO_SECRET_TOKEN;
+export async function middleware(req: NextRequest) {
+  // Confere assinatura e validade do cookie. A versão (senha trocada) é conferida no /api/supabase.
+  const sessao = await lerSessao(req.cookies.get(COOKIE_SESSAO)?.value);
 
-  if (!token || !secret || token !== secret) {
+  if (!sessao) {
     if (req.nextUrl.pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
