@@ -17,6 +17,7 @@
     "bridge:task:install": "powershell -NoProfile -ExecutionPolicy Bypass -File sync-local/install-bridge-task.ps1"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.4",

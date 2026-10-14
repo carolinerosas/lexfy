@@ -1,0 +1,223 @@
+// Cérebro do bot do Telegram: entende o que a Carol mandou (texto ou áudio transcrito),
+// consulta o Justio e, quando é para registrar algo, PROPÕE o registro — quem grava é o
+// botão "Salvar" no Telegram, nunca o modelo direto.
+import Anthropic from "@anthropic-ai/sdk";
+import { supabase } from "@/lib/supabase";
+import { createAnotacao, createMovimentacao } from "@/lib/store";
+
+const MODEL = process.env.TELEGRAM_MODEL || "claude-opus-5-5";
+const MAX_VOLTAS = 6;
+
+export interface PropostaRegistro {
+  destino: "processo" | "cliente";
+  id: string;
+  rotulo: string;
+  tipo: "andamento" | "anotacao";
+  titulo?: string;
+  texto: string;
+  data: string; // AAAA-MM-DD
+}
+
+export interface RespostaAssistente {
+  texto: string;
+  proposta?: PropostaRegistro;
+}
+
+function semAcento(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+export function hojeBrasil(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+const TOOLS: Anthropic.Beta.BetaTool[] = [
+  {
+    name: "buscar",
+    description:
+      "Procura clientes e processos no Justio por nome do cliente (ou parte dele), título ou número do processo. Use antes de consultar ou registrar qualquer coisa.",
+    input_schema: {
+      type: "object",
+      properties: { termo: { type: "string", description: "Nome, parte do nome, título ou número do processo" } },
+      required: ["termo"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "detalhes_processo",
+    description:
+      "Traz os dados de um processo: prazos em aberto, próximas audiências, últimas movimentações e anotações.",
+    input_schema: {
+      type: "object",
+      properties: { processo_id: { type: "string" } },
+      required: ["processo_id"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: "propor_registro",
+    description:
+      "Propõe gravar um andamento ou anotação no Justio. NÃO grava: a Carol confirma num botão. Use quando ela relatar um fato a registrar (ex.: decisão em audiência). Só chame com um processo/cliente identificado sem ambiguidade pelo 'buscar'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        destino: { type: "string", enum: ["processo", "cliente"] },
+        id: { type: "string", description: "id do processo ou do cliente, vindo do 'buscar'" },
+        rotulo: {
+          type: "string",
+          description: "Como mostrar o destino à Carol, ex.: 'Raphael Souza — Execução Penal 0001234-56.2024.8.19.0001'",
+        },
+        tipo: {
+          type: "string",
+          enum: ["andamento", "anotacao"],
+          description: "andamento = fato do processo (decisão, audiência, despacho); anotacao = observação interna",
+        },
+        titulo: { type: "string", description: "Título curto (só para anotação)" },
+        texto: { type: "string", description: "Texto a gravar, objetivo e em linguagem jurídica correta" },
+        data: { type: "string", description: "Data do fato, AAAA-MM-DD" },
+      },
+      required: ["destino", "id", "rotulo", "tipo", "texto", "data"],
+      additionalProperties: false,
+    },
+  },
+];
+
+function sistema(): string {
+  return `Você é o assistente da advogada Caroline Fraga (Carol), OAB/RJ 165955, falando com ela pelo Telegram. Hoje é ${hojeBrasil()} (horário de Brasília).
+
+Você tem acesso ao Justio, o sistema do escritório dela, pelas ferramentas. Ela manda mensagens de texto ou áudios já transcritos (a transcrição pode errar nomes próprios — se o nome não bater exatamente, busque por partes do nome).
+
+Duas situações:
+1. Ela relata um fato para registrar (ex.: "juiz deferiu o extramuros do Raphael"): use "buscar" para achar o cliente/processo e chame "propor_registro". Se houver mais de um processo possível, pergunte qual antes de propor. Se não achar ninguém, diga isso.
+2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
+
+Estilo: português do Brasil, mensagens curtas, tom de colega próxima. Texto puro (sem markdown, sem asteriscos). Datas no formato dd/mm/aaaa. Nunca invente andamentos, prazos ou decisões.`;
+}
+
+async function buscar(termo: string) {
+  const alvo = semAcento(termo).trim();
+  const palavras = alvo.split(/\s+/).filter((p) => p.length >= 3);
+  const [{ data: clientes }, { data: processos }] = await Promise.all([
+    supabase.from("clientes").select("id,nome"),
+    supabase.from("processos").select("id,numero,titulo,cliente_nome,cliente_id,status,tipo,vara,comarca"),
+  ]);
+  const casa = (texto?: string | null) => {
+    const t = semAcento(texto ?? "");
+    return t.includes(alvo) || (palavras.length > 0 && palavras.every((p) => t.includes(p)));
+  };
+  return {
+    clientes: (clientes ?? []).filter((c) => casa(c.nome)).slice(0, 10),
+    processos: (processos ?? []).filter((p) => casa(p.cliente_nome) || casa(p.titulo) || casa(p.numero)).slice(0, 15),
+  };
+}
+
+async function detalhesProcesso(processoId: string) {
+  const [proc, prazos, audiencias, movs, anots] = await Promise.all([
+    supabase.from("processos").select("*").eq("id", processoId).maybeSingle(),
+    supabase
+      .from("prazos")
+      .select("titulo,data_prazo,tipo,concluido")
+      .eq("processo_id", processoId)
+      .eq("concluido", false)
+      .order("data_prazo"),
+    supabase
+      .from("audiencias")
+      .select("titulo,data_hora,local,tipo,realizada")
+      .eq("processo_id", processoId)
+      .gte("data_hora", hojeBrasil())
+      .order("data_hora"),
+    supabase
+      .from("movimentacoes")
+      .select("descricao,data_movimentacao,fonte")
+      .eq("processo_id", processoId)
+      .order("data_movimentacao", { ascending: false })
+      .limit(10),
+    supabase
+      .from("anotacoes")
+      .select("titulo,conteudo,updated_at")
+      .eq("processo_id", processoId)
+      .order("updated_at", { ascending: false })
+      .limit(5),
+  ]);
+  if (!proc.data) return { erro: "Processo não encontrado" };
+  return {
+    processo: proc.data,
+    prazos_em_aberto: prazos.data ?? [],
+    proximas_audiencias: audiencias.data ?? [],
+    ultimas_movimentacoes: movs.data ?? [],
+    ultimas_anotacoes: anots.data ?? [],
+  };
+}
+
+export async function conversar(mensagem: string): Promise<RespostaAssistente> {
+  const client = new Anthropic();
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: mensagem }];
+
+  for (let volta = 0; volta < MAX_VOLTAS; volta++) {
+    const res = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low" },
+      system: sistema(),
+      tools: TOOLS,
+      messages,
+    } as Anthropic.Beta.MessageCreateParamsNonStreaming);
+
+    if (res.stop_reason === "refusal") {
+      return { texto: "Não consegui processar essa mensagem. Tenta reformular?" };
+    }
+
+    const usos = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    const texto = res.content
+      .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("\n")
+      .trim();
+
+    const proposta = usos.find((u) => u.name === "propor_registro");
+    if (proposta) return { texto, proposta: proposta.input as PropostaRegistro };
+    if (res.stop_reason !== "tool_use" || usos.length === 0) return { texto: texto || "Pronto." };
+
+    messages.push({ role: "assistant", content: res.content });
+    const resultados = await Promise.all(
+      usos.map(async (u): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
+        try {
+          const input = u.input as Record<string, string>;
+          const saida = u.name === "buscar" ? await buscar(input.termo) : await detalhesProcesso(input.processo_id);
+          return { type: "tool_result", tool_use_id: u.id, content: JSON.stringify(saida) };
+        } catch (e) {
+          return { type: "tool_result", tool_use_id: u.id, content: String(e), is_error: true };
+        }
+      })
+    );
+    messages.push({ role: "user", content: resultados });
+  }
+  return { texto: "Me perdi tentando achar isso no Justio. Pode mandar de novo com mais detalhes?" };
+}
+
+/** Grava o registro que a Carol confirmou no botão. */
+export async function gravarRegistro(
+  p: Pick<PropostaRegistro, "destino" | "id" | "tipo" | "texto" | "data" | "titulo">
+): Promise<void> {
+  if (p.destino === "processo" && p.tipo === "andamento") {
+    const mov = await createMovimentacao({
+      processo_id: p.id,
+      descricao: p.texto,
+      data_movimentacao: p.data,
+      fonte: "Telegram",
+      lida: true,
+    });
+    if (!mov) throw new Error("O Justio não aceitou o andamento");
+    return;
+  }
+  await createAnotacao({
+    processo_id: p.destino === "processo" ? p.id : undefined,
+    cliente_id: p.destino === "cliente" ? p.id : undefined,
+    titulo: p.titulo || "Registro via Telegram",
+    conteudo: p.texto,
+  });
+}
