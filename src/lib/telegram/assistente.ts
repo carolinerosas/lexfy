@@ -4,7 +4,7 @@
 import { envLimpo } from "@/lib/env";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
-import { TIPOS, TIPO_POR_FERRAMENTA } from "@/lib/telegram/propostas";
+import { TIPOS, TIPO_POR_FERRAMENTA, cirandaResumo } from "@/lib/telegram/propostas";
 
 const MODEL = process.env.TELEGRAM_MODEL || "claude-opus-5-5";
 const MAX_VOLTAS = 6;
@@ -64,6 +64,12 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     strict: true,
   },
   {
+    name: "consultar_ciranda",
+    description: "Lê a Ciranda (app da família da Carol): filhos (ids e nomes), compromissos dos próximos 60 dias, lista de compras, tarefas pessoais e contas de casa em aberto.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+    strict: true,
+  },
+  {
     name: "buscar_honorarios",
     description: "Lista cobranças de honorários em aberto, filtrando pelo nome do cliente. Use antes de dar baixa em honorários já lançados.",
     input_schema: {
@@ -103,6 +109,7 @@ Duas situações:
    - cliente pagou honorários já lançados ("o Almir pagou 500 dos honorários") → buscar_honorarios e propor_receber_honorario (propor_honorarios é só para cobrança nova);
    - parcela de acordo paga/recebida ("paguei o acordo do Almir") → buscar_parcelas e propor_pagar_parcela;
    - cadastrar cliente → propor_cliente; cadastrar processo → propor_processo (com criar_cliente=true se o cliente não existir).
+   CASA x ESCRITÓRIO: a Carol também usa você para a vida pessoal, pela Ciranda (app da família dela, com os 3 filhos). Assunto de família, filhos, escola, pediatra, compras, casa → ferramentas propor_ciranda_* (use consultar_ciranda para achar o filho certo e para responder "o que tem amanhã?"). Assunto de cliente, processo ou escritório → Justio. Na dúvida real, pergunte.
    Se ela falar de várias coisas na mesma mensagem, chame várias ferramentas propor_* de uma vez (uma para cada coisa).
    Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo não estiver no Justio e ela não pediu para cadastrar, use propor_triagem.
    Datas relativas ("sexta", "daqui a 15 dias") viram datas reais a partir de hoje. Prazo em dias úteis: avise que conferiu ou peça a data se houver dúvida.
@@ -258,6 +265,8 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
                   ? await buscarParcelas(input.termo)
                   : u.name === "buscar_honorarios"
                     ? await buscarHonorarios(input.termo)
+                    : u.name === "consultar_ciranda"
+                      ? await cirandaResumo()
                 : await detalhesProcesso(input.processo_id);
           return { type: "tool_result", tool_use_id: u.id, content: JSON.stringify(saida) };
         } catch (e) {

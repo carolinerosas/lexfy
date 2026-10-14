@@ -626,6 +626,145 @@ export const TIPOS: Record<string, TipoProposta> = {
   },
 };
 
+// --- Ciranda (app da família da Carol, em carolinefraga.com.br) ---
+
+const CIRANDA_URL = () => process.env.CIRANDA_URL || "https://carolinefraga.com.br";
+
+export async function cirandaResumo(): Promise<unknown> {
+  const res = await fetch(`${CIRANDA_URL()}/api/ciranda/bot`, {
+    headers: { authorization: `Bearer ${process.env.CIRANDA_BOT_TOKEN?.trim() ?? ""}` },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Ciranda respondeu ${res.status}`);
+  return res.json();
+}
+
+async function gravarNaCiranda(itens: { colecao: string; dados: Dados }[]): Promise<void> {
+  const res = await fetch(`${CIRANDA_URL()}/api/ciranda/bot`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${process.env.CIRANDA_BOT_TOKEN?.trim() ?? ""}` },
+    body: JSON.stringify({ itens }),
+  });
+  if (!res.ok) throw new Error(`Ciranda respondeu ${res.status}`);
+}
+
+const agoraISO = () => new Date().toISOString();
+
+Object.assign(TIPOS, {
+  ciranda_evento: {
+    titulo: "🏡 Ciranda — pôr no calendário da família?",
+    ferramenta: ferramenta(
+      "propor_ciranda_evento",
+      "Propõe um compromisso no calendário da FAMÍLIA da Carol na Ciranda (consulta das crianças, escola, aniversário, compromisso pessoal). Não é do escritório.",
+      {
+        titulo: { type: "string" },
+        data: { type: "string", description: "AAAA-MM-DD" },
+        hora: { type: "string", description: "HH:MM, se houver" },
+        tipo: { type: "string", enum: ["escola", "consulta", "pessoal", "aniversario", "outro"] },
+        filho_id: { type: "string", description: "id do filho (de consultar_ciranda), se for de um filho" },
+        filho_nome: { type: "string" },
+      },
+      ["titulo", "data", "tipo"]
+    ),
+    resumo: (d: Dados) => [
+      `${s(d.titulo)}${d.filho_nome ? ` (${s(d.filho_nome)})` : ""}`,
+      `Quando: ${dataBR(d.data)}${d.hora ? ` às ${s(d.hora)}` : ""} · ${s(d.tipo)}`,
+    ],
+    gravar: (d: Dados) =>
+      gravarNaCiranda([
+        {
+          colecao: "eventos",
+          dados: { titulo: s(d.titulo), data: s(d.data), hora: s(d.hora) || undefined, tipo: s(d.tipo) || "outro", filhoId: s(d.filho_id) || undefined },
+        },
+      ]),
+  },
+
+  ciranda_lista: {
+    titulo: "🛒 Ciranda — pôr na lista?",
+    ferramenta: ferramenta(
+      "propor_ciranda_lista",
+      "Propõe itens para a lista (compras etc.) da Carol na Ciranda. Vários itens numa proposta só.",
+      {
+        itens: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              texto: { type: "string" },
+              categoria: { type: "string", enum: ["mercado", "farmacia", "papelaria", "roupas", "sapatos", "casa", "outros", "desejos"] },
+              quantidade: { type: "string" },
+            },
+            required: ["texto", "categoria"],
+            additionalProperties: false,
+          },
+        },
+      },
+      ["itens"]
+    ),
+    resumo: (d: Dados) =>
+      ((d.itens as Dados[]) ?? []).map((i) => `• ${s(i.texto)}${i.quantidade ? ` (${s(i.quantidade)})` : ""} — ${s(i.categoria)}`),
+    gravar: (d: Dados) =>
+      gravarNaCiranda(
+        ((d.itens as Dados[]) ?? []).map((i) => ({
+          colecao: "lista",
+          dados: { texto: s(i.texto), categoria: s(i.categoria) || "outros", quantidade: s(i.quantidade) || undefined, concluido: false, criadoEm: agoraISO() },
+        }))
+      ),
+  },
+
+  ciranda_tarefa: {
+    titulo: "📝 Ciranda — pôr nas suas tarefas?",
+    ferramenta: ferramenta(
+      "propor_ciranda_tarefa",
+      "Propõe uma tarefa PESSOAL/DE CASA da Carol na Ciranda (não do escritório).",
+      { titulo: { type: "string" }, data_limite: { type: "string", description: "AAAA-MM-DD, se houver" } },
+      ["titulo"]
+    ),
+    resumo: (d: Dados) => [s(d.titulo), ...(d.data_limite ? [`Até ${dataBR(d.data_limite)}`] : [])],
+    gravar: (d: Dados) =>
+      gravarNaCiranda([
+        { colecao: "tarefas", dados: { titulo: s(d.titulo), concluida: false, dataLimite: s(d.data_limite) || undefined, criadoEm: agoraISO() } },
+      ]),
+  },
+
+  ciranda_conta: {
+    titulo: "🏡 Ciranda — lançar conta de casa?",
+    ferramenta: ferramenta(
+      "propor_ciranda_conta",
+      "Propõe uma conta PESSOAL/DE CASA/DAS CRIANÇAS da Carol na Ciranda (não do escritório).",
+      {
+        descricao: { type: "string" },
+        valor: { type: "number" },
+        vencimento: { type: "string", description: "AAAA-MM-DD" },
+        categoria: { type: "string", enum: ["pessoal", "casa", "criancas"] },
+        recorrente: { type: "boolean" },
+        paga: { type: "boolean" },
+      },
+      ["descricao", "valor", "vencimento", "categoria"]
+    ),
+    resumo: (d: Dados) => [
+      `${s(d.descricao)} (${s(d.categoria)})`,
+      `${reais(d.valor)} · vence ${dataBR(d.vencimento)}${d.recorrente ? " · mensal" : ""}${d.paga ? " · já paga" : ""}`,
+    ],
+    gravar: (d: Dados) =>
+      gravarNaCiranda([
+        {
+          colecao: "contas",
+          dados: {
+            descricao: s(d.descricao),
+            valor: n(d.valor),
+            vencimento: s(d.vencimento),
+            categoria: s(d.categoria) || "casa",
+            paga: d.paga === true,
+            pagaEm: d.paga ? agoraISO() : undefined,
+            recorrente: d.recorrente === true || undefined,
+            criadoEm: agoraISO(),
+          },
+        },
+      ]),
+  },
+} satisfies Record<string, TipoProposta>);
+
 /** Nome da ferramenta (propor_x) → tipo da proposta (x). */
 export const TIPO_POR_FERRAMENTA: Record<string, string> = Object.fromEntries(
   Object.entries(TIPOS).map(([tipo, t]) => [t.ferramenta.name, tipo])
