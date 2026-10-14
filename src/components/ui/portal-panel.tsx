@@ -17,6 +17,7 @@ interface Acesso {
   nome: string;
   cpf: string;
   celular?: string | null;
+  email?: string | null;
   vinculo: string;
   processos: string[];
   senha_hash: string | null;
@@ -45,7 +46,7 @@ function novoToken(): string {
 
 export function PortalPanel({ cliente, processos }: { cliente: Cliente; processos: Processo[] }) {
   const [acessos, setAcessos] = useState<Acesso[]>([]);
-  const [form, setForm] = useState<{ nome: string; cpf: string; celular: string; vinculo: string; processos: string[] } | null>(null);
+  const [form, setForm] = useState<{ nome: string; cpf: string; celular: string; email: string; vinculo: string; processos: string[] } | null>(null);
   const [erro, setErro] = useState("");
   const [linkNovo, setLinkNovo] = useState<{ acesso: Acesso; link: string } | null>(null);
   const idsProcessos = processos.map((p) => p.id);
@@ -104,6 +105,7 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
         nome: form.nome.trim(),
         cpf,
         celular: soDigitos(form.celular) || null,
+        email: form.email.trim().toLowerCase() || null,
         vinculo: form.vinculo,
         processos: form.processos,
         senha_hash: null,
@@ -123,6 +125,13 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
   async function alternarProcesso(a: Acesso, processoId: string) {
     const lista = a.processos.includes(processoId) ? a.processos.filter((p) => p !== processoId) : [...a.processos, processoId];
     await supabase.from("portal_acessos").update({ processos: lista, updated_at: new Date().toISOString() }).eq("id", a.id);
+    carregar();
+  }
+
+  async function trocarEmail(a: Acesso) {
+    const novo = window.prompt(`E-mail de ${a.nome.split(" ")[0]} (para recuperar a senha sozinho):`, a.email ?? "");
+    if (novo === null) return;
+    await supabase.from("portal_acessos").update({ email: novo.trim().toLowerCase() || null, updated_at: new Date().toISOString() }).eq("id", a.id);
     carregar();
   }
 
@@ -152,7 +161,7 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
               <Button
                 size="sm"
                 onClick={() =>
-                  setForm({ nome: cliente.nome, cpf: cliente.cpf ?? "", celular: cliente.celular ?? "", vinculo: "cliente", processos: idsProcessos })
+                  setForm({ nome: cliente.nome, cpf: cliente.cpf ?? "", celular: cliente.celular ?? "", email: cliente.email ?? "", vinculo: "cliente", processos: idsProcessos })
                 }
               >
                 <Plus className="w-3.5 h-3.5" /> Liberar acesso
@@ -165,6 +174,7 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
               <input className={campo} placeholder="Nome completo" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
               <input className={campo} placeholder="CPF" inputMode="numeric" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
               <input className={campo} placeholder="Celular com DDD (WhatsApp)" inputMode="tel" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />
+              <input className={campo} placeholder="E-mail (para recuperar a senha)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               <select
                 className={campo}
                 value={form.vinculo}
@@ -172,8 +182,8 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
                   const vinculo = e.target.value;
                   setForm(
                     vinculo === "cliente"
-                      ? { ...form, vinculo, nome: cliente.nome, cpf: cliente.cpf ?? "", celular: cliente.celular ?? "" }
-                      : { ...form, vinculo, ...(form.vinculo === "cliente" ? { nome: "", cpf: "", celular: "" } : {}) }
+                      ? { ...form, vinculo, nome: cliente.nome, cpf: cliente.cpf ?? "", celular: cliente.celular ?? "", email: cliente.email ?? "" }
+                      : { ...form, vinculo, ...(form.vinculo === "cliente" ? { nome: "", cpf: "", celular: "", email: "" } : {}) }
                   );
                 }}
               >
@@ -254,7 +264,10 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
                   {a.nome} <span className="text-xs font-normal text-gray-500">· {a.vinculo === "cliente" ? "cliente" : a.vinculo}</span>
                 </p>
                 <p className="text-xs text-gray-500">
-                  CPF {cpfFormatado(a.cpf)} ·{" "}
+                  <button onClick={() => trocarEmail(a)} className="underline-offset-2 hover:underline" title="Alterar e-mail">
+                    {a.email ?? "sem e-mail (clique para pôr)"}
+                  </button>{" "}
+                  · CPF {cpfFormatado(a.cpf)} ·{" "}
                   {!a.ativo
                     ? "suspenso"
                     : a.senha_hash

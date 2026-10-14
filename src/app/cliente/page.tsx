@@ -10,6 +10,22 @@ export default function ClienteEntrarPage() {
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
+  const [aviso, setAviso] = useState("");
+
+  async function recuperar() {
+    setErro("");
+    setAviso("");
+    if (cpf.replace(/\D/g, "").length !== 11) return setErro("Digite seu CPF acima e toque de novo em \"Esqueci a senha\".");
+    setRecuperando(true);
+    const res = await fetch("/api/cliente/recuperar", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cpf }),
+    });
+    setRecuperando(false);
+    setAviso(((await res.json().catch(() => ({}))) as { mensagem?: string }).mensagem ?? "Pedido enviado.");
+  }
 
   async function entrar(e: React.FormEvent) {
     e.preventDefault();
@@ -52,11 +68,15 @@ export default function ClienteEntrarPage() {
           />
         </label>
         {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
+        {aviso && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{aviso}</p>}
         <button disabled={enviando} className="w-full rounded-lg bg-[#21181d] py-3 text-sm font-semibold text-white disabled:opacity-50">
           {enviando ? "Entrando…" : "Entrar"}
         </button>
+        <button type="button" onClick={recuperar} disabled={recuperando} className="w-full text-center text-sm text-gray-700 underline underline-offset-2 disabled:opacity-50">
+          {recuperando ? "Enviando…" : "Esqueci a senha"}
+        </button>
         <p className="text-center text-xs text-gray-500">
-          Primeiro acesso ou esqueceu a senha? Peça um link ao escritório.
+          Primeiro acesso ou sem e-mail cadastrado? Peça um link ao escritório pelo WhatsApp.
         </p>
       </form>
     </div>

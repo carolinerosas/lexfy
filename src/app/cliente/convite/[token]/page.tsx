@@ -55,7 +55,7 @@ export default function ClienteConvitePage() {
   return (
     <div className="mx-auto max-w-sm">
       <h1 className="text-2xl font-semibold text-gray-900">Olá{nome ? `, ${nome}` : ""}!</h1>
-      <p className="mt-2 text-sm text-gray-600">Crie sua senha para acompanhar o processo pela Área do Cliente.</p>
+      <p className="mt-2 text-sm text-gray-600">Crie sua senha (ou uma senha nova) para acompanhar o processo pela Área do Cliente.</p>
       <form onSubmit={salvar} className="mt-6 space-y-4 rounded-2xl bg-white p-6 shadow-sm">
         <label className="block text-sm text-gray-700">
           Confirme seu CPF
