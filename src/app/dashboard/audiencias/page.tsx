@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Calendar, Plus, CheckCircle, Trash2, MapPin, Clock } from "lucide-react";
+import Link from "next/link";
+import { Calendar, Plus, CheckCircle, Trash2, MapPin, Clock, Mic } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,6 +109,15 @@ export default function AudienciasPage() {
                       </div>
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-2">
+                      {!a.realizada && (
+                        <Link
+                          href={`/dashboard/audiencias/${a.id}/ao-vivo`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          title="Transcrever e acompanhar a audiência ao vivo"
+                        >
+                          <Mic className="w-3.5 h-3.5" /> Ao vivo
+                        </Link>
+                      )}
                       <button
                         onClick={async () => { await updateAudiencia(a.id, { realizada: !a.realizada }); load(); }}
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${a.realizada ? "border-green-500 bg-green-500" : "border-gray-300 hover:border-green-400"}`}
