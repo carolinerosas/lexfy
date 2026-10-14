@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit2, Trash2, Plus, Clock, Calendar,
   DollarSign, FileText, MapPin, User, Scale, CheckCircle, Users, X,
   RefreshCw, Bell, BellOff, Copy, ListTodo, StickyNote, Link2,
-  Shield, GitBranch, Mic,
+  Shield, GitBranch, Mic, Eye, EyeOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { AutosPanel } from "@/components/ui/autos-panel";
+import { PortalPanel } from "@/components/ui/portal-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
   getProcesso, getProcessos, getClientes, createProcesso, createCliente, updateProcesso, deleteProcesso,
@@ -161,6 +162,7 @@ type Tab =
   | "anotacoes"
   | "documentos"
   | "autos"
+  | "portal"
   | "tarefas"
   | "prazos"
   | "audiencias"
@@ -359,6 +361,7 @@ export default function ProcessoDetailPage() {
     ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "autos", label: "Autos", count: 0, showCount: false },
+    { key: "portal", label: "Portal", count: 0, showCount: false },
     { key: "documentos", label: "Documentos", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
@@ -543,6 +546,19 @@ export default function ProcessoDetailPage() {
           onEdit={(movimentacao) => { setEditingMovimentacao(movimentacao); setMovModal(true); }}
           onDelete={async (mid) => { await deleteMovimentacao(mid); load(); }}
           onMarcarLidas={async () => { await marcarTodasMovimentacoesLidas(id); load(); }}
+          onToggleCliente={async (m) => {
+            if (m.visivel_cliente) {
+              await updateMovimentacao(m.id, { visivel_cliente: false });
+            } else {
+              const simples = window.prompt(
+                "Este andamento vai aparecer na Área do Cliente. Quer escrever em linguagem mais simples para o cliente? (deixe como está para mostrar o texto original)",
+                m.texto_cliente || m.descricao
+              );
+              if (simples === null) return;
+              await updateMovimentacao(m.id, { visivel_cliente: true, texto_cliente: simples.trim() && simples.trim() !== m.descricao ? simples.trim() : null });
+            }
+            load();
+          }}
           naoLidas={movNaoLidas}
         />
       )}
@@ -589,6 +605,9 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "autos" && <AutosPanel processoId={processo.id} />}
+      {tab === "portal" && (
+        <PortalPanel processoId={processo.id} processoTitulo={processo.titulo} clienteId={processo.cliente_id} clienteNome={processo.cliente_nome} />
+      )}
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
@@ -615,6 +634,7 @@ export default function ProcessoDetailPage() {
           onAdd={() => setAudModal(true)}
           onToggle={async (aid) => { const a = audiencias.find((x) => x.id === aid); if (a) await updateAudiencia(aid, { realizada: !a.realizada }); load(); }}
           onDelete={async (aid) => { await deleteAudiencia(aid); load(); }}
+          onToggleCliente={async (a) => { await updateAudiencia(a.id, { visivel_cliente: !a.visivel_cliente }); load(); }}
         />
       )}
       {tab === "honorarios" && (
@@ -950,8 +970,9 @@ function ResultadoTab({ processo, onSaved }: { processo: Processo; onSaved: () =
   );
 }
 
-function MovimentacoesTab({ movimentacoes, onAdd, onEdit, onDelete, onMarcarLidas, naoLidas }: {
+function MovimentacoesTab({ movimentacoes, onAdd, onEdit, onDelete, onMarcarLidas, onToggleCliente, naoLidas }: {
   movimentacoes: Movimentacao[];
+  onToggleCliente: (movimentacao: Movimentacao) => void;
   onAdd: () => void;
   onEdit: (movimentacao: Movimentacao) => void;
   onDelete: (id: string) => void;
@@ -985,6 +1006,13 @@ function MovimentacoesTab({ movimentacoes, onAdd, onEdit, onDelete, onMarcarLida
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      onClick={() => onToggleCliente(m)}
+                      className={m.visivel_cliente ? "text-emerald-600 hover:text-emerald-800" : "text-gray-300 hover:text-gray-700"}
+                      title={m.visivel_cliente ? "Visível para o cliente no portal (clique para esconder)" : "Mostrar ao cliente no portal"}
+                    >
+                      {m.visivel_cliente ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
                     <button onClick={() => onEdit(m)} className="text-gray-300 hover:text-gray-700 transition-colors" title="Editar movimentação"><Edit2 className="w-4 h-4" /></button>
                     <button onClick={() => onDelete(m.id)} className="text-gray-300 hover:text-red-500 transition-colors" title="Excluir movimentação"><Trash2 className="w-4 h-4" /></button>
                   </div>
@@ -1036,7 +1064,7 @@ function PrazosTab({ prazos, onAdd, onToggle, onDelete }: { prazos: Prazo[]; onA
   );
 }
 
-function AudienciasTab({ audiencias, onAdd, onToggle, onDelete }: { audiencias: Audiencia[]; onAdd: () => void; onToggle: (id: string) => void; onDelete: (id: string) => void }) {
+function AudienciasTab({ audiencias, onAdd, onToggle, onDelete, onToggleCliente }: { audiencias: Audiencia[]; onAdd: () => void; onToggle: (id: string) => void; onDelete: (id: string) => void; onToggleCliente: (audiencia: Audiencia) => void }) {
   return (
     <div>
       <div className="flex justify-end mb-4">
@@ -1062,6 +1090,13 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete }: { audiencias: 
                   >
                     <Mic className="w-3.5 h-3.5" /> Ao vivo
                   </Link>
+                  <button
+                    onClick={() => onToggleCliente(a)}
+                    className={`shrink-0 ${a.visivel_cliente ? "text-emerald-600 hover:text-emerald-800" : "text-gray-300 hover:text-gray-700"}`}
+                    title={a.visivel_cliente ? "Visível para o cliente no portal (clique para esconder)" : "Mostrar ao cliente no portal"}
+                  >
+                    {a.visivel_cliente ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </button>
                   <button onClick={() => onDelete(a.id)} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </CardContent>

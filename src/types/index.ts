@@ -237,6 +237,8 @@ export interface Audiencia {
   /** Roteiro preparado pela Carol para a audiência (texto), usado na tela ao vivo. */
   roteiro?: string | null;
   roteiro_nome?: string | null;
+  /** Aparece na Área do Cliente (portal). */
+  visivel_cliente?: boolean;
   realizada: boolean;
   created_at: string;
   user_id: string;
@@ -252,6 +254,10 @@ export interface Movimentacao {
   fonte?: string;
   datajud_id?: string;
   lida: boolean;
+  /** Aparece na Área do Cliente (portal). */
+  visivel_cliente?: boolean;
+  /** Versão em linguagem simples para o cliente (se vazio, mostra a descrição). */
+  texto_cliente?: string | null;
   created_at: string;
   user_id: string;
 }
