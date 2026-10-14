@@ -13,5 +13,6 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  // /triagem e /api/triagem: chat de triagem fechado ao público (só com login).
+  matcher: ["/dashboard/:path*", "/triagem", "/api/triagem"],
 };
