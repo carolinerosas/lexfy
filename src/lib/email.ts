@@ -1,8 +1,10 @@
 import { envLimpo } from "@/lib/env";
 
-// E-mails do Justio pelo Resend (mesma conta e domínio verificado do carolinefraga.com.br).
+// E-mails do Justio pelo Resend (remetente noreply@justio.com.br).
 
 export const EMAIL_ACESSO = "caroline@carolinefraga.com.br";
+const REMETENTE = "Justio <noreply@justio.com.br>";
+const REMETENTE_RESERVA = "Justio <noreply@carolinefraga.com.br>";
 
 export async function enviarEmail(para: string, assunto: string, texto: string, link: string): Promise<boolean> {
   const chave = envLimpo("RESEND_API_KEY");
@@ -12,16 +14,16 @@ export async function enviarEmail(para: string, assunto: string, texto: string, 
     <p style="margin:24px 0"><a href="${link}" style="background:#21181d;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600">Criar senha nova</a></p>
     <p style="font-size:12px;color:#a1a1aa">Se o botão não funcionar, copie este endereço: ${link}</p>
   </div>`;
-  const r = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: envLimpo("RESEND_FROM") ?? "Justio <noreply@carolinefraga.com.br>",
-      to: para,
-      subject: assunto,
-      text: `${texto}\n\n${link}`,
-      html,
-    }),
-  }).catch(() => null);
-  return !!r?.ok;
+
+  const enviar = (from: string) =>
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${chave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from, to: para, subject: assunto, text: `${texto}\n\n${link}`, html }),
+    }).catch(() => null);
+
+  // Se o justio.com.br ainda não estiver verificado no Resend, sai pelo carolinefraga.com.br.
+  const r = await enviar(envLimpo("RESEND_FROM") ?? REMETENTE);
+  if (r?.ok) return true;
+  return !!(await enviar(REMETENTE_RESERVA))?.ok;
 }
