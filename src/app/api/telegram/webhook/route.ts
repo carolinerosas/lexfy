@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { baixarArquivo, digitando, editarMensagem, enviarMensagem, responderBotao } from "@/lib/telegram/api";
 import { TranscricaoIndisponivel, transcreverAudio } from "@/lib/telegram/transcricao";
-import { conversar, enviarParaTriagem, gravarRegistro, type PropostaRegistro } from "@/lib/telegram/assistente";
+import {
+  conversar,
+  enviarParaTriagem,
+  gravarHonorarios,
+  gravarRegistro,
+  type PropostaHonorarios,
+  type PropostaRegistro,
+} from "@/lib/telegram/assistente";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -24,6 +31,51 @@ interface TgUpdate {
 
 const TITULO_PROPOSTA = "📌 Registrar no Justio?";
 const TITULO_TRIAGEM = "📥 Não achei no Justio. Mandar para a Triagem?";
+const TITULO_HONORARIOS = "💰 Lançar honorários no Justio?";
+
+const TIPOS_HONORARIO = ["contratual", "sucumbencial", "exito", "outro"] as const;
+
+function reais(v: number): string {
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function lerReais(s: string): number {
+  return Number(s.replace(/[^\d,]/g, "").replace(",", "."));
+}
+
+function textoHonorarios(h: PropostaHonorarios): string {
+  const pago = h.valor_pago && h.valor_pago > 0 ? h.valor_pago : 0;
+  const saldo = Math.round((h.valor_cobrado - pago) * 100) / 100;
+  return [
+    TITULO_HONORARIOS,
+    `Onde: ${h.rotulo.replace(/\n+/g, " ")}`,
+    `Descrição: ${h.descricao.replace(/\n+/g, " ")}`,
+    `Tipo: ${h.tipo}`,
+    `Cobrado: ${reais(h.valor_cobrado)} em ${dataBR(h.data_lancamento)}`,
+    ...(pago ? [`Pago: ${reais(pago)} em ${dataBR(h.data_pagamento || h.data_lancamento)}`] : []),
+    `Saldo em aberto: ${reais(Math.max(0, saldo))}${h.vencimento ? ` — vence ${dataBR(h.vencimento)}` : ""}`,
+  ].join("\n");
+}
+
+function lerHonorarios(texto: string, dadosBotao: string): Omit<PropostaHonorarios, "rotulo"> {
+  const campo = (nome: string) => texto.match(new RegExp(`^${nome}: (.+)$`, "m"))?.[1];
+  const processoId = dadosBotao.split("|")[1];
+  const cobrado = campo("Cobrado")?.match(/^(.+) em (\d{2}\/\d{2}\/\d{4})$/);
+  const pago = campo("Pago")?.match(/^(.+) em (\d{2}\/\d{2}\/\d{4})$/);
+  const vence = campo("Saldo em aberto")?.match(/vence (\d{2}\/\d{2}\/\d{4})/);
+  const tipo = TIPOS_HONORARIO.find((t) => t === campo("Tipo"));
+  if (!processoId || !cobrado || !tipo) throw new Error("Proposta de honorários ilegível");
+  return {
+    processo_id: processoId,
+    descricao: campo("Descrição") ?? "Honorários",
+    tipo,
+    valor_cobrado: lerReais(cobrado[1]),
+    data_lancamento: dataISO(cobrado[2]),
+    vencimento: vence ? dataISO(vence[1]) : undefined,
+    valor_pago: pago ? lerReais(pago[1]) : undefined,
+    data_pagamento: pago ? dataISO(pago[2]) : undefined,
+  };
+}
 
 function dataBR(iso: string): string {
   const [a, m, d] = iso.split("-");
@@ -111,6 +163,17 @@ async function tratarMensagem(msg: TgMensagem) {
     return;
   }
 
+  if (resposta.honorarios) {
+    if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
+    await enviarMensagem(chatId, textoHonorarios(resposta.honorarios), [
+      [
+        { text: "✅ Lançar", callback_data: `h|${resposta.honorarios.processo_id}` },
+        { text: "❌ Cancelar", callback_data: "x" },
+      ],
+    ]);
+    return;
+  }
+
   if (resposta.triagem) {
     if (resposta.texto) await enviarMensagem(chatId, resposta.texto);
     await enviarMensagem(chatId, `${TITULO_TRIAGEM}\n\n${resposta.triagem}`, [
@@ -135,6 +198,18 @@ async function tratarBotao(cb: NonNullable<TgUpdate["callback_query"]>) {
   }
   if (msg.text.endsWith("gravado no Justio.") || msg.text.endsWith("está na Triagem.")) {
     return responderBotao(cb.id, "Já estava salvo");
+  }
+
+  if (cb.data.startsWith("h|")) {
+    try {
+      await gravarHonorarios(lerHonorarios(msg.text, cb.data));
+      await responderBotao(cb.id, "Lançado!");
+      await editarMensagem(msg.chat.id, msg.message_id, `${msg.text}\n\n✅ Lançado — gravado no Justio.`);
+    } catch (e) {
+      await responderBotao(cb.id, "Erro ao lançar");
+      await enviarMensagem(msg.chat.id, `Não consegui lançar os honorários: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    return;
   }
 
   if (cb.data === "t") {

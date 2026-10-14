@@ -4,7 +4,7 @@
 import { envLimpo } from "@/lib/env";
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase";
-import { createAnotacao, createMovimentacao } from "@/lib/store";
+import { createAnotacao, createHonorario, createMovimentacao, registrarRecebimento } from "@/lib/store";
 
 const MODEL = process.env.TELEGRAM_MODEL || "claude-opus-5-5";
 const MAX_VOLTAS = 6;
@@ -24,6 +24,19 @@ export interface RespostaAssistente {
   proposta?: PropostaRegistro;
   /** Texto a mandar para a Triagem quando o cliente/processo ainda não está no Justio. */
   triagem?: string;
+  honorarios?: PropostaHonorarios;
+}
+
+export interface PropostaHonorarios {
+  processo_id: string;
+  rotulo: string;
+  descricao: string;
+  tipo: "contratual" | "sucumbencial" | "exito" | "outro";
+  valor_cobrado: number;
+  data_lancamento: string; // AAAA-MM-DD
+  vencimento?: string; // AAAA-MM-DD
+  valor_pago?: number;
+  data_pagamento?: string; // AAAA-MM-DD
 }
 
 function semAcento(s: string): string {
@@ -86,6 +99,27 @@ const TOOLS: Anthropic.Beta.BetaTool[] = [
     },
   },
   {
+    name: "propor_honorarios",
+    description:
+      "Propõe lançar honorários no financeiro do processo: a cobrança (valor cobrado) e, se ela disser, o pagamento recebido (valor e data) — o saldo fica em aberto automaticamente. NÃO grava: a Carol confirma num botão. Use sempre que ela falar de honorários, valor cobrado/combinado ou pagamento do cliente — nunca registre honorários como anotação.",
+    input_schema: {
+      type: "object",
+      properties: {
+        processo_id: { type: "string", description: "id do processo, vindo do 'buscar'" },
+        rotulo: { type: "string", description: "Cliente e processo, como em propor_registro" },
+        descricao: { type: "string", description: "Ex.: 'Honorários contratuais — defesa criminal'" },
+        tipo: { type: "string", enum: ["contratual", "sucumbencial", "exito", "outro"] },
+        valor_cobrado: { type: "number", description: "Valor total cobrado, em reais" },
+        data_lancamento: { type: "string", description: "Data da cobrança, AAAA-MM-DD" },
+        vencimento: { type: "string", description: "Vencimento do saldo, AAAA-MM-DD, se ela disser" },
+        valor_pago: { type: "number", description: "Valor já pago, em reais, se ela disser" },
+        data_pagamento: { type: "string", description: "Data do pagamento, AAAA-MM-DD" },
+      },
+      required: ["processo_id", "rotulo", "descricao", "tipo", "valor_cobrado", "data_lancamento"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "propor_triagem",
     description:
       "Propõe mandar a informação para a Triagem do Justio (onde a Carol aprova e cadastra clientes/processos novos). NÃO envia: a Carol confirma num botão. Use quando o 'buscar' não achar o cliente ou o processo.",
@@ -111,6 +145,7 @@ Você tem acesso ao Justio, o sistema do escritório dela, pelas ferramentas. El
 
 Duas situações:
 1. Ela relata um fato para registrar (ex.: "juiz deferiu o extramuros do Raphael"): use "buscar" para achar o cliente/processo e chame "propor_registro". Se houver mais de um processo possível, pergunte qual antes de propor. Se o cliente ou o processo ainda não estiver no Justio, chame "propor_triagem" para mandar a informação à Triagem.
+   Honorários (valor cobrado, combinado, pago) vão SEMPRE por "propor_honorarios", nunca como anotação. Se ela falar de honorários e também de um andamento na mesma mensagem, proponha os honorários e avise que o andamento pode ser mandado em seguida.
 2. Ela pergunta algo (ex.: "qual o próximo prazo do Carlinhos?"): busque e responda com base só no que o Justio mostrar. Se o dado não estiver lá, diga que não está.
 
 Estilo: português do Brasil, mensagens curtas, tom de colega próxima. Texto puro (sem markdown, sem asteriscos). Datas no formato dd/mm/aaaa. Nunca invente andamentos, prazos ou decisões.`;
@@ -200,6 +235,8 @@ export async function conversar(mensagem: string): Promise<RespostaAssistente> {
 
     const proposta = usos.find((u) => u.name === "propor_registro");
     if (proposta) return { texto, proposta: proposta.input as PropostaRegistro };
+    const honorarios = usos.find((u) => u.name === "propor_honorarios");
+    if (honorarios) return { texto, honorarios: honorarios.input as PropostaHonorarios };
     const triagem = usos.find((u) => u.name === "propor_triagem");
     if (triagem) return { texto, triagem: (triagem.input as { texto: string }).texto };
     if (res.stop_reason !== "tool_use" || usos.length === 0) return { texto: texto || "Pronto." };
@@ -256,4 +293,26 @@ export async function gravarRegistro(
     titulo: p.titulo || "Registro via Telegram",
     conteudo: p.texto,
   });
+}
+
+/** Lança a cobrança e, se houver, o pagamento (o saldo vira cobrança pendente). */
+export async function gravarHonorarios(h: Omit<PropostaHonorarios, "rotulo">): Promise<void> {
+  const cobranca = await createHonorario({
+    processo_id: h.processo_id,
+    descricao: h.descricao,
+    valor: h.valor_cobrado,
+    tipo: h.tipo,
+    categoria: "cobranca",
+    status: "pendente",
+    data_lancamento: h.data_lancamento,
+    data_vencimento: h.vencimento,
+  });
+  if (!cobranca) throw new Error("O Justio não aceitou a cobrança");
+  if (h.valor_pago && h.valor_pago > 0) {
+    await registrarRecebimento(cobranca, {
+      data: h.data_pagamento || h.data_lancamento,
+      valorRecebido: h.valor_pago,
+      vencimentoDiferenca: h.vencimento,
+    });
+  }
 }
