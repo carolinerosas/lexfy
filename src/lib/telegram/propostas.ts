@@ -639,14 +639,22 @@ export async function cirandaResumo(): Promise<unknown> {
   return res.json();
 }
 
-async function gravarNaCiranda(itens: { colecao: string; dados: Dados }[]): Promise<void> {
+async function gravarNaCiranda(itens: ({ colecao: string; dados: Dados } | { colecao: string; id: string; alterar: Dados })[]): Promise<void> {
   const res = await fetch(`${CIRANDA_URL()}/api/ciranda/bot`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${process.env.CIRANDA_BOT_TOKEN?.trim() ?? ""}` },
     body: JSON.stringify({ itens }),
   });
-  if (!res.ok) throw new Error(`Ciranda respondeu ${res.status}`);
+  if (!res.ok) throw new Error(`Ciranda respondeu ${res.status}: ${await res.text()}`);
 }
+
+const hojeISO = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+const PESSOA = {
+  para: { type: "string", enum: ["filho", "eu"], description: "Para um filho ou para a própria Carol" },
+  filho_id: { type: "string", description: "id do filho (de consultar_ciranda); vazio se for para a Carol" },
+  nome_pessoa: { type: "string", description: "Nome do filho ou 'Carol'" },
+};
 
 const agoraISO = () => new Date().toISOString();
 
@@ -762,6 +770,169 @@ Object.assign(TIPOS, {
           },
         },
       ]),
+  },
+
+  ciranda_tarefa_filho: {
+    titulo: "🧒 Ciranda — tarefa para criança?",
+    ferramenta: ferramenta(
+      "propor_ciranda_tarefa_filho",
+      "Propõe uma tarefa para um dos filhos na Ciranda (dever de casa, trabalho, prova, tarefa de casa), com pontos da mesada se ela disser.",
+      {
+        filho_id: { type: "string" },
+        filho_nome: { type: "string" },
+        titulo: { type: "string" },
+        categoria: { type: "string", enum: ["deveres", "trabalho", "avaliacao", "casa"] },
+        repeticao: { type: "string", enum: ["nenhuma", "diaria", "semanal"] },
+        pontos: { type: "number" },
+        data_limite: { type: "string", description: "AAAA-MM-DD, se houver" },
+      },
+      ["filho_id", "filho_nome", "titulo", "categoria", "repeticao"]
+    ),
+    resumo: (d: Dados) => [
+      `${s(d.filho_nome)}: ${s(d.titulo)}`,
+      `${s(d.categoria)}${d.repeticao !== "nenhuma" ? ` · repete ${d.repeticao === "diaria" ? "todo dia" : "toda semana"}` : ""}${d.pontos ? ` · ${n(d.pontos)} pontos` : ""}${d.data_limite ? ` · até ${dataBR(d.data_limite)}` : ""}`,
+    ],
+    gravar: (d: Dados) =>
+      gravarNaCiranda([
+        {
+          colecao: "tarefas_filhos",
+          dados: {
+            filhoId: s(d.filho_id),
+            titulo: s(d.titulo),
+            categoria: s(d.categoria) || "casa",
+            repeticao: s(d.repeticao) || "nenhuma",
+            pontos: d.pontos ? n(d.pontos) : undefined,
+            dataLimite: s(d.data_limite) || undefined,
+            concluida: false,
+            criadoEm: agoraISO(),
+          },
+        },
+      ]),
+  },
+
+  ciranda_pagar_conta: {
+    titulo: "💸 Ciranda — marcar conta de casa como paga?",
+    ferramenta: ferramenta(
+      "propor_ciranda_pagar_conta",
+      "Propõe marcar como paga uma conta de casa já lançada na Ciranda (ache o id em consultar_ciranda → contas_em_aberto).",
+      { conta_id: { type: "string" }, rotulo: { type: "string", description: "Ex.: 'Luz — R$ 280,00, vence 15/10'" } },
+      ["conta_id", "rotulo"]
+    ),
+    resumo: (d: Dados) => [`Conta: ${s(d.rotulo)}`, "Marcar como paga hoje"],
+    gravar: (d: Dados) => gravarNaCiranda([{ colecao: "contas", id: s(d.conta_id), alterar: { paga: true, pagaEm: agoraISO() } }]),
+  },
+
+  ciranda_diario: {
+    titulo: "📔 Ciranda — escrever no diário?",
+    ferramenta: ferramenta(
+      "propor_ciranda_diario",
+      "Propõe uma entrada no diário pessoal da Carol na Ciranda. Escreva o texto como ela falou (pode só organizar), em primeira pessoa.",
+      {
+        texto: { type: "string" },
+        humor: { type: "string", enum: ["otimo", "bem", "neutro", "cansado", "dificil"] },
+        gratidao: { type: "string", description: "Pelo que ela é grata hoje, se ela disser" },
+      },
+      ["texto", "humor"]
+    ),
+    resumo: (d: Dados) => [`Humor: ${s(d.humor)}`, "", s(d.texto), ...(d.gratidao ? ["", `Gratidão: ${s(d.gratidao)}`] : [])],
+    gravar: (d: Dados) =>
+      gravarNaCiranda([
+        { colecao: "diario", dados: { texto: s(d.texto), humor: s(d.humor) || "neutro", gratidao: s(d.gratidao) || undefined, criadoEm: agoraISO() } },
+      ]),
+  },
+
+  ciranda_medico: {
+    titulo: "🩺 Ciranda — marcar médico?",
+    ferramenta: ferramenta(
+      "propor_ciranda_medico",
+      "Propõe marcar consulta, exame ou vacina (de um filho ou da Carol): entra no calendário da família e na saúde da pessoa.",
+      {
+        ...PESSOA,
+        tipo: { type: "string", enum: ["consulta", "exame", "vacina", "outro"] },
+        titulo: { type: "string", description: "Ex.: 'Pediatra — Dra. Ana', 'Hemograma'" },
+        data: { type: "string", description: "AAAA-MM-DD" },
+        hora: { type: "string", description: "HH:MM" },
+        profissional: { type: "string" },
+      },
+      ["para", "nome_pessoa", "tipo", "titulo", "data"]
+    ),
+    resumo: (d: Dados) => [
+      `${s(d.nome_pessoa)}: ${s(d.titulo)} (${s(d.tipo)})`,
+      `Quando: ${dataBR(d.data)}${d.hora ? ` às ${s(d.hora)}` : ""}${d.profissional ? ` · ${s(d.profissional)}` : ""}`,
+    ],
+    gravar: (d: Dados) => {
+      const eu = d.para === "eu";
+      return gravarNaCiranda([
+        {
+          colecao: "eventos",
+          dados: {
+            titulo: `${s(d.titulo)}${eu ? "" : ` (${s(d.nome_pessoa)})`}`,
+            data: s(d.data),
+            hora: s(d.hora) || undefined,
+            tipo: eu ? "pessoal" : "consulta",
+            filhoId: eu ? undefined : s(d.filho_id) || undefined,
+          },
+        },
+        {
+          colecao: eu ? "minha_saude_registros" : "saude_registros",
+          dados: {
+            filhoId: eu ? "__eu__" : s(d.filho_id),
+            tipo: s(d.tipo) || "consulta",
+            titulo: s(d.titulo),
+            data: s(d.data),
+            profissional: s(d.profissional) || undefined,
+          },
+        },
+      ]);
+    },
+  },
+
+  ciranda_remedio: {
+    titulo: "💊 Ciranda — cadastrar remédio?",
+    ferramenta: ferramenta(
+      "propor_ciranda_remedio",
+      "Propõe cadastrar um remédio com horários (de um filho ou da Carol), para os lembretes da Ciranda.",
+      {
+        ...PESSOA,
+        nome: { type: "string" },
+        dosagem: { type: "string", description: "Ex.: '5 ml', '1 comprimido'" },
+        como_tomar: { type: "string", description: "Ex.: 'depois do almoço'" },
+        horarios: { type: "array", items: { type: "string" }, description: "HH:MM, ex.: ['08:00','20:00']" },
+        dias_semana: { type: "array", items: { type: "number" }, description: "0=dom … 6=sáb; vazio = todos os dias" },
+        inicio: { type: "string", description: "AAAA-MM-DD (hoje se não disser)" },
+        fim: { type: "string", description: "AAAA-MM-DD, se for por tempo determinado (ex.: 7 dias)" },
+      },
+      ["para", "nome_pessoa", "nome", "horarios"]
+    ),
+    resumo: (d: Dados) => {
+      const dias = (d.dias_semana as number[] | undefined) ?? [];
+      return [
+        `${s(d.nome_pessoa)}: ${s(d.nome)}${d.dosagem ? ` ${s(d.dosagem)}` : ""}${d.como_tomar ? ` (${s(d.como_tomar)})` : ""}`,
+        `Horários: ${((d.horarios as string[]) ?? []).join(", ")} · ${dias.length && dias.length < 7 ? dias.map((x) => DIAS[x]).join(", ") : "todos os dias"}`,
+        `De ${dataBR(d.inicio || hojeISO())}${d.fim ? ` até ${dataBR(d.fim)}` : ", sem data para acabar"}`,
+      ];
+    },
+    gravar: (d: Dados) => {
+      const eu = d.para === "eu";
+      const dias = (d.dias_semana as number[] | undefined) ?? [];
+      return gravarNaCiranda([
+        {
+          colecao: eu ? "minhas_medicacoes" : "medicacoes",
+          dados: {
+            filhoId: eu ? "__eu__" : s(d.filho_id),
+            nome: s(d.nome),
+            dosagem: s(d.dosagem) || undefined,
+            comoTomar: s(d.como_tomar) || undefined,
+            horarios: [...new Set(((d.horarios as string[]) ?? []).filter(Boolean))].sort(),
+            diasSemana: dias.length ? dias : [0, 1, 2, 3, 4, 5, 6],
+            inicio: s(d.inicio) || hojeISO(),
+            fim: s(d.fim) || undefined,
+            ativa: true,
+            tomadas: [],
+          },
+        },
+      ]);
+    },
   },
 } satisfies Record<string, TipoProposta>);
 
