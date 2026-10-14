@@ -6,8 +6,8 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, ClipboardList, Copy, NotebookPen, FileText, Gavel, Lightbulb, Mic, Pause, Save, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Modal } from "@/components/ui/modal";
-import { createAnotacao, getAudienciasWithProcesso } from "@/lib/store";
+import { RoteiroModal } from "@/components/ui/roteiro-modal";
+import { createAnotacao, getAudienciasWithProcesso, updateAudiencia } from "@/lib/store";
 import { formatDateTime } from "@/lib/utils";
 import type { Audiencia, Processo } from "@/types";
 
@@ -89,7 +89,8 @@ export default function AudienciaAoVivoPage() {
   // --- carregar audiência e o backup local (se o navegador fechou no meio) ---
   useEffect(() => {
     getAudienciasWithProcesso().then((lista) => {
-      if (!livre) setAudiencia(lista.find((a) => a.id === id) ?? null);
+      const atual = livre ? null : lista.find((a) => a.id === id) ?? null;
+      setAudiencia(atual);
       try {
         const salvo = JSON.parse(localStorage.getItem(chaveLocal) ?? "null") as {
           trechos: Trecho[];
@@ -101,7 +102,10 @@ export default function AudienciaAoVivoPage() {
           area?: "auto" | "criminal" | "familia" | "geral";
           segundos: number;
         } | null;
-        if (salvo?.roteiro) {
+        if (atual?.roteiro) {
+          setRoteiro(atual.roteiro);
+          setRoteiroNome(atual.roteiro_nome ?? "");
+        } else if (salvo?.roteiro) {
           setRoteiro(salvo.roteiro);
           setRoteiroNome(salvo.roteiroNome ?? "");
         }
@@ -317,26 +321,6 @@ export default function AudienciaAoVivoPage() {
     setAviso(`"${titulo}" salvo nas anotações do processo.`);
   }
 
-  async function lerArquivoRoteiro(arquivo: File) {
-    try {
-      let texto: string;
-      if (arquivo.name.toLowerCase().endsWith(".docx")) {
-        const mod = (await import("mammoth")) as unknown as {
-          default?: { extractRawText: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }> };
-          extractRawText?: (o: { arrayBuffer: ArrayBuffer }) => Promise<{ value: string }>;
-        };
-        const mammoth = mod.default ?? mod;
-        texto = (await mammoth.extractRawText!({ arrayBuffer: await arquivo.arrayBuffer() })).value;
-      } else {
-        texto = await arquivo.text();
-      }
-      setRoteiro(texto.trim());
-      setRoteiroNome(arquivo.name);
-    } catch (e) {
-      setErro(`Não consegui ler o roteiro: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
   function renomear(f: number) {
     const novo = window.prompt("Quem é esta voz? (ex.: Juiz, MP, Testemunha João, Eu)", nomeFalante(f));
     if (novo?.trim()) setNomes((n) => ({ ...n, [f]: novo.trim() }));
@@ -449,28 +433,27 @@ export default function AudienciaAoVivoPage() {
         <div className="space-y-4">
           <Card>
             <CardContent className="py-4 px-5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <ClipboardList className="w-4 h-4" /> Roteiro
+                  <Lightbulb className="w-4 h-4" /> Dicas
                 </span>
-                <select
-                  value={area}
-                  onChange={(e) => setArea(e.target.value as typeof area)}
-                  className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700"
-                  title="Perfil da advogada que assessora esta audiência"
-                >
-                  <option value="auto">Área: pelo processo</option>
-                  <option value="criminal">Advogada criminal</option>
-                  <option value="familia">Advogada de família</option>
-                  <option value="geral">Geral</option>
-                </select>
+                <label className="flex items-center gap-2 text-xs text-gray-500">
+                  <input type="checkbox" checked={dicasAuto} onChange={(e) => setDicasAuto(e.target.checked)} />
+                  automáticas (1 min)
+                </label>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
-                {roteiro ? `Usando: ${roteiroNome || "roteiro colado"} (${roteiro.split(/\s+/).length} palavras)` : "Inclua o roteiro que você preparou: as dicas e as alegações partem dele."}
-              </p>
-              <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setEditandoRoteiro(true)}>
-                {roteiro ? "Ver ou trocar roteiro" : "Incluir roteiro de audiência"}
+              <Button size="sm" variant="secondary" className="mb-3 w-full" disabled={!trechos.length || !!analisando} onClick={() => analisar("dicas")}>
+                {analisando === "dicas" ? "Analisando…" : "Analisar agora"}
               </Button>
+              <div className="max-h-[30vh] overflow-y-auto space-y-3">
+                {dicas.length === 0 && <p className="text-xs text-gray-400">As dicas aparecem aqui conforme a audiência anda.</p>}
+                {dicas.map((d, i) => (
+                  <div key={i} className="rounded-lg bg-gray-50 px-3 py-2">
+                    <p className="mb-1 text-xs text-gray-400">{d.hora}</p>
+                    <p className="whitespace-pre-line text-sm text-gray-800">{d.texto}</p>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
@@ -497,32 +480,6 @@ export default function AudienciaAoVivoPage() {
                 className="w-full rounded-lg border border-gray-200 p-3 text-sm"
                 placeholder="Suas impressões e considerações. As dicas, os requerimentos e as alegações levam em conta o que você escrever aqui."
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="py-4 px-5">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <Lightbulb className="w-4 h-4" /> Dicas
-                </span>
-                <label className="flex items-center gap-2 text-xs text-gray-500">
-                  <input type="checkbox" checked={dicasAuto} onChange={(e) => setDicasAuto(e.target.checked)} />
-                  automáticas (1 min)
-                </label>
-              </div>
-              <Button size="sm" variant="secondary" className="mb-3 w-full" disabled={!trechos.length || !!analisando} onClick={() => analisar("dicas")}>
-                {analisando === "dicas" ? "Analisando…" : "Analisar agora"}
-              </Button>
-              <div className="max-h-[30vh] overflow-y-auto space-y-3">
-                {dicas.length === 0 && <p className="text-xs text-gray-400">As dicas aparecem aqui conforme a audiência anda.</p>}
-                {dicas.map((d, i) => (
-                  <div key={i} className="rounded-lg bg-gray-50 px-3 py-2">
-                    <p className="mb-1 text-xs text-gray-400">{d.hora}</p>
-                    <p className="whitespace-pre-line text-sm text-gray-800">{d.texto}</p>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
@@ -555,41 +512,47 @@ export default function AudienciaAoVivoPage() {
               </CardContent>
             </Card>
           )}
+
+          <Card>
+            <CardContent className="py-4 px-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <ClipboardList className="w-4 h-4" /> Roteiro
+                </span>
+                <select
+                  value={area}
+                  onChange={(e) => setArea(e.target.value as typeof area)}
+                  className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700"
+                  title="Perfil da advogada que assessora esta audiência"
+                >
+                  <option value="auto">Área: pelo processo</option>
+                  <option value="criminal">Advogada criminal</option>
+                  <option value="familia">Advogada de família</option>
+                  <option value="geral">Geral</option>
+                </select>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                {roteiro ? `Usando: ${roteiroNome || "roteiro colado"} (${roteiro.split(/\s+/).length} palavras)` : "Inclua o roteiro que você preparou: as dicas e as alegações partem dele."}
+              </p>
+              <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setEditandoRoteiro(true)}>
+                {roteiro ? "Ver ou trocar roteiro" : "Incluir roteiro de audiência"}
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
-      <Modal open={editandoRoteiro} onClose={() => setEditandoRoteiro(false)} title="Roteiro de audiência" size="lg">
-        <div className="space-y-3">
-          <label className="block text-sm text-gray-600">
-            Enviar arquivo (.docx, .txt ou .md)
-            <input
-              type="file"
-              accept=".docx,.txt,.md"
-              className="mt-1 block w-full text-sm"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) lerArquivoRoteiro(f);
-              }}
-            />
-          </label>
-          <p className="text-xs text-gray-400">ou cole o texto abaixo</p>
-          <textarea
-            value={roteiro}
-            onChange={(e) => {
-              setRoteiro(e.target.value);
-              if (!roteiroNome) setRoteiroNome("roteiro colado");
-            }}
-            rows={14}
-            className="w-full rounded-lg border border-gray-200 p-3 text-sm"
-            placeholder="Perguntas para cada testemunha, teses, pontos que não podem faltar nas alegações…"
-          />
-          <div className="flex justify-between gap-3">
-            <Button variant="ghost" onClick={() => { setRoteiro(""); setRoteiroNome(""); }} disabled={!roteiro}>
-              Remover roteiro
-            </Button>
-            <Button onClick={() => setEditandoRoteiro(false)}>Pronto</Button>
-          </div>
-        </div>
-      </Modal>
+      <RoteiroModal
+        open={editandoRoteiro}
+        onClose={() => setEditandoRoteiro(false)}
+        roteiro={roteiro}
+        nome={roteiroNome}
+        onSalvar={async (texto, nome) => {
+          setRoteiro(texto);
+          setRoteiroNome(nome);
+          // Fica guardado na audiência: preparado no PC, aparece no celular no fórum.
+          if (!livre) await updateAudiencia(id, { roteiro: texto || null, roteiro_nome: nome || null });
+        }}
+      />
     </div>
   );
 }

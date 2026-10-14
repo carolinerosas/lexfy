@@ -234,6 +234,9 @@ export interface Audiencia {
   local?: string;
   tipo?: AudienciaTipo;
   observacoes?: string;
+  /** Roteiro preparado pela Carol para a audiência (texto), usado na tela ao vivo. */
+  roteiro?: string | null;
+  roteiro_nome?: string | null;
   realizada: boolean;
   created_at: string;
   user_id: string;

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Calendar, Plus, CheckCircle, Trash2, MapPin, Clock, Mic } from "lucide-react";
+import { Calendar, Plus, CheckCircle, Trash2, MapPin, Clock, Mic, ClipboardList } from "lucide-react";
+import { RoteiroModal } from "@/components/ui/roteiro-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export default function AudienciasPage() {
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState<"proximas" | "realizadas" | "todas">("proximas");
+  const [roteiroDe, setRoteiroDe] = useState<Audiencia | null>(null);
 
   const load = useCallback(async () => {
     const data = await getAudienciasWithProcesso();
@@ -119,6 +121,15 @@ export default function AudienciasPage() {
                     </div>
                     <div className="ml-auto flex shrink-0 items-center gap-2">
                       {!a.realizada && (
+                        <button
+                          onClick={() => setRoteiroDe(a)}
+                          className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium ${a.roteiro ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
+                          title={a.roteiro ? `Roteiro: ${a.roteiro_nome ?? "incluído"}` : "Incluir o roteiro que você preparou"}
+                        >
+                          <ClipboardList className="w-3.5 h-3.5" /> {a.roteiro ? "Roteiro ✓" : "Roteiro"}
+                        </button>
+                      )}
+                      {!a.realizada && (
                         <Link
                           href={`/dashboard/audiencias/${a.id}/ao-vivo`}
                           className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
@@ -145,6 +156,18 @@ export default function AudienciasPage() {
           })}
         </div>
       )}
+
+      <RoteiroModal
+        open={!!roteiroDe}
+        onClose={() => setRoteiroDe(null)}
+        roteiro={roteiroDe?.roteiro ?? ""}
+        nome={roteiroDe?.roteiro_nome ?? ""}
+        onSalvar={async (texto, nome) => {
+          if (!roteiroDe) return;
+          await updateAudiencia(roteiroDe.id, { roteiro: texto || null, roteiro_nome: nome || null });
+          load();
+        }}
+      />
 
       <NovaAudienciaModal open={showModal} onClose={() => setShowModal(false)} onCreated={() => { load(); setShowModal(false); }} />
     </div>
