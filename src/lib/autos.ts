@@ -1,3 +1,4 @@
+import type { PDFPageProxy } from "pdfjs-dist";
 import { supabase, urlStorageDireta } from "./supabase";
 
 // Autos do processo em PDF: o navegador extrai o texto página por página e o Justio guarda
@@ -41,11 +42,38 @@ async function carregarPdfjs() {
   return pdfjs;
 }
 
-/** Extrai o texto de cada página e grava no Justio. `progresso` recebe (feitas, total). */
+/** Imagem JPEG de uma página (para o OCR das páginas escaneadas). */
+async function imagemDaPagina(pagina: PDFPageProxy): Promise<string> {
+  const viewport = pagina.getViewport({ scale: 1.6 });
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  const ctx = canvas.getContext("2d")!;
+  await pagina.render({ canvas, canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL("image/jpeg", 0.7);
+}
+
+async function lerImagem(imagem: string): Promise<string> {
+  const res = await fetch("/api/autos/ocr", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ imagem }),
+  });
+  if (!res.ok) return "";
+  return (((await res.json()) as { texto?: string }).texto ?? "").trim();
+}
+
+export type EtapaAutos = "texto" | "ocr";
+
+/**
+ * Extrai o texto de cada página e grava no Justio. Páginas escaneadas (sem texto no PDF)
+ * passam pelo OCR: a imagem da página vai para /api/autos/ocr e o texto lido é gravado.
+ * `progresso` recebe (feitas, total, etapa).
+ */
 export async function importarAutos(
   processoId: string,
   arquivo: File,
-  progresso?: (feitas: number, total: number) => void
+  progresso?: (feitas: number, total: number, etapa: EtapaAutos) => void
 ): Promise<AutosArquivo> {
   if (!arquivo.name.toLowerCase().endsWith(".pdf")) throw new Error("Selecione um arquivo PDF.");
 
@@ -68,7 +96,7 @@ export async function importarAutos(
   });
   if (erroArquivo) throw new Error(erroArquivo.message);
 
-  let semTexto = 0;
+  const escaneadas: number[] = [];
   let lote: { arquivo_id: string; processo_id: string; pagina: number; texto: string }[] = [];
   try {
     for (let n = 1; n <= total; n++) {
@@ -79,19 +107,41 @@ export async function importarAutos(
         .join("")
         .replace(/[ \t]+/g, " ")
         .trim();
-      if (texto.length < 20) semTexto++;
+      if (texto.length < 20) escaneadas.push(n);
       lote.push({ arquivo_id: id, processo_id: processoId, pagina: n, texto });
       if (lote.length === LOTE_PAGINAS || n === total) {
         const { error } = await supabase.from("autos_paginas").insert(lote);
         if (error) throw new Error(error.message);
         lote = [];
       }
-      progresso?.(n, total);
+      progresso?.(n, total, "texto");
     }
   } catch (e) {
     await excluirAutos({ id, caminho });
     throw e;
   }
+
+  // OCR das escaneadas, 4 por vez. Página que falhar continua sem texto (não derruba o envio).
+  let lidas = 0;
+  let semTexto = 0;
+  const fila = [...escaneadas];
+  async function trabalhador() {
+    for (let n = fila.shift(); n !== undefined; n = fila.shift()) {
+      let texto = "";
+      try {
+        texto = await lerImagem(await imagemDaPagina(await pdf.getPage(n)));
+      } catch {
+        texto = "";
+      }
+      if (texto.length >= 20) {
+        await supabase.from("autos_paginas").update({ texto }).eq("arquivo_id", id).eq("pagina", n);
+      } else {
+        semTexto++;
+      }
+      progresso?.(++lidas, escaneadas.length, "ocr");
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(4, escaneadas.length) }, trabalhador));
 
   await supabase.from("autos_arquivos").update({ paginas_sem_texto: semTexto }).eq("id", id);
   return {

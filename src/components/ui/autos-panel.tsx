@@ -11,7 +11,7 @@ import { buscarAutos, excluirAutos, importarAutos, listarAutos, urlAutos, type A
 
 export function AutosPanel({ processoId }: { processoId: string }) {
   const [arquivos, setArquivos] = useState<AutosArquivo[]>([]);
-  const [progresso, setProgresso] = useState<{ nome: string; feitas: number; total: number } | null>(null);
+  const [progresso, setProgresso] = useState<{ nome: string; feitas: number; total: number; etapa?: "texto" | "ocr" } | null>(null);
   const [erro, setErro] = useState("");
   const [termo, setTermo] = useState("");
   const [resultados, setResultados] = useState<TrechoAutos[] | null>(null);
@@ -34,7 +34,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
     for (const f of Array.from(lista)) {
       try {
         setProgresso({ nome: f.name, feitas: 0, total: 0 });
-        await importarAutos(processoId, f, (feitas, total) => setProgresso({ nome: f.name, feitas, total }));
+        await importarAutos(processoId, f, (feitas, total, etapa) => setProgresso({ nome: f.name, feitas, total, etapa }));
       } catch (e) {
         setErro(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -79,7 +79,9 @@ export function AutosPanel({ processoId }: { processoId: string }) {
           {progresso && (
             <div className="mt-4">
               <p className="mb-1 text-xs text-gray-600">
-                Lendo {progresso.nome}… {progresso.total ? `página ${progresso.feitas} de ${progresso.total}` : ""}
+                {progresso.etapa === "ocr"
+                  ? `Lendo as páginas escaneadas de ${progresso.nome}… ${progresso.feitas} de ${progresso.total}`
+                  : `Lendo ${progresso.nome}… ${progresso.total ? `página ${progresso.feitas} de ${progresso.total}` : ""}`}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
                 <div className="h-full bg-[#21181d] transition-all" style={{ width: `${progresso.total ? (progresso.feitas / progresso.total) * 100 : 3}%` }} />
@@ -96,7 +98,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
                     <p className="break-words text-sm font-medium text-gray-900">{a.nome}</p>
                     <p className="text-xs text-gray-500">
                       {a.paginas} páginas
-                      {a.paginas_sem_texto > 0 && ` · ${a.paginas_sem_texto} sem texto (escaneadas: não entram na pesquisa)`}
+                      {a.paginas_sem_texto > 0 && ` · ${a.paginas_sem_texto} página(s) sem texto legível`}
                     </p>
                   </div>
                   {a.caminho && (
