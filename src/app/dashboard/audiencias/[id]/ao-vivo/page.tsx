@@ -82,6 +82,10 @@ export default function AudienciaAoVivoPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // Fontes de áudio originais (microfone e, na audiência virtual, o som da reunião) e o mixer.
+  const fontesRef = useRef<MediaStream[]>([]);
+  const mixerRef = useRef<AudioContext | null>(null);
+  const [fonte, setFonte] = useState<"presencial" | "virtual">("presencial");
   const wakeRef = useRef<WakeLockSentinel | null>(null);
   const encerrandoRef = useRef(false);
   const offsetRef = useRef(0); // segundos já gravados antes da conexão atual
@@ -226,9 +230,29 @@ export default function AudienciaAoVivoPage() {
     encerrandoRef.current = false;
     setEstado("conectando");
     try {
-      streamRef.current = await navigator.mediaDevices.getUserMedia({
+      const microfone = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
+      fontesRef.current = [microfone];
+      if (fonte === "virtual") {
+        // Audiência por Teams/Zoom: capta o som da reunião (aba do navegador ou tela inteira com
+        // "compartilhar áudio do sistema") e mistura com o microfone, para a sua voz entrar também.
+        const reuniao = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        fontesRef.current.push(reuniao);
+        if (!reuniao.getAudioTracks().length) {
+          throw new Error('O compartilhamento veio sem som. Escolha a aba ou a tela da audiência e marque "Compartilhar áudio".');
+        }
+        const ctx = new AudioContext();
+        const destino = ctx.createMediaStreamDestination();
+        ctx.createMediaStreamSource(new MediaStream(reuniao.getAudioTracks())).connect(destino);
+        ctx.createMediaStreamSource(microfone).connect(destino);
+        mixerRef.current = ctx;
+        // Se ela parar o compartilhamento pela barra do navegador, pausa a gravação.
+        reuniao.getVideoTracks()[0]?.addEventListener("ended", () => parar(true));
+        streamRef.current = destino.stream;
+      } else {
+        streamRef.current = microfone;
+      }
       wakeRef.current = await navigator.wakeLock?.request("screen").catch(() => null) ?? null;
       offsetRef.current = segundosRef.current;
       await conectar();
@@ -246,6 +270,10 @@ export default function AudienciaAoVivoPage() {
     }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    fontesRef.current.forEach((s) => s.getTracks().forEach((t) => t.stop()));
+    fontesRef.current = [];
+    mixerRef.current?.close().catch(() => {});
+    mixerRef.current = null;
     wakeRef.current?.release().catch(() => {});
     wakeRef.current = null;
     setParcial("");
@@ -386,9 +414,20 @@ export default function AudienciaAoVivoPage() {
               </Button>
             </>
           ) : (
-            <Button onClick={iniciar} disabled={!audiencia && !livre}>
-              <Mic className="w-4 h-4" /> {estado === "pausado" || trechos.length ? "Continuar gravação" : "Iniciar gravação"}
-            </Button>
+            <>
+              <select
+                value={fonte}
+                onChange={(e) => setFonte(e.target.value as typeof fonte)}
+                className="rounded-lg border border-gray-200 px-2 py-2 text-sm text-gray-700"
+                title="De onde vem o som da audiência"
+              >
+                <option value="presencial">Presencial (microfone)</option>
+                <option value="virtual">Virtual (Teams/Zoom + microfone)</option>
+              </select>
+              <Button onClick={iniciar} disabled={!audiencia && !livre}>
+                <Mic className="w-4 h-4" /> {estado === "pausado" || trechos.length ? "Continuar gravação" : "Iniciar gravação"}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -412,7 +451,9 @@ export default function AudienciaAoVivoPage() {
             <div className="absolute inset-0 overflow-y-auto space-y-3 pr-1">
               {trechos.length === 0 && !parcial && (
                 <p className="py-16 text-center text-sm text-gray-400">
-                  Aperte &quot;Iniciar gravação&quot; e deixe o celular ou o microfone perto de quem fala.
+                  {fonte === "virtual"
+                    ? "Audiência virtual: aperte \"Iniciar gravação\" e, na janela que abrir, escolha a aba do Teams (ou a tela inteira, se usar o app) e marque \"Compartilhar áudio\"."
+                    : "Aperte \"Iniciar gravação\" e deixe o celular ou o microfone perto de quem fala."}
                 </p>
               )}
               {trechos.map((t, i) => (
