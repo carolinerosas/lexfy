@@ -1,6 +1,7 @@
 "use client";
 
 import { PortalPanel } from "@/components/ui/portal-panel";
+import { OrcamentosPanel } from "@/components/ui/orcamentos-panel";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -63,7 +64,7 @@ export default function ClienteDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [vincularProcessoOpen, setVincularProcessoOpen] = useState(false);
   const [novoProcessoOpen, setNovoProcessoOpen] = useState(false);
-  const [aba, setAba] = useState<"resumo" | "documentos" | "gerar" | "portal">("resumo");
+  const [aba, setAba] = useState<"resumo" | "documentos" | "gerar" | "orcamentos" | "portal">("resumo");
 
   const load = useCallback(async () => {
     const c = await getCliente(id);
@@ -155,6 +156,9 @@ export default function ClienteDetailPage() {
         <button type="button" onClick={() => setAba("gerar")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "gerar" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Gerar documento
         </button>
+        <button type="button" onClick={() => setAba("orcamentos")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "orcamentos" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          Orçamentos
+        </button>
         <button type="button" onClick={() => setAba("portal")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "portal" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Portal do cliente
         </button>
@@ -164,6 +168,8 @@ export default function ClienteDetailPage() {
         <DocumentosPanel contexto="clientes" registroId={cliente.id} titulo="Documentos do cliente" />
       ) : aba === "gerar" ? (
         <GerarDocumentoPanel cliente={cliente} />
+      ) : aba === "orcamentos" ? (
+        <OrcamentosPanel cliente={cliente} processos={processos} />
       ) : aba === "portal" ? (
         <PortalPanel cliente={cliente} processos={processos} />
       ) : (

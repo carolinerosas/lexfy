@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { AutosPanel } from "@/components/ui/autos-panel";
+import { FamiliaEditor } from "@/components/ui/familia-editor";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
   getProcesso, getProcessos, getClientes, createProcesso, createCliente, updateProcesso, deleteProcesso,
@@ -41,7 +42,7 @@ import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } fro
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
 import { AcordosPanel } from "@/components/ui/acordos-panel";
 import type {
-  Cliente, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
+  Cliente, DadosFamilia, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
   ProcessoTipo, ProcessoResultadoTipo, IncidenteExecucao, CalculoPena, BeneficioPenal,
   IncidenteExecucaoTipo, IncidenteExecucaoStatus, BeneficioPenalTipo, BeneficioPenalStatus, InqueritoSituacao,
 } from "@/types";
@@ -166,7 +167,8 @@ type Tab =
   | "audiencias"
   | "honorarios"
   | "acordos"
-  | "atendimentos";
+  | "atendimentos"
+  | "familia";
 
 const execucaoPenalTabs: Tab[] = ["incidentes", "calculo_pena", "beneficios_penais"];
 const acaoPenalTabs: Tab[] = ["inqueritos"];
@@ -186,6 +188,10 @@ function isExecucaoPenalTipo(tipo?: string): boolean {
 function isAcaoPenalTipo(tipo?: string): boolean {
   const normalized = normalizeTipo(tipo);
   return normalized === "criminal" || normalized === "juri" || normalized === "júri" || normalized === "acao_penal" || normalized === "penal";
+}
+
+function isFamiliaTipo(tipo?: string): boolean {
+  return normalizeTipo(tipo) === "familia";
 }
 
 function isInqueritoTipo(tipo?: string): boolean {
@@ -346,9 +352,11 @@ export default function ProcessoDetailPage() {
   const isExecucaoPenal = isExecucaoPenalTipo(processo.tipo);
   const isAcaoPenal = isAcaoPenalTipo(processo.tipo);
   const isInquerito = isInqueritoTipo(processo.tipo);
+  const isFamilia = isFamiliaTipo(processo.tipo);
 
   const tabs: { key: Tab; label: string; count: number; unread?: number; showCount?: boolean }[] = [
     { key: "movimentacoes", label: "Movimentações", count: movimentacoes.length, unread: movNaoLidas },
+    ...(isFamilia ? [{ key: "familia" as const, label: "Família", count: 0, showCount: false }] : []),
     ...(isAcaoPenal ? [
       { key: "inqueritos" as const, label: "Inquéritos", count: inqueritosDaAcao.length },
     ] : []),
@@ -602,6 +610,7 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "autos" && <AutosPanel processoId={processo.id} />}
+      {tab === "familia" && <FamiliaTab processo={processo} onSalvo={load} />}
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
@@ -2684,5 +2693,25 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
       </form>
     </Modal>
+  );
+}
+
+function FamiliaTab({ processo, onSalvo }: { processo: Processo; onSalvo: () => void }) {
+  const [dados, setDados] = useState<DadosFamilia>(processo.dados_familia ?? {});
+  const [estado, setEstado] = useState<"" | "salvando" | "salvo">("");
+  async function salvar() {
+    setEstado("salvando");
+    await updateProcesso(processo.id, { dados_familia: dados });
+    setEstado("salvo");
+    onSalvo();
+  }
+  return (
+    <div className="space-y-4">
+      <FamiliaEditor valor={dados} onChange={(v) => { setDados(v); setEstado(""); }} />
+      <div className="flex items-center justify-end gap-3">
+        {estado === "salvo" && <span className="text-xs text-emerald-700">Salvo.</span>}
+        <Button onClick={salvar} disabled={estado === "salvando"}>{estado === "salvando" ? "Salvando..." : "Salvar dados de família"}</Button>
+      </div>
+    </div>
   );
 }

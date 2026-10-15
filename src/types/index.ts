@@ -175,6 +175,7 @@ export interface Processo {
   unidade_prisional?: string;
   tipo_penal?: string;
   tipos_penais?: string[];
+  dados_familia?: DadosFamilia | null;
   data_instauracao?: string;
   situacao_inquerito?: InqueritoSituacao;
   relatorio_final?: string;
@@ -383,6 +384,67 @@ export interface TriagemLead {
   user_id?: string;
 }
 
+/** Dados próprios de processos de família (guardados em processos.dados_familia). */
+export interface DadosFamilia {
+  /** Ex.: "Divórcio litigioso com partilha, guarda e alimentos", "Reconhecimento e dissolução de união estável". */
+  acao?: string;
+  relacao?: "casamento" | "uniao_estavel";
+  /** Início da convivência (união) — pode ser anterior ao casamento civil. */
+  data_inicio_relacao?: string;
+  data_casamento?: string;
+  /** União estável com escritura pública? */
+  escritura_uniao?: boolean;
+  regime_bens?: string;
+  data_separacao?: string;
+  moradia?: string;
+  filhos?: Array<{ nome: string; nascimento?: string; idade?: number; escola?: string; observacoes?: string }>;
+  bens?: Array<{ descricao: string; valor?: number; observacoes?: string }>;
+  dividas?: Array<{ descricao: string; valor?: number; observacoes?: string }>;
+  despesas_filhos?: Array<{ descricao: string; valor?: number }>;
+  cliente_profissao?: string;
+  cliente_renda?: string;
+  outra_parte_nome?: string;
+  outra_parte_profissao?: string;
+  outra_parte_renda?: string;
+  pretensao?: { guarda?: string; convivencia?: string; alimentos?: string; partilha?: string; outros?: string };
+  possivel_acordo?: string;
+  observacoes?: string;
+}
+
+export type OrcamentoStatus = "enviado" | "aceito" | "recusado";
+
+/** Valor proposto ao cliente antes de fechar o contrato (vira honorários quando aceito). */
+export interface Orcamento {
+  id: string;
+  cliente_id?: string | null;
+  processo_id?: string | null;
+  cliente_nome?: string | null;
+  descricao: string;
+  valor_total: number;
+  entrada?: number | null;
+  parcelas?: number | null;
+  valor_parcela?: number | null;
+  primeiro_vencimento?: string | null;
+  status: OrcamentoStatus;
+  observacoes?: string | null;
+  aceito_em?: string | null;
+  created_at: string;
+  updated_at: string;
+  user_id: string;
+}
+
+/** Honorários reconhecidos no texto da triagem: orçamento (proposta) ou já contratado. */
+export interface HonorariosDraft {
+  modo: "orcamento" | "contratado";
+  descricao: string;
+  valor_total: number;
+  entrada?: number;
+  parcelas?: number;
+  valor_parcela?: number;
+  primeiro_vencimento?: string;
+  observacoes?: string;
+}
+
 export interface TriagemImportDraft {
   cliente_id?: string;
   cliente?: {
@@ -417,7 +479,19 @@ export interface TriagemImportDraft {
     unidade_prisional?: string;
     tipo_penal?: string;
     clientes_partes?: ProcessoClienteParte[];
+    dados_familia?: DadosFamilia;
   }>;
+  /** Caso ainda não ajuizado (sem CNJ): vira processo "a ajuizar" com os dados próprios da área. */
+  caso_novo?: {
+    titulo: string;
+    tipo?: string;
+    descricao?: string;
+    comarca?: string;
+    uf?: string;
+    parte_contraria?: string;
+    dados_familia?: DadosFamilia;
+  };
+  honorarios?: HonorariosDraft;
   movimentacoes?: Array<{
     processo_numero?: string;
     data_movimentacao?: string;

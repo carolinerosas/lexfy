@@ -18,6 +18,7 @@ import type {
   TriagemImportacao,
   Briefing,
   AcordoParcela,
+  Orcamento,
 } from "@/types";
 import { processoTemCliente } from "@/lib/processo-partes";
 
@@ -1566,4 +1567,81 @@ export async function sincronizarTodos(): Promise<SyncResult> {
     totalNovas += r.novas;
   }
   return { novas: totalNovas };
+}
+
+// --- Orçamentos (proposta de honorários antes do contrato) ---
+
+export async function getOrcamentos(clienteId?: string): Promise<Orcamento[]> {
+  let q = supabase.from("orcamentos").select("*").order("created_at", { ascending: false });
+  if (clienteId) q = q.eq("cliente_id", clienteId);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Orcamento[];
+}
+
+export async function createOrcamento(
+  input: Omit<Orcamento, "id" | "created_at" | "updated_at" | "user_id" | "status"> & { status?: Orcamento["status"] }
+): Promise<Orcamento> {
+  const novo = { ...input, status: input.status ?? "enviado", id: generateId(), created_at: now(), updated_at: now(), user_id: USER_ID };
+  const { data, error } = await supabase.from("orcamentos").insert(novo).select().single();
+  if (error) throw new Error(error.message);
+  return data as Orcamento;
+}
+
+export async function updateOrcamento(id: string, input: Partial<Orcamento>): Promise<void> {
+  const { error } = await supabase.from("orcamentos").update({ ...input, updated_at: now() }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteOrcamento(id: string): Promise<void> {
+  const { error } = await supabase.from("orcamentos").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+function somarMesesISO(iso: string, meses: number): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  const alvo = new Date(Date.UTC(a, m - 1 + meses, 1));
+  const ultimo = new Date(Date.UTC(alvo.getUTCFullYear(), alvo.getUTCMonth() + 1, 0)).getUTCDate();
+  alvo.setUTCDate(Math.min(d, ultimo));
+  return alvo.toISOString().slice(0, 10);
+}
+
+/**
+ * Lança honorários contratados no financeiro do processo: a entrada (se houver) e as
+ * parcelas mensais; sem parcelamento, uma cobrança só com o valor total.
+ */
+export async function lancarHonorariosContratados(processoId: string, h: {
+  descricao: string;
+  valor_total: number;
+  entrada?: number | null;
+  parcelas?: number | null;
+  valor_parcela?: number | null;
+  primeiro_vencimento?: string | null;
+}): Promise<number> {
+  const hoje = now().slice(0, 10);
+  const inicio = h.primeiro_vencimento || hoje;
+  const entrada = h.entrada && h.entrada > 0 ? h.entrada : 0;
+  const qtd = h.parcelas && h.parcelas > 0 ? Math.round(h.parcelas) : 0;
+  const lancamentos: { descricao: string; valor: number; vencimento: string }[] = [];
+  if (entrada) lancamentos.push({ descricao: `${h.descricao} — entrada`, valor: entrada, vencimento: hoje });
+  if (qtd) {
+    const valor = h.valor_parcela && h.valor_parcela > 0 ? h.valor_parcela : Math.round(((h.valor_total - entrada) / qtd) * 100) / 100;
+    for (let i = 0; i < qtd; i++) {
+      lancamentos.push({ descricao: `${h.descricao} — parcela ${i + 1}/${qtd}`, valor, vencimento: somarMesesISO(inicio, entrada ? i + 1 : i) });
+    }
+  }
+  if (!lancamentos.length) lancamentos.push({ descricao: h.descricao, valor: h.valor_total, vencimento: inicio });
+  for (const l of lancamentos) {
+    await createHonorario({
+      processo_id: processoId,
+      descricao: l.descricao,
+      valor: l.valor,
+      tipo: "contratual",
+      categoria: "cobranca",
+      status: "pendente",
+      data_lancamento: hoje,
+      data_vencimento: l.vencimento,
+    });
+  }
+  return lancamentos.length;
 }
