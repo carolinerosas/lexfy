@@ -14,6 +14,8 @@ export interface DocumentoArquivo {
   caminho: string;
   tamanho: number;
   criadoEm?: string;
+  /** Aparece para o cliente na Área do Cliente (só documentos de processo). */
+  visivelCliente?: boolean;
 }
 
 interface DocumentoRow {
@@ -24,6 +26,7 @@ interface DocumentoRow {
   caminho: string;
   tamanho: number;
   created_at?: string | null;
+  visivel_cliente?: boolean | null;
 }
 
 function pasta(contexto: DocumentoContexto, registroId: string): string {
@@ -50,7 +53,7 @@ function documentoError(message: string): Error {
 export async function listarDocumentos(contexto: DocumentoContexto, registroId: string): Promise<DocumentoArquivo[]> {
   const { data, error } = await supabase
     .from("documentos")
-    .select("id, nome, referencia, arquivo_nome, caminho, tamanho, created_at")
+    .select("id, nome, referencia, arquivo_nome, caminho, tamanho, created_at, visivel_cliente")
     .eq("contexto", contexto)
     .eq("registro_id", registroId)
     .eq("user_id", USER_ID)
@@ -65,6 +68,7 @@ export async function listarDocumentos(contexto: DocumentoContexto, registroId: 
     caminho: row.caminho,
     tamanho: Number(row.tamanho ?? 0),
     criadoEm: row.created_at ?? undefined,
+    visivelCliente: Boolean(row.visivel_cliente),
   }));
 }
 
@@ -120,5 +124,11 @@ export async function excluirDocumento(documento: Pick<DocumentoArquivo, "id" | 
   const { error: storageError } = await supabase.storage.from(BUCKET).remove([documento.caminho]);
   if (storageError) throw documentoError(storageError.message);
   const { error } = await supabase.from("documentos").delete().eq("id", documento.id).eq("user_id", USER_ID);
+  if (error) throw documentoError(error.message);
+}
+
+/** Liga/desliga o documento na Área do Cliente. */
+export async function marcarDocumentoCliente(id: string, visivel: boolean): Promise<void> {
+  const { error } = await supabase.from("documentos").update({ visivel_cliente: visivel }).eq("id", id).eq("user_id", USER_ID);
   if (error) throw documentoError(error.message);
 }

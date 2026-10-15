@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Eye, FileText, Loader2, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileText, Loader2, Trash2, Upload, UserCheck, UserX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -9,6 +9,7 @@ import {
   anexarDocumento,
   excluirDocumento,
   listarDocumentos,
+  marcarDocumentoCliente,
   urlDocumento,
   type DocumentoArquivo,
   type DocumentoContexto,
@@ -176,6 +177,20 @@ export function DocumentosPanel({ contexto, registroId, titulo = "Documentos" }:
                     </p>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {contexto === "processos" && (
+                      <button
+                        type="button"
+                        title={documento.visivelCliente ? "O cliente vê este documento no portal (clique para esconder)" : "Liberar este documento para o cliente no portal"}
+                        onClick={async () => {
+                          await marcarDocumentoCliente(documento.id, !documento.visivelCliente);
+                          setDocumentos((lista) => lista.map((d) => (d.id === documento.id ? { ...d, visivelCliente: !d.visivelCliente } : d)));
+                        }}
+                        disabled={busy}
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-md disabled:opacity-50 ${documento.visivelCliente ? "text-emerald-600 hover:bg-emerald-50" : "text-gray-300 hover:bg-gray-100 hover:text-gray-700"}`}
+                      >
+                        {documento.visivelCliente ? <UserCheck className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
+                      </button>
+                    )}
                     <button type="button" title="Abrir PDF" onClick={() => abrir(documento)} disabled={busy} className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-800 disabled:opacity-50">
                       <Eye className="h-4 w-4" />
                     </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, KeyRound, MessageCircle, Plus, UserX, UserCheck, X } from "lucide-react";
+import { Copy, History, KeyRound, MessageCircle, Plus, UserX, UserCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
@@ -27,6 +27,14 @@ interface Acesso {
   ultimo_acesso: string | null;
 }
 
+const ACOES: Record<string, string> = {
+  entrou: "Entrou no portal",
+  viu_painel: "Viu os processos",
+  baixou_documento: "Baixou documento",
+  criou_senha: "Criou a senha",
+  pediu_nova_senha: "Pediu senha nova por e-mail",
+};
+
 const VINCULOS = ["cliente", "mãe", "pai", "cônjuge", "companheira(o)", "filha(o)", "irmã(o)", "outro"];
 const BASE = "https://www.justio.com.br";
 
@@ -49,6 +57,18 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
   const [form, setForm] = useState<{ nome: string; cpf: string; celular: string; email: string; vinculo: string; processos: string[] } | null>(null);
   const [erro, setErro] = useState("");
   const [linkNovo, setLinkNovo] = useState<{ acesso: Acesso; link: string } | null>(null);
+  const [historico, setHistorico] = useState<{ acessoId: string; itens: { acao: string; detalhe: string | null; em: string }[] } | null>(null);
+
+  async function verHistorico(a: Acesso) {
+    if (historico?.acessoId === a.id) return setHistorico(null);
+    const { data } = await supabase
+      .from("portal_log")
+      .select("acao,detalhe,em")
+      .eq("acesso_id", a.id)
+      .order("em", { ascending: false })
+      .limit(30);
+    setHistorico({ acessoId: a.id, itens: (data ?? []) as { acao: string; detalhe: string | null; em: string }[] });
+  }
   const idsProcessos = processos.map((p) => p.id);
   const chaveProcessos = idsProcessos.join(",");
 
@@ -279,6 +299,9 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
                         : "sem convite"}
                 </p>
               </div>
+              <Button size="sm" variant="ghost" onClick={() => verHistorico(a)} title="Histórico de acessos">
+                <History className="w-4 h-4" />
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => gerarConvite(a)} title={a.senha_hash ? "Novo link (esqueceu a senha)" : "Gerar convite"}>
                 <KeyRound className="w-4 h-4" />
               </Button>
@@ -286,6 +309,23 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
                 {a.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
               </Button>
             </div>
+            {historico?.acessoId === a.id && (
+              <div className="mt-3 rounded-xl bg-gray-50 p-3">
+                <p className="mb-2 text-xs font-semibold text-gray-600">Últimos acessos</p>
+                {historico.itens.length === 0 ? (
+                  <p className="text-xs text-gray-500">Ainda não entrou.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {historico.itens.map((h, i) => (
+                      <li key={i} className="text-xs text-gray-700">
+                        <span className="text-gray-400">{new Date(h.em).toLocaleString("pt-BR")}</span> · {ACOES[h.acao] ?? h.acao}
+                        {h.detalhe ? `: ${h.detalhe}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             {processos.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {processos.map((p) => {

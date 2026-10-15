@@ -15,6 +15,7 @@ interface ProcessoCliente {
   uf?: string;
   andamentos: { id: string; data: string; texto: string }[];
   audiencias: { id: string; titulo: string; data_hora: string; local?: string; realizada: boolean }[];
+  documentos: { id: string; nome: string; referencia?: string; data: string }[];
 }
 
 function data(iso: string): string {
@@ -86,6 +87,25 @@ export default function ClientePainelPage() {
                   </p>
                 ))}
               </div>
+            )}
+
+            {p.documentos.length > 0 && (
+              <>
+                <h3 className="mt-5 text-sm font-semibold text-gray-900">Documentos</h3>
+                <ul className="mt-2 space-y-2">
+                  {p.documentos.map((d) => (
+                    <li key={d.id}>
+                      <a href={`/api/cliente/documento?id=${encodeURIComponent(d.id)}`} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 hover:bg-gray-50">
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{d.nome}</span>
+                          {d.referencia && <span className="block truncate text-xs text-gray-500">{d.referencia}</span>}
+                        </span>
+                        <span className="shrink-0 text-xs text-gray-500">Baixar PDF</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
 
             <h3 className="mt-5 text-sm font-semibold text-gray-900">Andamentos</h3>

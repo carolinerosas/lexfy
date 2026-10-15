@@ -122,7 +122,7 @@ export async function tentativasRecentes(cpf: string): Promise<number> {
 /** O que o acesso pode ver: os processos liberados, com andamentos e audiências marcados como visíveis. */
 export async function dadosDoAcesso(acesso: AcessoPortal) {
   if (!acesso.processos.length) return { processos: [] };
-  const [procs, movs, auds] = await Promise.all([
+  const [procs, movs, auds, docs] = await Promise.all([
     supabase.from("processos").select("id,numero,titulo,status,tipo,vara,comarca,uf,tribunal").in("id", acesso.processos),
     supabase
       .from("movimentacoes")
@@ -136,6 +136,13 @@ export async function dadosDoAcesso(acesso: AcessoPortal) {
       .in("processo_id", acesso.processos)
       .eq("visivel_cliente", true)
       .order("data_hora"),
+    supabase
+      .from("documentos")
+      .select("id,registro_id,nome,referencia,created_at")
+      .eq("contexto", "processos")
+      .in("registro_id", acesso.processos)
+      .eq("visivel_cliente", true)
+      .order("created_at", { ascending: false }),
   ]);
   return {
     processos: (procs.data ?? []).map((p) => ({
@@ -144,6 +151,9 @@ export async function dadosDoAcesso(acesso: AcessoPortal) {
         .filter((m) => m.processo_id === p.id)
         .map((m) => ({ id: m.id, data: m.data_movimentacao, texto: m.texto_cliente?.trim() || m.descricao })),
       audiencias: (auds.data ?? []).filter((a) => a.processo_id === p.id),
+      documentos: (docs.data ?? [])
+        .filter((d) => d.registro_id === p.id)
+        .map((d) => ({ id: d.id, nome: d.nome, referencia: d.referencia, data: d.created_at })),
     })),
   };
 }
