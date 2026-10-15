@@ -8,7 +8,7 @@ import {
 import type { TriagemImportDraft } from "@/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 
@@ -97,8 +97,12 @@ function normalizeDraft(value: Partial<ImportDraft> & { parte_contraria?: { nome
       parte_contraria: cleanLine(p.parte_contraria) || parteContraria,
     })),
     movimentacoes: Array.isArray(value.movimentacoes) ? value.movimentacoes.filter((m) => m?.descricao) : [],
+    caso_novo: value.caso_novo?.titulo?.trim() ? { ...value.caso_novo, parte_contraria: cleanLine(value.caso_novo.parte_contraria) || parteContraria } : undefined,
+    honorarios: value.honorarios && Number(value.honorarios.valor_total) > 0
+      ? { ...value.honorarios, modo: value.honorarios.modo === "contratado" ? "contratado" : "orcamento", valor_total: Number(value.honorarios.valor_total) }
+      : undefined,
     avisos: [...avisosSaneamento, ...(Array.isArray(value.avisos) ? value.avisos : [])],
-    info: processosComNumero.length === 0 ? [INFO_SEM_CNJ] : [],
+    info: processosComNumero.length === 0 && !value.caso_novo?.titulo?.trim() ? [INFO_SEM_CNJ] : [],
   };
 }
 
@@ -223,8 +227,49 @@ Responda SOMENTE JSON válido, sem markdown, neste formato:
     "cliente_cpf_cnpj": "",
     "unidade_prisional": "",
     "tipo_penal": "crime imputado, só para processos criminais/júri/execução penal (ex.: Tráfico de drogas (art. 33, Lei 11.343/06))",
-    "data_distribuicao": "YYYY-MM-DD"
+    "data_distribuicao": "YYYY-MM-DD",
+    "dados_familia": "objeto igual ao de caso_novo.dados_familia, só para processos de família"
   }],
+  "caso_novo": {
+    "titulo": "ex.: Divórcio litigioso c/ partilha, guarda e alimentos",
+    "tipo": "civel|familia|criminal|trabalhista|previdenciario|outro",
+    "descricao": "resumo objetivo do caso",
+    "comarca": "",
+    "uf": "",
+    "parte_contraria": "",
+    "dados_familia": {
+      "acao": "ex.: Divórcio litigioso com partilha, guarda e alimentos",
+      "relacao": "casamento|uniao_estavel",
+      "data_inicio_relacao": "YYYY-MM-DD ou texto relativo como 'há 20 anos'",
+      "data_casamento": "YYYY-MM-DD ou texto relativo (casamento civil / escritura)",
+      "escritura_uniao": false,
+      "regime_bens": "",
+      "data_separacao": "YYYY-MM-DD ou texto relativo",
+      "moradia": "",
+      "filhos": [{ "nome": "", "nascimento": "YYYY-MM-DD", "idade": 0, "escola": "" }],
+      "bens": [{ "descricao": "", "valor": 0, "observacoes": "ex.: meação 50%, construída no terreno da sogra" }],
+      "dividas": [{ "descricao": "", "valor": 0, "observacoes": "" }],
+      "despesas_filhos": [{ "descricao": "", "valor": 0 }],
+      "cliente_profissao": "",
+      "cliente_renda": "",
+      "outra_parte_nome": "",
+      "outra_parte_profissao": "",
+      "outra_parte_renda": "",
+      "pretensao": { "guarda": "", "convivencia": "", "alimentos": "", "partilha": "", "outros": "" },
+      "possivel_acordo": "",
+      "observacoes": ""
+    }
+  },
+  "honorarios": {
+    "modo": "orcamento|contratado",
+    "descricao": "serviço, ex.: Honorários — divórcio, guarda, alimentos e partilha",
+    "valor_total": 0,
+    "entrada": 0,
+    "parcelas": 0,
+    "valor_parcela": 0,
+    "primeiro_vencimento": "YYYY-MM-DD",
+    "observacoes": ""
+  },
   "movimentacoes": [{ "processo_numero": "", "data_movimentacao": "YYYY-MM-DD", "descricao": "", "tipo": "", "fonte": "" }],
   "avisos": []
 }
@@ -235,6 +280,9 @@ Regras de entidade (obrigatórias):
 - Decomponha o endereço: "logradouro" só com o nome da rua, "numero_end" só com o número, bairro, cidade e UF em seus campos. Ignore comentários entre parênteses.
 - "processos" só recebe processos com número CNJ. Caso ainda não ajuizado ou texto sem CNJ: "processos": [].
 Sempre que o texto descrever um andamento, movimentação, decisão, despacho, intimação ou evento de um processo, gere uma entrada correspondente em "movimentacoes", com "processo_numero" igual ao número do processo — MESMO que esse processo também apareça em "processos" como novo cadastro. A "descricao" da movimentação deve conter o andamento em si.
+Caso novo (ainda NÃO ajuizado, sem CNJ): preencha "caso_novo" com o que o cliente quer propor (título, tipo, descrição). Se não for um caso novo, omita "caso_novo".
+Família (divórcio, união estável, guarda, alimentos, convivência, partilha, inventário entre familiares): preencha "dados_familia" (no caso_novo ou no processo com CNJ). Valores em número (R$ 120.000,00 → 120000). Quando o texto der o valor do bem e a metade (meação), use o valor total em "valor" e registre a meação em "observacoes". Filhos com idade e sem data de nascimento: preencha "idade". Pretensões do cliente (guarda, convivência, alimentos/pensão, partilha) vão em "pretensao"; gastos dos filhos (escola, mercado, roupa, lazer, saúde) vão em "despesas_filhos". Profissão e renda de cada parte em seus campos. Contexto que não couber em nenhum campo vai em "observacoes".
+Honorários: se o texto falar de valor dos honorários, preencha "honorarios". "modo" = "contratado" SÓ se o texto disser expressamente que o cliente fechou, contratou, assinou o contrato ou já pagou; valor, entrada e parcelas sozinhos são proposta: "orcamento". Na dúvida, "orcamento". Entrada, número de parcelas e valor da parcela em seus campos (ex.: "Entrada: 2.500, Parcelas: 5x 500" → entrada 2500, parcelas 5, valor_parcela 500). Honorários NUNCA vão em observações nem em dados_familia.
 Não invente dados. Se faltar algo, omita ou deixe vazio.`;
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -246,12 +294,12 @@ Não invente dados. Se faltar algo, omita ou deixe vazio.`;
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 2500,
+        max_tokens: 8000,
         temperature: 0,
         system,
         messages: [{ role: "user", content: input }],
       }),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(90000),
     });
 
     if (!res.ok) {

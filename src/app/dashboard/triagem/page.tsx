@@ -1,5 +1,6 @@
 "use client";
 
+import { FamiliaEditor } from "@/components/ui/familia-editor";
 import { useEffect, useState, useCallback } from "react";
 import { MessageSquare, CheckCircle, X, Trash2, ChevronDown, Phone, Clock, ExternalLink, Copy, CheckCircle2, FileText, Sparkles, UploadCloud } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +15,7 @@ import {
   getTriagemLeads, updateTriagemLead, deleteTriagemLead,
   getTriagemImportacoes, updateTriagemImportacao, deleteTriagemImportacao,
   createCliente, updateCliente, createAtendimento, getClientes, getProcessos,
-  createProcesso, createMovimentacao, updateProcesso, createAnotacao,
+  createProcesso, createMovimentacao, updateProcesso, createAnotacao, createOrcamento, lancarHonorariosContratados,
 } from "@/lib/store";
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import { partesDoProcesso } from "@/lib/processo-partes";
@@ -370,6 +371,62 @@ export default function TriagemPage() {
         criados += 1;
       }
 
+      // 1b) Dados de família dos processos com CNJ (só preenche se o processo ainda não tem).
+      for (const proc of processosDraft) {
+        if (!proc.dados_familia) continue;
+        const alvo = processosPorNumero.get(digits(proc.numero));
+        if (alvo && !alvo.dados_familia) await updateProcesso(alvo.id, { dados_familia: proc.dados_familia });
+      }
+
+      // 1c) Caso novo (ainda sem CNJ): vira processo "a ajuizar" com os dados próprios da área.
+      let casoNovo: Processo | undefined;
+      if (draft.caso_novo?.titulo?.trim()) {
+        const c = draft.caso_novo;
+        casoNovo = await createProcesso({
+          numero: "",
+          titulo: c.titulo.trim(),
+          descricao: c.descricao || observacoesCaso || "Caso novo importado pela triagem.",
+          status: "ativo",
+          fase: "A ajuizar",
+          tipo: (c.tipo || "outro") as Processo["tipo"],
+          comarca: c.comarca,
+          uf: c.uf,
+          cliente_id: cliente.id,
+          cliente_nome: cliente.nome,
+          cliente_cpf_cnpj: draft.cliente?.cpf,
+          clientes_partes: [{ cliente_id: cliente.id, nome: cliente.nome, cpf_cnpj: draft.cliente?.cpf, papel: "Cliente principal" }],
+          parte_contraria: c.parte_contraria,
+          dados_familia: c.dados_familia ?? null,
+          monitorar_datajud: false,
+        });
+        criados += 1;
+      }
+
+      // 1d) Honorários: contratados viram cobranças no processo; senão, orçamento do cliente.
+      let honorariosMsg = "";
+      if (draft.honorarios && draft.honorarios.valor_total > 0) {
+        const h = draft.honorarios;
+        const processoHonorarios = casoNovo ?? (processosDraft[0] ? processosPorNumero.get(digits(processosDraft[0].numero)) : undefined);
+        if (h.modo === "contratado" && processoHonorarios) {
+          const n = await lancarHonorariosContratados(processoHonorarios.id, h);
+          honorariosMsg = ` ${n} lançamento(s) de honorários criados.`;
+        } else {
+          await createOrcamento({
+            cliente_id: cliente.id,
+            cliente_nome: cliente.nome,
+            processo_id: processoHonorarios?.id ?? null,
+            descricao: h.descricao || "Honorários",
+            valor_total: h.valor_total,
+            entrada: h.entrada || null,
+            parcelas: h.parcelas || null,
+            valor_parcela: h.valor_parcela || null,
+            primeiro_vencimento: h.primeiro_vencimento || null,
+            observacoes: h.observacoes || null,
+          });
+          honorariosMsg = " Orçamento salvo na aba Orçamentos do cliente.";
+        }
+      }
+
       let movs = 0;
       // 2) Movimentações explícitas detectadas pela IA.
       for (const mov of movimentacoesDraft) {
@@ -417,6 +474,7 @@ export default function TriagemPage() {
         const alvosProcesso = [...new Set(processosDraft
           .map((proc) => processosPorNumero.get(digits(proc.numero))?.id)
           .filter((id): id is string => Boolean(id)))];
+        if (casoNovo) alvosProcesso.push(casoNovo.id);
         if (alvosProcesso.length) {
           for (const processoId of alvosProcesso) {
             await createAnotacao({ processo_id: processoId, cliente_id: cliente.id, titulo, conteudo: textoOriginal });
@@ -434,9 +492,9 @@ export default function TriagemPage() {
       setDraft(null);
       setImportacaoAtiva(null);
       setTextoImportacao("");
-      setImportMsg(processosDraft.length === 0
+      setImportMsg((processosDraft.length === 0 && !casoNovo
         ? `Importação concluída: ${clienteExistente ? "cadastro do cliente existente completado" : "cliente criado"} (sem processo). O texto foi salvo como anotação na pasta do cliente.`
-        : `Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s), ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s). O texto foi salvo como anotação no(s) processo(s).`);
+        : `Importação concluída: ${clienteExistente ? "cliente existente usado" : "cliente criado"}, ${criados} processo(s) novo(s)${casoNovo ? " (incluindo o caso a ajuizar)" : ""}, ${reusados} já existente(s), ${movs} movimentação(ões) lançada(s). O texto foi salvo como anotação no(s) processo(s).`) + honorariosMsg);
     } catch (err) {
       setImportMsg(err instanceof Error ? err.message : "Erro ao salvar importação.");
     } finally {
@@ -1218,6 +1276,69 @@ function ImportacaoAssistida({
                 <Input label="UF" maxLength={2} value={draft.cliente?.uf ?? ""} onChange={(e) => setClienteField("uf", e.target.value.toUpperCase())} />
               </div>
             </div>
+
+            {draft.caso_novo && (
+              <div className="space-y-3 rounded-xl border border-gray-100 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Caso novo (a ajuizar, sem número)</p>
+                  <button type="button" className="text-xs text-gray-400 hover:text-red-600" onClick={() => onDraftChange({ ...draft, caso_novo: undefined })}>
+                    Não criar
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input label="Título" value={draft.caso_novo.titulo} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, titulo: e.target.value } })} />
+                  <Input label="Tipo" value={draft.caso_novo.tipo ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, tipo: e.target.value } })} />
+                  <Input label="Parte contrária" value={draft.caso_novo.parte_contraria ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, parte_contraria: e.target.value } })} />
+                  <Input label="Comarca" value={draft.caso_novo.comarca ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, comarca: e.target.value } })} />
+                </div>
+                <Textarea label="Resumo" value={draft.caso_novo.descricao ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, descricao: e.target.value } })} />
+                {(draft.caso_novo.tipo === "familia" || draft.caso_novo.dados_familia) && (
+                  <FamiliaEditor
+                    valor={draft.caso_novo.dados_familia ?? {}}
+                    onChange={(v) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, dados_familia: v } })}
+                  />
+                )}
+              </div>
+            )}
+
+            {draft.honorarios && (
+              <div className="space-y-3 rounded-xl border border-gray-100 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Honorários</p>
+                  <button type="button" className="text-xs text-gray-400 hover:text-red-600" onClick={() => onDraftChange({ ...draft, honorarios: undefined })}>
+                    Ignorar
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(["orcamento", "contratado"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, modo: m } })}
+                      className={`rounded-lg px-3 py-1.5 text-sm ${draft.honorarios!.modo === m ? "bg-[#21181d] text-white" : "bg-gray-100 text-gray-700"}`}
+                    >
+                      {m === "orcamento" ? "É orçamento (proposta)" : "Cliente já fechou"}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {draft.honorarios.modo === "orcamento"
+                    ? "Vai para a aba Orçamentos do cliente. Quando ele fechar, um clique lança os honorários."
+                    : "Entrada e parcelas viram cobranças em Honorários do processo."}
+                </p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Input label="Descrição" value={draft.honorarios.descricao} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, descricao: e.target.value } })} />
+                  <Input label="Valor total (R$)" inputMode="decimal" value={String(draft.honorarios.valor_total ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, valor_total: Number(e.target.value.replace(",", ".")) || 0 } })} />
+                  <Input label="Entrada (R$)" inputMode="decimal" value={String(draft.honorarios.entrada ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, entrada: Number(e.target.value.replace(",", ".")) || undefined } })} />
+                  <Input label="Nº de parcelas" inputMode="numeric" value={String(draft.honorarios.parcelas ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, parcelas: Number(e.target.value) || undefined } })} />
+                  <Input label="Valor da parcela (R$)" inputMode="decimal" value={String(draft.honorarios.valor_parcela ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, valor_parcela: Number(e.target.value.replace(",", ".")) || undefined } })} />
+                  <Input label="1ª parcela em" type="date" value={draft.honorarios.primeiro_vencimento ?? ""} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, primeiro_vencimento: e.target.value || undefined } })} />
+                </div>
+                {draft.honorarios.modo === "contratado" && !draft.caso_novo && (draft.sem_processo || draft.processos.length === 0) && (
+                  <p className="text-xs text-amber-700">Sem processo nesta importação: os honorários serão salvos como orçamento (Honorários precisam de um processo).</p>
+                )}
+              </div>
+            )}
 
             {!draft.sem_processo && (
             <div className="space-y-3">
