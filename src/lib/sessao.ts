@@ -40,7 +40,7 @@ export async function criarSessao(versao: number, duracaoS = DURACAO_SESSAO_S): 
   return `${corpo}.${b64url(assinatura)}`;
 }
 
-/** Confere assinatura e validade. Não confere a versão (isso exige o banco; ver sessao-servidor.ts). */
+/** Confere assinatura e validade. Não confere a versão (isso exige o banco; ver sessaoValida em acesso.ts). */
 export async function lerSessao(cookie: string | undefined): Promise<Sessao | null> {
   if (!cookie) return null;
   const [corpo, assinatura, ...resto] = cookie.split(".");
