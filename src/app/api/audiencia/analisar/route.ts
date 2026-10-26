@@ -183,7 +183,9 @@ export async function POST(req: NextRequest) {
           const stream = client.beta.messages.stream({
             model: MODEL,
             max_tokens: MAX_TOKENS[modo],
-            betas: ["server-side-fallback-2026-07-01"],
+            betas: ["server-side-fallback-2026-07-01", "thinking-binding-controls-2026-08-01"],
+            // Entre rodadas de pesquisa nos autos o bloco de raciocínio pode não casar com a conversa: descarta em vez de dar 400.
+            thinking: { type: "adaptive", block_binding: { prefix_mismatch_behavior: "drop_block" } },
             fallbacks: "default",
             output_config: { effort: ESFORCO[modo] },
             system: [{ type: "text", text: sistema, cache_control: { type: "ephemeral" } }],
