@@ -25,6 +25,7 @@ export const config = {
     "/triagem",
     "/api/triagem",
     "/api/audiencia/:path*",
+    "/api/pecas/:path*",
     "/api/notificacoes",
     "/api/autos/:path*",
     "/api/supabase/:path*",

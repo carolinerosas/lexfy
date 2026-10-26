@@ -13,6 +13,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
   const [arquivos, setArquivos] = useState<AutosArquivo[]>([]);
   const [progresso, setProgresso] = useState<{ nome: string; feitas: number; total: number; etapa?: "texto" | "ocr" } | null>(null);
   const [erro, setErro] = useState("");
+  const [sucesso, setSucesso] = useState("");
   const [termo, setTermo] = useState("");
   const [resultados, setResultados] = useState<TrechoAutos[] | null>(null);
 
@@ -31,10 +32,16 @@ export function AutosPanel({ processoId }: { processoId: string }) {
   async function enviar(lista: FileList | null) {
     if (!lista?.length) return;
     setErro("");
+    setSucesso("");
     for (const f of Array.from(lista)) {
       try {
         setProgresso({ nome: f.name, feitas: 0, total: 0 });
-        await importarAutos(processoId, f, (feitas, total, etapa) => setProgresso({ nome: f.name, feitas, total, etapa }));
+        const novo = await importarAutos(processoId, f, (feitas, total, etapa) => setProgresso({ nome: f.name, feitas, total, etapa }));
+        setSucesso(
+          `✓ ${f.name}: ${novo.paginas} páginas lidas` +
+            (novo.paginas_sem_texto ? `, ${novo.paginas_sem_texto} sem texto (escaneadas)` : "") +
+            ". Já dá para pesquisar nos autos."
+        );
       } catch (e) {
         setErro(`${f.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
@@ -88,6 +95,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
               </div>
             </div>
           )}
+          {sucesso && <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{sucesso}</p>}
           {erro && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
           {arquivos.length > 0 && (

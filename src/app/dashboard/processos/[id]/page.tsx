@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { SelectComOutro } from "@/components/ui/select-com-outro";
 import { ComboBox } from "@/components/ui/combobox";
 import { AutosPanel } from "@/components/ui/autos-panel";
+import { PecasPanel } from "@/components/ui/pecas-panel";
 import { FamiliaEditor } from "@/components/ui/familia-editor";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import {
@@ -162,6 +163,7 @@ type Tab =
   | "anotacoes"
   | "documentos"
   | "autos"
+  | "pecas"
   | "tarefas"
   | "prazos"
   | "audiencias"
@@ -367,6 +369,7 @@ export default function ProcessoDetailPage() {
     ] : []),
     { key: "anotacoes", label: "Anotações", count: anotacoes.length, showCount: false },
     { key: "autos", label: "Autos", count: 0, showCount: false },
+    { key: "pecas", label: "Peças", count: 0, showCount: false },
     { key: "documentos", label: "Documentos", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
@@ -610,6 +613,7 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "autos" && <AutosPanel processoId={processo.id} />}
+      {tab === "pecas" && <PecasPanel processoId={processo.id} tipoProcesso={processo.tipo} />}
       {tab === "familia" && <FamiliaTab processo={processo} onSalvo={load} />}
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />

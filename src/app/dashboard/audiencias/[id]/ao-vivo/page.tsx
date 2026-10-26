@@ -59,6 +59,7 @@ export default function AudienciaAoVivoPage() {
   const { id } = useParams<{ id: string }>();
   const livre = id === "livre"; // audiência avulsa, sem processo no Justio
   const chaveLocal = `justio_aovivo_${id}`;
+  const salvandoRef = useRef(false);
 
   const [audiencia, setAudiencia] = useState<AudienciaComProcesso | null>(null);
   const [trechos, setTrechos] = useState<Trecho[]>([]);
@@ -349,9 +350,20 @@ export default function AudienciaAoVivoPage() {
       URL.revokeObjectURL(url);
       return;
     }
-    if (!audiencia) return;
-    await createAnotacao({ processo_id: audiencia.processo_id, titulo, conteudo });
-    setAviso(`"${titulo}" salvo nas anotações do processo.`);
+    if (!audiencia || salvandoRef.current) return;
+    salvandoRef.current = true;
+    setErro("");
+    setAviso("Salvando no processo…");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      await createAnotacao({ processo_id: audiencia.processo_id, titulo, conteudo });
+      setAviso(`✓ "${titulo}" salvo nas anotações do processo.`);
+    } catch (e) {
+      setAviso("");
+      setErro(`Não consegui salvar no processo: ${e instanceof Error ? e.message : String(e)}. A transcrição continua nesta tela; tente de novo.`);
+    } finally {
+      salvandoRef.current = false;
+    }
   }
 
   function renomear(f: number) {
