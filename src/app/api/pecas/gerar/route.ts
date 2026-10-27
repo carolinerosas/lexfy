@@ -5,6 +5,7 @@ import { envLimpo } from "@/lib/env";
 import { ESTILO_CAROL } from "@/lib/audiencia/estilo-carol";
 import { PERFIL, areaDoProcesso, type Area } from "@/lib/audiencia/perfis";
 import { tipoPeca } from "@/lib/pecas/tipos";
+import { bloqueioPorLimite, registrarUso } from "@/lib/ia-uso";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -32,6 +33,8 @@ interface Corpo {
 export async function POST(req: NextRequest) {
   const c = (await req.json()) as Corpo;
   if (!c.processo_id) return NextResponse.json({ error: "Processo não informado." }, { status: 400 });
+  const bloqueio = await bloqueioPorLimite();
+  if (bloqueio) return NextResponse.json({ error: bloqueio }, { status: 429 });
 
   const [proc, movs] = await Promise.all([
     supabase
@@ -141,6 +144,7 @@ export async function POST(req: NextRequest) {
             }
           }
           const final = await stream.finalMessage();
+          await registrarUso("pecas/gerar", MODEL, final.usage);
           if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n[O modelo recusou esta peça.]"));
           if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n[Texto cortado pelo limite de tamanho.]"));
           if (final.stop_reason !== "tool_use") break;

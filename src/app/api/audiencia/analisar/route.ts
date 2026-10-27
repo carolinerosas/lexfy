@@ -5,6 +5,7 @@ import { envLimpo } from "@/lib/env";
 import { ESTILO_CAROL, MODO_ORAL } from "@/lib/audiencia/estilo-carol";
 import { PERFIL, areaDoProcesso, atoDaAudiencia, type Ato, type Area } from "@/lib/audiencia/perfis";
 import { PADRAO_CUSTODIA } from "@/lib/audiencia/criminal";
+import { bloqueioPorLimite, registrarUso } from "@/lib/ia-uso";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,7 +16,9 @@ export const maxDuration = 300;
 
 type Modo = "dicas" | "requerimentos" | "alegacoes";
 
+// As dicas rodam a cada minuto: modelo menor. Requerimentos e alegações são pontuais e ficam no Opus.
 const MODEL = process.env.AUDIENCIA_MODEL || "claude-opus-5-5";
+const MODEL_DICAS = process.env.AUDIENCIA_MODEL_DICAS || "claude-sonnet-5-5";
 
 const ESFORCO: Record<Modo, "low" | "medium" | "high"> = { dicas: "low", requerimentos: "medium", alegacoes: "high" };
 const MAX_TOKENS: Record<Modo, number> = { dicas: 1500, requerimentos: 6000, alegacoes: 16000 };
@@ -121,6 +124,9 @@ export async function POST(req: NextRequest) {
   if (!transcricao?.trim()) {
     return NextResponse.json({ error: "Ainda não há transcrição." }, { status: 400 });
   }
+  const bloqueio = await bloqueioPorLimite();
+  if (bloqueio) return NextResponse.json({ error: bloqueio }, { status: 429 });
+  const modelo = modo === "dicas" ? MODEL_DICAS : MODEL;
 
   // Audiência livre (sem processo no Justio): só a transcrição e o roteiro.
   const ctx = processo_id
@@ -181,7 +187,7 @@ export async function POST(req: NextRequest) {
         // Até 4 rodadas de pesquisa nos autos; o texto de cada rodada vai sendo enviado.
         for (let rodada = 0; rodada < 5; rodada++) {
           const stream = client.beta.messages.stream({
-            model: MODEL,
+            model: modelo,
             max_tokens: MAX_TOKENS[modo],
             betas: ["server-side-fallback-2026-07-01", "thinking-binding-controls-2026-08-01"],
             // Entre rodadas de pesquisa nos autos o bloco de raciocínio pode não casar com a conversa: descarta em vez de dar 400.
@@ -199,6 +205,7 @@ export async function POST(req: NextRequest) {
             }
           }
           const final = await stream.finalMessage();
+          await registrarUso(`audiencia/${modo}`, modelo, final.usage);
           if (final.stop_reason === "refusal") controller.enqueue(encoder.encode("\n\n[O modelo recusou esta análise.]"));
           if (final.stop_reason === "max_tokens") controller.enqueue(encoder.encode("\n\n[Texto cortado pelo limite de tamanho.]"));
           if (final.stop_reason !== "tool_use" || !processo_id) break;
