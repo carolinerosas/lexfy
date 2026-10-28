@@ -154,7 +154,7 @@ function ReciboForm({
       referente,
       processoNumero,
       formaPagamento: forma,
-      cidade: cidade || "[cidade]",
+      cidade,
       dataEmissao,
     }, perfil),
     timbreUrl,
@@ -164,9 +164,8 @@ function ReciboForm({
   function gerarPdf() {
     if (!nome.trim()) { setErro("Informe quem pagou."); return; }
     if (valorNum <= 0) { setErro("Informe o valor recebido."); return; }
-    if (!cidade.trim()) { setErro("Informe a cidade do recibo."); return; }
     setErro("");
-    salvarCidade(cidade.trim());
+    if (cidade.trim()) salvarCidade(cidade.trim());
     if (!imprimirHtml(html)) setErro("Não foi possível abrir a impressão.");
   }
 
@@ -195,7 +194,7 @@ function ReciboForm({
             <Select label="Forma de pagamento" value={forma} onChange={(e) => setForma(e.target.value)} options={formasPagamento} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Cidade *" value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="ex.: Volta Redonda/RJ" />
+            <Input label="Cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="ex.: Volta Redonda/RJ" />
             <Input label="Data do recibo" type="date" value={dataEmissao} onChange={(e) => setDataEmissao(e.target.value)} />
           </div>
           {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}

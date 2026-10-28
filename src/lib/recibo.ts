@@ -132,7 +132,7 @@ export function corpoRecibo(r: DadosRecibo, perfil: PerfilAdvogado): string {
     `referente a ${escapeHtml(referente || "honorários advocatícios")}${processo}${forma}, ` +
     `recebida em ${dataCurta(r.data)}.</p>` +
     `<p>Para clareza e como prova de quitação do valor acima, firmo o presente recibo.</p>` +
-    `<p class="rec-local">${escapeHtml(r.cidade.trim())}, ${dataPorExtenso(r.dataEmissao)}.</p>` +
+    `<p class="rec-local">${r.cidade.trim() ? `${escapeHtml(r.cidade.trim())}, ` : ""}${dataPorExtenso(r.dataEmissao)}.</p>` +
     `<p class="rec-assinatura">_________________________________________<br>` +
     `<strong>${escapeHtml(nomeAdv)}</strong><br>Advogada — ${escapeHtml(oab)}` +
     (cpfAdv ? `<br>CPF ${escapeHtml(cpfAdv)}` : "") +
