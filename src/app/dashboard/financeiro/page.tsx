@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ComboBox } from "@/components/ui/combobox";
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
+import { ReciboModal } from "@/components/ui/recibo-modal";
 import {
   getHonorariosWithProcesso, getProcessos, getClientes,
   createHonorario, updateHonorario, deleteHonorario,
@@ -139,6 +140,7 @@ export default function FinanceiroPage() {
   const [pagandoConta, setPagandoConta] = useState<ContaEscritorio | null>(null);
   const [dataPagamentoConta, setDataPagamentoConta] = useState(todayISO());
   const [recebendo, setRecebendo] = useState<HonorarioFull | null>(null);
+  const [recibo, setRecibo] = useState<HonorarioFull | null>(null);
   const [view, setView] = useState<FinView | null>(null);
   const [clienteAberto, setClienteAberto] = useState<string | null>(null);
   const [anoTimeline, setAnoTimeline] = useState("");
@@ -438,6 +440,11 @@ export default function FinanceiroPage() {
                                       <CheckCircle2 className="w-3.5 h-3.5" />
                                     </button>
                                   )}
+                                  {(h.categoria === "pagamento" || h.status === "recebido") && (
+                                    <button onClick={() => setRecibo(h)} title="Emitir recibo" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                                      <Receipt className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                   <button onClick={() => setModal({ editing: h, processoId: h.processo_id, categoria: h.categoria })} title="Editar" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
                                     <Pencil className="w-3.5 h-3.5" />
                                   </button>
@@ -679,6 +686,16 @@ export default function FinanceiroPage() {
         honorario={recebendo}
         onClose={() => setRecebendo(null)}
         onDone={() => { setRecebendo(null); load(); }}
+      />
+
+      <ReciboModal
+        honorario={recibo}
+        processo={recibo ? {
+          numero: procInfo.get(recibo.processo_id)?.numero ?? recibo.processo?.numero ?? "",
+          cliente_nome: procInfo.get(recibo.processo_id)?.clienteNome ?? recibo.processo?.cliente_nome ?? "",
+          cliente_id: procInfo.get(recibo.processo_id)?.clienteId,
+        } : undefined}
+        onClose={() => setRecibo(null)}
       />
     </div>
   );

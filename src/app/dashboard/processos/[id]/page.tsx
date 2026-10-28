@@ -41,6 +41,7 @@ import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisiona
 import { labelTiposPenais, nomesPartesProcesso, partesDoProcesso, tiposPenaisDoProcesso } from "@/lib/processo-partes";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
 import { RecebimentoModal } from "@/components/ui/recebimento-modal";
+import { ReciboModal } from "@/components/ui/recibo-modal";
 import { AcordosPanel } from "@/components/ui/acordos-panel";
 import type {
   Cliente, DadosFamilia, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
@@ -272,6 +273,7 @@ export default function ProcessoDetailPage() {
   const [audModal, setAudModal] = useState(false);
   const [honModal, setHonModal] = useState(false);
   const [honRecebendo, setHonRecebendo] = useState<Honorario | null>(null);
+  const [honRecibo, setHonRecibo] = useState<Honorario | null>(null);
   const [atenModal, setAtenModal] = useState(false);
   const [anotacaoModal, setAnotacaoModal] = useState(false);
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
@@ -649,6 +651,7 @@ export default function ProcessoDetailPage() {
           honorarios={honorarios}
           onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
           onReceber={(h) => setHonRecebendo(h)}
+          onRecibo={(h) => setHonRecibo(h)}
           onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
         />
       )}
@@ -681,6 +684,12 @@ export default function ProcessoDetailPage() {
         honorario={honRecebendo}
         onClose={() => setHonRecebendo(null)}
         onDone={() => { setHonRecebendo(null); load(); }}
+      />
+
+      <ReciboModal
+        honorario={honRecibo}
+        processo={processo ? { numero: processo.numero, cliente_nome: processo.cliente_nome, cliente_id: processo.cliente_id } : undefined}
+        onClose={() => setHonRecibo(null)}
       />
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
       <AnotacaoModal
@@ -1115,10 +1124,11 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete, onToggleCliente 
   );
 }
 
-function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
+function HonorariosTab({ honorarios, onAdd, onReceber, onRecibo, onDelete }: {
   honorarios: Honorario[];
   onAdd: () => void;
   onReceber: (h: Honorario) => void;
+  onRecibo: (h: Honorario) => void;
   onDelete: (id: string) => void;
 }) {
   const cobracas = honorarios
@@ -1182,6 +1192,11 @@ function HonorariosTab({ honorarios, onAdd, onReceber, onDelete }: {
                       {!recebida && (
                         <Button size="sm" onClick={() => onReceber(h)}>
                           <CheckCircle className="w-3.5 h-3.5" /> Recebido
+                        </Button>
+                      )}
+                      {recebida && (
+                        <Button size="sm" variant="outline" onClick={() => onRecibo(h)} title="Emitir recibo no timbrado">
+                          <FileText className="w-3.5 h-3.5" /> Recibo
                         </Button>
                       )}
                       <button onClick={() => onDelete(h.id)} title="Excluir" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>

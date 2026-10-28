@@ -8,7 +8,7 @@ import Link from "next/link";
 import {
   ArrowLeft, FolderOpen, DollarSign, Users,
   ChevronRight, TrendingUp, TrendingDown,
-  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2, Plus,
+  Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2, Plus, Receipt,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +40,7 @@ import { NovoProcessoModal } from "@/app/dashboard/processos/novo-processo-modal
 import { AcordosPanel } from "@/components/ui/acordos-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
+import { ReciboModal } from "@/components/ui/recibo-modal";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -62,6 +63,7 @@ export default function ClienteDetailPage() {
   const [prazos, setPrazos] = useState<(Prazo & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [audiencias, setAudiencias] = useState<(Audiencia & { processo?: Pick<Processo, "numero" | "titulo" | "cliente_nome"> })[]>([]);
   const [editOpen, setEditOpen] = useState(false);
+  const [recibo, setRecibo] = useState<Honorario | null>(null);
   const [vincularProcessoOpen, setVincularProcessoOpen] = useState(false);
   const [novoProcessoOpen, setNovoProcessoOpen] = useState(false);
   const [aba, setAba] = useState<"resumo" | "documentos" | "gerar" | "orcamentos" | "portal">("resumo");
@@ -355,6 +357,11 @@ export default function ClienteDetailPage() {
                         {h.categoria === "pagamento" ? "Pagamento" : "Cobrança"}
                       </Badge>
                     </div>
+                    {h.categoria === "pagamento" && (
+                      <button onClick={() => setRecibo(h)} title="Emitir recibo" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+                        <Receipt className="w-4 h-4" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -474,6 +481,12 @@ export default function ClienteDetailPage() {
         processosVinculados={processos}
         onClose={() => setVincularProcessoOpen(false)}
         onSaved={() => { load(); setVincularProcessoOpen(false); }}
+      />
+      <ReciboModal
+        honorario={recibo}
+        cliente={cliente}
+        processo={recibo ? processos.find((p) => p.id === recibo.processo_id) : undefined}
+        onClose={() => setRecibo(null)}
       />
       {novoProcessoOpen && (
         <NovoProcessoModal
