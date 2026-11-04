@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, FolderOpen, DollarSign, Users,
-  ChevronRight, TrendingUp, TrendingDown,
+  ChevronRight, TrendingUp, TrendingDown, Copy, CheckCircle2,
   Pencil, Trash2, Phone, Mail, MapPin, CreditCard, Hash, Link2, Plus, Receipt,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +66,15 @@ export default function ClienteDetailPage() {
   const [recibo, setRecibo] = useState<Honorario | null>(null);
   const [vincularProcessoOpen, setVincularProcessoOpen] = useState(false);
   const [novoProcessoOpen, setNovoProcessoOpen] = useState(false);
+  const [numeroCopiadoId, setNumeroCopiadoId] = useState<string | null>(null);
+
+  const copiarNumero = useCallback(async (processo: Processo) => {
+    const numero = processo.numero.trim() || processo.numero_inquerito?.trim();
+    if (!numero) return;
+    await navigator.clipboard.writeText(numero);
+    setNumeroCopiadoId(processo.id);
+    setTimeout(() => setNumeroCopiadoId((atual) => (atual === processo.id ? null : atual)), 1400);
+  }, []);
   const [aba, setAba] = useState<"resumo" | "documentos" | "gerar" | "orcamentos" | "portal">("resumo");
 
   const load = useCallback(async () => {
@@ -306,20 +315,33 @@ export default function ClienteDetailPage() {
               ) : (
                 <ul className="divide-y divide-gray-50">
                   {processos.map((p) => (
-                    <li key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                      <Link href={`/dashboard/processos/${p.id}`} className="flex items-start gap-3 px-4 py-3.5 sm:px-6">
+                    <li key={p.id} className="relative hover:bg-gray-50/50 transition-colors">
+                      <div className="flex items-start gap-3 px-4 py-3.5 sm:px-6">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-start gap-2 mb-0.5">
-                            <p className="min-w-0 break-words text-sm font-semibold leading-snug text-gray-900">{p.titulo}</p>
+                            {/* O after: estende o link à linha inteira, sem pôr o botão de copiar dentro do link. */}
+                            <Link href={`/dashboard/processos/${p.id}`} className="min-w-0 break-words text-sm font-semibold leading-snug text-gray-900 after:absolute after:inset-0">{p.titulo}</Link>
                             <Badge variant={statusVariant[p.status]}>{p.status.charAt(0).toUpperCase() + p.status.slice(1)}</Badge>
                           </div>
-                          <p className="break-all text-xs text-gray-400 font-mono">
-                            {p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Número não informado")}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className="min-w-0 break-all text-xs text-gray-400 font-mono">
+                              {p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Número não informado")}
+                            </p>
+                            {(p.numero.trim() || p.numero_inquerito?.trim()) && (
+                              <button
+                                type="button"
+                                title="Copiar número do processo"
+                                onClick={() => copiarNumero(p)}
+                                className="relative z-10 -my-1.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                              >
+                                {numeroCopiadoId === p.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </div>
                           {p.tribunal && <p className="text-xs text-gray-400 mt-0.5 break-words">{p.tribunal}{p.vara ? ` · ${p.vara}` : ""}</p>}
                         </div>
                         <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-                      </Link>
+                      </div>
                     </li>
                   ))}
                 </ul>
