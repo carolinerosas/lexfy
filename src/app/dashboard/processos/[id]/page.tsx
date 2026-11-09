@@ -28,7 +28,7 @@ import {
   marcarTodasMovimentacoesLidas,
   getPrazos, createPrazo, updatePrazo, deletePrazo,
   getAudiencias, createAudiencia, updateAudiencia, deleteAudiencia,
-  getHonorarios, createHonorario, updateHonorario, deleteHonorario,
+  getHonorarios, getCliente,
   getAtendimentosByProcesso, createAtendimento, updateAtendimento, deleteAtendimento,
   getAnotacoesByProcesso, createAnotacao, updateAnotacao, deleteAnotacao,
   getTarefasByProcesso, createTarefa, updateTarefa, deleteTarefa,
@@ -40,8 +40,8 @@ import {
 import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisionalBaseOptions, valuesToOptions, varaBaseOptions } from "@/lib/cadastro-options";
 import { labelTiposPenais, nomesPartesProcesso, partesDoProcesso, tiposPenaisDoProcesso } from "@/lib/processo-partes";
 import { formatCurrency, formatDate, formatDateTime, daysUntil, prazoColor } from "@/lib/utils";
-import { RecebimentoModal } from "@/components/ui/recebimento-modal";
-import { ReciboModal } from "@/components/ui/recibo-modal";
+import { HonorariosPanel } from "@/components/ui/honorarios-panel";
+import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
 import { AcordosPanel } from "@/components/ui/acordos-panel";
 import type {
   Cliente, DadosFamilia, Processo, ProcessoClienteParte, Movimentacao, Prazo, Audiencia, Honorario, Atendimento, Anotacao, Tarefa, Prioridade,
@@ -69,13 +69,6 @@ const audienciaTipoOptions = [
   { value: "conciliacao", label: "Conciliação" },
   { value: "julgamento", label: "Julgamento" },
   { value: "una", label: "Una" },
-  { value: "outro", label: "Outro" },
-];
-
-const honorarioTipoOptions = [
-  { value: "contratual", label: "Contratual" },
-  { value: "sucumbencial", label: "Sucumbencial" },
-  { value: "exito", label: "Êxito" },
   { value: "outro", label: "Outro" },
 ];
 
@@ -163,6 +156,7 @@ type Tab =
   | "resultado"
   | "anotacoes"
   | "documentos"
+  | "gerar"
   | "autos"
   | "pecas"
   | "tarefas"
@@ -227,7 +221,6 @@ export default function ProcessoDetailPage() {
   const [todosProcessos, setTodosProcessos] = useState<Processo[]>([]);
   const [inqueritosDaAcao, setInqueritosDaAcao] = useState<Processo[]>([]);
 
-  const [honCategoria, setHonCategoria] = useState<"cobranca" | "pagamento">("pagamento");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [copiedNumero, setCopiedNumero] = useState(false);
@@ -271,9 +264,6 @@ export default function ProcessoDetailPage() {
   const [editingMovimentacao, setEditingMovimentacao] = useState<Movimentacao | null>(null);
   const [prazoModal, setPrazoModal] = useState(false);
   const [audModal, setAudModal] = useState(false);
-  const [honModal, setHonModal] = useState(false);
-  const [honRecebendo, setHonRecebendo] = useState<Honorario | null>(null);
-  const [honRecibo, setHonRecibo] = useState<Honorario | null>(null);
   const [atenModal, setAtenModal] = useState(false);
   const [anotacaoModal, setAnotacaoModal] = useState(false);
   const [editingAnotacao, setEditingAnotacao] = useState<Anotacao | null>(null);
@@ -373,6 +363,7 @@ export default function ProcessoDetailPage() {
     { key: "autos", label: "Autos", count: 0, showCount: false },
     { key: "pecas", label: "Peças", count: 0, showCount: false },
     { key: "documentos", label: "Documentos", count: 0, showCount: false },
+    { key: "gerar", label: "Gerar documento", count: 0, showCount: false },
     { key: "tarefas", label: "Tarefas", count: tarefas.filter((t) => !t.concluida).length },
     { key: "prazos", label: "Prazos", count: prazos.filter((p) => !p.concluido).length },
     { key: "audiencias", label: "Audiências", count: audiencias.filter((a) => !a.realizada).length },
@@ -620,6 +611,7 @@ export default function ProcessoDetailPage() {
       {tab === "documentos" && (
         <DocumentosPanel contexto="processos" registroId={processo.id} titulo="Documentos do processo" />
       )}
+      {tab === "gerar" && <GerarDocumentoDoProcesso processo={processo} />}
       {tab === "tarefas" && (
         <TarefasTab
           tarefas={tarefas}
@@ -647,13 +639,7 @@ export default function ProcessoDetailPage() {
         />
       )}
       {tab === "honorarios" && (
-        <HonorariosTab
-          honorarios={honorarios}
-          onAdd={() => { setHonCategoria("cobranca"); setHonModal(true); }}
-          onReceber={(h) => setHonRecebendo(h)}
-          onRecibo={(h) => setHonRecibo(h)}
-          onDelete={async (hid) => { await deleteHonorario(hid); load(); }}
-        />
+        <HonorariosPanel processo={processo} onChange={load} />
       )}
       {tab === "acordos" && (
         <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5">
@@ -678,19 +664,6 @@ export default function ProcessoDetailPage() {
       />
       <NovoPrazoModal open={prazoModal} onClose={() => setPrazoModal(false)} processoId={id} onCreated={() => { load(); setPrazoModal(false); }} />
       <NovaAudienciaModal open={audModal} onClose={() => setAudModal(false)} processoId={id} onCreated={() => { load(); setAudModal(false); }} />
-      <NovoHonorarioModal open={honModal} onClose={() => setHonModal(false)} processoId={id} categoria={honCategoria} onCreated={() => { load(); setHonModal(false); }} />
-
-      <RecebimentoModal
-        honorario={honRecebendo}
-        onClose={() => setHonRecebendo(null)}
-        onDone={() => { setHonRecebendo(null); load(); }}
-      />
-
-      <ReciboModal
-        honorario={honRecibo}
-        processo={processo ? { numero: processo.numero, cliente_nome: processo.cliente_nome, cliente_id: processo.cliente_id } : undefined}
-        onClose={() => setHonRecibo(null)}
-      />
       <NovoAtendimentoModal open={atenModal} onClose={() => setAtenModal(false)} processoId={id} clienteNome={processo.cliente_nome} onCreated={() => { load(); setAtenModal(false); }} />
       <AnotacaoModal
         open={anotacaoModal}
@@ -1120,94 +1093,6 @@ function AudienciasTab({ audiencias, onAdd, onToggle, onDelete, onToggleCliente 
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function HonorariosTab({ honorarios, onAdd, onReceber, onRecibo, onDelete }: {
-  honorarios: Honorario[];
-  onAdd: () => void;
-  onReceber: (h: Honorario) => void;
-  onRecibo: (h: Honorario) => void;
-  onDelete: (id: string) => void;
-}) {
-  const cobracas = honorarios
-    .filter((h) => h.categoria === "cobranca")
-    .sort((a, b) => (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999"));
-  const pagamentos = honorarios.filter((h) => h.categoria === "pagamento");
-  const totalCobrado = cobracas.reduce((s, h) => s + h.valor, 0);
-  const totalPago = pagamentos.reduce((s, h) => s + h.valor, 0);
-  const saldo = totalCobrado - totalPago;
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-gray-50 rounded-xl px-2 py-3 text-center sm:px-4">
-          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Cobrado</p>
-          <p className="text-[10px] font-black text-gray-900 tabular-nums sm:text-xs">{formatCurrency(totalCobrado)}</p>
-        </div>
-        <div className="bg-green-50 rounded-xl px-2 py-3 text-center sm:px-4">
-          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Recebido</p>
-          <p className="text-[10px] font-black text-green-700 tabular-nums sm:text-xs">{formatCurrency(totalPago)}</p>
-        </div>
-        <div className={`rounded-xl px-2 py-3 text-center sm:px-4 ${saldo > 0 ? "bg-amber-50" : "bg-gray-50"}`}>
-          <p className="text-[10px] text-gray-500 mb-1 sm:text-xs">Saldo a receber</p>
-          <p className={`text-[10px] font-black tabular-nums sm:text-xs ${saldo > 0 ? "text-amber-700" : "text-gray-400"}`}>{formatCurrency(Math.max(0, saldo))}</p>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold text-gray-700">Cobranças e parcelas</h4>
-          <Button size="sm" variant="outline" onClick={onAdd}>
-            <Plus className="w-3.5 h-3.5" /> Cobrança
-          </Button>
-        </div>
-        {cobracas.length === 0 ? (
-          <p className="text-xs text-gray-400 py-6 text-center">Nenhuma cobrança registrada. Clique em “Cobrança” para lançar (à vista ou parcelada).</p>
-        ) : (
-          <div className="space-y-2">
-            {cobracas.map((h) => {
-              const recebida = h.status === "recebido";
-              const venc = h.data_vencimento ? new Date(h.data_vencimento + "T00:00:00") : null;
-              const vencida = !recebida && venc && !isNaN(venc.getTime()) && venc < new Date(new Date().toDateString());
-              return (
-                <Card key={h.id}>
-                  <CardContent className="py-3 px-5">
-                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${recebida ? "bg-green-50 text-green-600" : vencida ? "bg-red-50 text-red-600" : "bg-blue-50 text-blue-600"}`}>
-                        {recebida ? <CheckCircle className="w-4 h-4" /> : <DollarSign className="w-4 h-4" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900 truncate">{h.descricao}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {recebida
-                            ? `Recebido${h.data_recebimento ? ` em ${formatDate(h.data_recebimento)}` : ""}`
-                            : h.data_vencimento
-                              ? <>vence {formatDate(h.data_vencimento)}{vencida && <span className="ml-1 font-semibold text-red-600">(vencida)</span>}</>
-                              : (h.tipo ?? "Honorário")}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-[11px] font-bold tabular-nums text-gray-900">{formatCurrency(h.valor)}</span>
-                      {!recebida && (
-                        <Button size="sm" onClick={() => onReceber(h)}>
-                          <CheckCircle className="w-3.5 h-3.5" /> Recebido
-                        </Button>
-                      )}
-                      {recebida && (
-                        <Button size="sm" variant="outline" onClick={() => onRecibo(h)} title="Emitir recibo no timbrado">
-                          <FileText className="w-3.5 h-3.5" /> Recibo
-                        </Button>
-                      )}
-                      <button onClick={() => onDelete(h.id)} title="Excluir" className="flex h-8 w-8 items-center justify-center rounded-md text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1805,156 +1690,6 @@ function NovaAudienciaModal({ open, onClose, processoId, onCreated }: { open: bo
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />
         <Input label="Local" placeholder="Fórum, sala, online..." value={local} onChange={(e) => setLocal(e.target.value)} />
         <div className="sticky bottom-0 z-10 -mx-4 -mb-5 mt-2 flex flex-wrap justify-end gap-3 border-t border-gray-100 bg-white px-4 py-3 sm:-mx-6 sm:px-6" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit">Salvar</Button></div>
-      </form>
-    </Modal>
-  );
-}
-
-function hojeISODate(): string {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
-
-function addMesesISO(iso: string, n: number): string {
-  const d = new Date(iso + "T00:00:00");
-  d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function dividirValor(total: number, n: number): number[] {
-  const cents = Math.round(total * 100);
-  const base = Math.floor(cents / n);
-  const arr = Array(n).fill(base);
-  const rem = cents - base * n;
-  for (let i = 0; i < rem; i++) arr[i] += 1;
-  return arr.map((c) => c / 100);
-}
-
-function NovoHonorarioModal({ open, onClose, processoId, categoria, onCreated }: {
-  open: boolean; onClose: () => void; processoId: string;
-  categoria: "cobranca" | "pagamento"; onCreated: () => void;
-}) {
-  const [descricao, setDescricao] = useState("");
-  const [valor, setValor] = useState("");
-  const [tipo, setTipo] = useState("");
-  const [data, setData] = useState(hojeISODate());
-  const [vencimento, setVencimento] = useState("");
-  const [parcelas, setParcelas] = useState("1");
-  const [entrada, setEntrada] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const isCobranca = categoria === "cobranca";
-  const nParcelas = Math.max(1, Math.min(60, parseInt(parcelas) || 1));
-  const totalVal = parseFloat(valor) || 0;
-  const entradaVal = parseFloat(entrada) || 0;
-  const restanteVal = Math.max(0, Math.round((totalVal - entradaVal) * 100) / 100);
-  const valorParcela = restanteVal > 0 ? restanteVal / nParcelas : 0;
-  const qtdLanc = (entradaVal > 0 ? 1 : 0) + (restanteVal > 0 ? nParcelas : 0);
-
-  useEffect(() => {
-    if (open) {
-      setDescricao(""); setValor(""); setTipo(""); setData(hojeISODate());
-      setVencimento(""); setParcelas("1"); setEntrada("");
-    }
-  }, [open]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!descricao || !valor) return;
-    setSaving(true);
-    try {
-      if (isCobranca) {
-        const base = descricao.replace(/\s*\(\d+\/\d+\)\s*$/, "").trim() || "Honorários";
-        const hoje = hojeISODate();
-        const lanc: { descricao: string; valor: number; venc?: string }[] = [];
-        if (entradaVal > 0) lanc.push({ descricao: `${base} — Entrada`, valor: entradaVal, venc: hoje });
-        if (restanteVal > 0) {
-          const valores = dividirValor(restanteVal, nParcelas);
-          for (let i = 0; i < nParcelas; i++) {
-            lanc.push({
-              descricao: nParcelas > 1 ? `${base} (${i + 1}/${nParcelas})` : base,
-              valor: valores[i],
-              venc: vencimento ? addMesesISO(vencimento, i) : undefined,
-            });
-          }
-        }
-        for (const l of lanc) {
-          await createHonorario({
-            processo_id: processoId,
-            descricao: l.descricao,
-            valor: l.valor,
-            tipo: (tipo as Honorario["tipo"]) || undefined,
-            categoria: "cobranca",
-            status: "pendente",
-            data_lancamento: hoje,
-            data_vencimento: l.venc,
-          });
-        }
-      } else {
-        await createHonorario({
-          processo_id: processoId,
-          descricao,
-          valor: parseFloat(valor),
-          tipo: (tipo as Honorario["tipo"]) || undefined,
-          categoria,
-          status: "recebido",
-          data_recebimento: data,
-        });
-      }
-      onCreated();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={isCobranca ? "Nova Cobrança" : "Registrar Pagamento"} size="sm">
-      <form onSubmit={submit} className="space-y-4">
-        <Input
-          label="Descrição *"
-          placeholder={isCobranca ? "Ex: Honorários contratuais" : "Ex: Entrada, 1ª parcela…"}
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          required
-        />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input
-            label={isCobranca && (nParcelas > 1 || entradaVal > 0) ? "Valor total (R$) *" : "Valor (R$) *"}
-            type="number" min="0" step="0.01" placeholder="0,00"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            required
-          />
-          <SelectComOutro label="Tipo" category="honorario_tipo" baseOptions={honorarioTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
-        </div>
-
-        {isCobranca ? (
-          <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Input label="Entrada (R$)" type="number" min="0" step="0.01" inputMode="decimal" placeholder="opcional" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
-              <Input label="Parcelas (x)" type="number" min="1" max="60" step="1" inputMode="numeric" value={parcelas} onChange={(e) => setParcelas(e.target.value)} />
-            </div>
-            <Input label={nParcelas > 1 ? "1º vencimento das parcelas" : "Vencimento"} type="date" value={vencimento} onChange={(e) => setVencimento(e.target.value)} />
-            {valor && (entradaVal > 0 || nParcelas > 1) && (
-              <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-                {[
-                  entradaVal > 0 ? `Entrada de ${formatCurrency(entradaVal)} (hoje)` : "",
-                  restanteVal > 0 ? `${nParcelas}x de aprox. ${formatCurrency(valorParcela)}${vencimento ? ` a partir de ${formatDate(vencimento)}` : ""}` : "",
-                ].filter(Boolean).join(" + ")}
-              </p>
-            )}
-          </>
-        ) : (
-          <Input label="Data do recebimento" type="date" value={data} onChange={(e) => setData(e.target.value)} />
-        )}
-
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={!descricao || !valor || saving}>
-            {saving ? "Salvando..." : isCobranca ? (qtdLanc > 1 ? `Lançar ${qtdLanc} lançamentos` : "Registrar cobrança") : "Confirmar pagamento"}
-          </Button>
-        </div>
       </form>
     </Modal>
   );
@@ -2731,6 +2466,50 @@ function FamiliaTab({ processo, onSalvo }: { processo: Processo; onSalvo: () => 
         {estado === "salvo" && <span className="text-xs text-emerald-700">Salvo.</span>}
         <Button onClick={salvar} disabled={estado === "salvando"}>{estado === "salvando" ? "Salvando..." : "Salvar dados de família"}</Button>
       </div>
+    </div>
+  );
+}
+
+// Gerar documento a partir do processo: usa o cadastro do cliente vinculado
+// (se houver mais de um, escolhe) e já referencia este processo nos modelos.
+function GerarDocumentoDoProcesso({ processo }: { processo: Processo }) {
+  const partes = partesDoProcesso(processo).filter((pt) => pt.cliente_id);
+  const [clienteId, setClienteId] = useState(partes[0]?.cliente_id ?? "");
+  const [cliente, setCliente] = useState<Cliente | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!clienteId) { setCliente(null); return; }
+    setCliente(undefined);
+    getCliente(clienteId).then((c) => setCliente(c ?? null)).catch(() => setCliente(null));
+  }, [clienteId]);
+
+  if (partes.length === 0) {
+    return <EmptyTab text="Vincule um cliente cadastrado a este processo para gerar documentos com os dados dele." />;
+  }
+
+  return (
+    <div className="space-y-4">
+      {partes.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {partes.map((pt) => (
+            <button
+              key={pt.cliente_id}
+              type="button"
+              onClick={() => setClienteId(pt.cliente_id!)}
+              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${clienteId === pt.cliente_id ? "border-[#21181d] bg-gray-50 font-medium text-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+            >
+              {pt.nome}
+            </button>
+          ))}
+        </div>
+      )}
+      {cliente === undefined ? (
+        <EmptyTab text="Carregando cadastro do cliente..." />
+      ) : cliente === null ? (
+        <EmptyTab text="Não encontrei o cadastro do cliente deste processo." />
+      ) : (
+        <GerarDocumentoPanel key={cliente.id} cliente={cliente} processoAtual={processo} />
+      )}
     </div>
   );
 }

@@ -41,6 +41,7 @@ import { AcordosPanel } from "@/components/ui/acordos-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
 import { ReciboModal } from "@/components/ui/recibo-modal";
+import { HonorariosPanel, ResumoHonorarios } from "@/components/ui/honorarios-panel";
 
 const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
   "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
@@ -75,7 +76,7 @@ export default function ClienteDetailPage() {
     setNumeroCopiadoId(processo.id);
     setTimeout(() => setNumeroCopiadoId((atual) => (atual === processo.id ? null : atual)), 1400);
   }, []);
-  const [aba, setAba] = useState<"resumo" | "documentos" | "gerar" | "orcamentos" | "portal">("resumo");
+  const [aba, setAba] = useState<"resumo" | "honorarios" | "documentos" | "gerar" | "orcamentos" | "portal">("resumo");
 
   const load = useCallback(async () => {
     const c = await getCliente(id);
@@ -161,6 +162,9 @@ export default function ClienteDetailPage() {
         <button type="button" onClick={() => setAba("resumo")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "resumo" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Visão geral
         </button>
+        <button type="button" onClick={() => setAba("honorarios")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "honorarios" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+          Honorários
+        </button>
         <button type="button" onClick={() => setAba("documentos")} className={`shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${aba === "documentos" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
           Documentos
         </button>
@@ -175,7 +179,31 @@ export default function ClienteDetailPage() {
         </button>
       </div>
 
-      {aba === "documentos" ? (
+      {aba === "honorarios" ? (
+        <div className="space-y-8">
+          {processos.length === 0 ? (
+            <EmptyState icon={<DollarSign className="w-8 h-8 text-gray-200" />} text="Nenhum processo deste cliente para lançar honorários" />
+          ) : (
+            <>
+              {processos.length > 1 && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Total do cliente</p>
+                  <ResumoHonorarios honorarios={honorarios} />
+                </div>
+              )}
+              {processos.map((p) => (
+                <section key={p.id} className="space-y-3">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-gray-100 pb-2">
+                    <Link href={`/dashboard/processos/${p.id}`} className="text-sm font-semibold text-gray-900 hover:underline">{p.titulo}</Link>
+                    <span className="font-mono text-xs text-gray-400">{p.numero || p.numero_inquerito || "sem número"}</span>
+                  </div>
+                  <HonorariosPanel processo={p} cliente={cliente} onChange={load} />
+                </section>
+              ))}
+            </>
+          )}
+        </div>
+      ) : aba === "documentos" ? (
         <DocumentosPanel contexto="clientes" registroId={cliente.id} titulo="Documentos do cliente" />
       ) : aba === "gerar" ? (
         <GerarDocumentoPanel cliente={cliente} />
@@ -354,6 +382,9 @@ export default function ClienteDetailPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Honorários</CardTitle>
+              <button type="button" onClick={() => setAba("honorarios")} className="text-xs font-medium text-gray-500 hover:text-gray-900">
+                Ver e lançar
+              </button>
             </div>
           </CardHeader>
           <CardContent className="p-0">

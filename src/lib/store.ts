@@ -315,6 +315,37 @@ export async function deleteHonorario(id: string): Promise<void> {
   await supabase.from("honorarios").delete().eq("id", id);
 }
 
+// Lançamento de "pagamento" gerado por registrarRecebimento para uma cobrança já recebida.
+// Não há chave ligando os dois; casa por processo + descrição + data (e prefere o mesmo valor).
+async function pagamentoDaCobranca(h: Honorario): Promise<Honorario | undefined> {
+  if (h.categoria !== "cobranca" || h.status !== "recebido") return undefined;
+  const { data } = await supabase
+    .from("honorarios")
+    .select("*")
+    .eq("processo_id", h.processo_id)
+    .eq("categoria", "pagamento")
+    .eq("descricao", `Recebimento — ${h.descricao}`);
+  const candidatos = ((data ?? []) as Honorario[]).filter(
+    (p) => !h.data_recebimento || p.data_recebimento === h.data_recebimento
+  );
+  return candidatos.find((p) => Math.abs(p.valor - h.valor) < 0.005) ?? candidatos[0];
+}
+
+// Exclui a cobrança e, se ela já foi recebida, o recebimento ligado a ela
+// (senão o valor continua somando em "Recebido").
+export async function excluirCobranca(h: Honorario): Promise<void> {
+  const pag = await pagamentoDaCobranca(h);
+  if (pag) await deleteHonorario(pag.id);
+  await deleteHonorario(h.id);
+}
+
+// Corrige a data de recebimento da cobrança e do recebimento ligado a ela.
+export async function alterarDataRecebimento(h: Honorario, novaData: string): Promise<void> {
+  const pag = await pagamentoDaCobranca(h);
+  if (pag) await updateHonorario(pag.id, { data_recebimento: novaData });
+  await updateHonorario(h.id, { data_recebimento: novaData });
+}
+
 // --- Acordos (parcelamento em processo) ---
 
 export async function getAcordoParcelas(): Promise<AcordoParcela[]> {

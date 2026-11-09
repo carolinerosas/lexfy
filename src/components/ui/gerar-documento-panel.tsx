@@ -55,6 +55,8 @@ function numeroProcesso(p: Processo): string {
 
 interface GerarDocumentoPanelProps {
   cliente: Cliente;
+  /** Aberto a partir de um processo: os modelos já saem com o número dele. */
+  processoAtual?: Processo;
 }
 
 /** Estilo do documento — usado no editor e no PDF dos modelos prontos. */
@@ -76,7 +78,7 @@ function nomeArquivo(modeloNome: string, clienteNome: string): string {
     .trim();
 }
 
-export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
+export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPanelProps) {
   const [perfil, setPerfil] = useState<PerfilAdvogado>(() => getPerfilAdvogado());
   const [modeloId, setModeloId] = useState<ModeloId>("procuracao");
   const editorRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,9 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
       if (tokens.length === 0) {
         await baixarPreenchido(modelo, {});
       } else {
-        setValores({});
+        setValores(processoAtual
+          ? { processo: numeroProcesso(processoAtual), unidade_prisional: processoAtual.unidade_prisional ?? "" }
+          : {});
         setModalGerar({ modelo, tokens });
         if (tokens.includes("processo")) carregarProcessos();
       }
@@ -162,7 +166,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   function render(id: ModeloId, p: PerfilAdvogado) {
     const modelo = getModelo(id);
     if (!modelo || !editorRef.current) return;
-    const { titulo, corpoHtml } = modelo.gerar({ cliente, perfil: p, processos });
+    const { titulo, corpoHtml } = modelo.gerar({ cliente, perfil: p, processos: processoAtual ? [processoAtual] : processos });
     editorRef.current.innerHTML = `<h1 class="doc-title" contenteditable="false">${titulo}</h1>${corpoHtml}`;
     setNomeDocAtual(modelo.nome);
   }
@@ -171,7 +175,7 @@ export function GerarDocumentoPanel({ cliente }: GerarDocumentoPanelProps) {
   useEffect(() => {
     render(modeloId, perfil);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeloId, perfil, processos, cliente.id]);
+  }, [modeloId, perfil, processos, cliente.id, processoAtual?.id]);
 
   function htmlAtual(): string {
     return editorRef.current?.innerHTML ?? "";
