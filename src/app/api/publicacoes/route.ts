@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { Processo, Publicacao } from "@/types";
+import { sessaoValida } from "@/lib/acesso";
+import { COOKIE_SESSAO } from "@/lib/sessao";
+import { envLimpo } from "@/lib/env";
 
 export const maxDuration = 60;
 
@@ -726,8 +729,9 @@ async function updateSyncStatus(input: Partial<PublicacoesSyncStatus>): Promise<
 }
 
 function isCronAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  // Sem a senha da rotina configurada, ninguém entra (antes, a falta dela liberava todo mundo).
+  const secret = envLimpo("CRON_SECRET");
+  if (!secret) return false;
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
@@ -783,6 +787,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Busca manual e gravação: só para quem está logada no Justio (antes aceitava qualquer chamada).
+  if (!(await sessaoValida(req.cookies.get(COOKIE_SESSAO)?.value))) {
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+
   try {
     const input = (await req.json()) as {
       nome?: string;
