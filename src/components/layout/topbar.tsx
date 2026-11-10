@@ -11,7 +11,7 @@ export function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
-  const showBack = pathname !== "/dashboard";
+  const showBack = pathname !== "/antigo";
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -41,7 +41,7 @@ export function TopBar() {
       }
     }
 
-    router.push("/dashboard");
+    router.push("/antigo");
   }
 
   return (
@@ -75,7 +75,7 @@ export function TopBar() {
 
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            href="/dashboard/configuracoes"
+            href="/antigo/configuracoes"
             aria-label="Abrir configurações"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:text-gray-900"
           >

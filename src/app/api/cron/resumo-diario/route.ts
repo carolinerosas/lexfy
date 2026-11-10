@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   if (linhas.length && (await primeiraVez(`resumo:${hoje}`))) {
     const qtdAud = audiencias.data?.length ?? 0;
     const titulo = qtdAud ? `Bom dia! Hoje: ${qtdAud} audiência${qtdAud > 1 ? "s" : ""}` : "Bom dia! Seu dia no Justio";
-    enviados += await enviarPush({ title: titulo, body: linhas.slice(0, 12).join("\n"), url: "/dashboard/agenda", tag: `resumo-${hoje}` });
+    enviados += await enviarPush({ title: titulo, body: linhas.slice(0, 12).join("\n"), url: "/antigo/agenda", tag: `resumo-${hoje}` });
   }
 
   // --- audiências daqui a 3 dias: avisar o cliente pelo WhatsApp ---
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     enviados += await enviarPush({
       title: `Audiência em 3 dias — ${nome || "cliente"}`,
       body: fone ? `${a.titulo}, ${quando}. Toque para avisar ${nome} pelo WhatsApp.` : `${a.titulo}, ${quando}. Cliente sem celular cadastrado no Justio.`,
-      url: fone ? `https://wa.me/${fone.length <= 11 ? `55${fone}` : fone}?text=${encodeURIComponent(mensagem)}` : `/dashboard/processos/${a.processo_id}`,
+      url: fone ? `https://wa.me/${fone.length <= 11 ? `55${fone}` : fone}?text=${encodeURIComponent(mensagem)}` : `/antigo/processos/${a.processo_id}`,
       tag: `aud3-${a.id}`,
     });
   }

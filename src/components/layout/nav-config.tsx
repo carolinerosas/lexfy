@@ -24,19 +24,19 @@ export type NavBadge = "triagem" | "publicacoes" | "briefing";
 export type NavItem = { href: string; label: string; icon: LucideIcon; badge?: NavBadge };
 
 export const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Painel", icon: LayoutDashboard },
-  { href: "/dashboard/agenda", label: "Agenda", icon: CalendarDays },
-  { href: "/dashboard/briefing", label: "Briefing", icon: Sparkles, badge: "briefing" },
-  { href: "/dashboard/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
-  { href: "/dashboard/prazos", label: "Prazos", icon: Clock },
-  { href: "/dashboard/audiencias", label: "Audiências", icon: Calendar },
-  { href: "/dashboard/tarefas", label: "Tarefas", icon: ListTodo },
-  { href: "/dashboard/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
-  { href: "/dashboard/processos", label: "Processos", icon: FolderOpen },
-  { href: "/dashboard/clientes", label: "Clientes", icon: UserRound },
-  { href: "/dashboard/atendimentos", label: "Atendimentos", icon: Users },
-  { href: "/dashboard/modelos", label: "Modelos", icon: FileText },
-  { href: "/dashboard/financeiro", label: "Financeiro", icon: DollarSign },
+  { href: "/antigo", label: "Painel", icon: LayoutDashboard },
+  { href: "/antigo/agenda", label: "Agenda", icon: CalendarDays },
+  { href: "/antigo/briefing", label: "Briefing", icon: Sparkles, badge: "briefing" },
+  { href: "/antigo/triagem", label: "Triagem", icon: MessageSquare, badge: "triagem" },
+  { href: "/antigo/prazos", label: "Prazos", icon: Clock },
+  { href: "/antigo/audiencias", label: "Audiências", icon: Calendar },
+  { href: "/antigo/tarefas", label: "Tarefas", icon: ListTodo },
+  { href: "/antigo/publicacoes", label: "Publicações", icon: Newspaper, badge: "publicacoes" },
+  { href: "/antigo/processos", label: "Processos", icon: FolderOpen },
+  { href: "/antigo/clientes", label: "Clientes", icon: UserRound },
+  { href: "/antigo/atendimentos", label: "Atendimentos", icon: Users },
+  { href: "/antigo/modelos", label: "Modelos", icon: FileText },
+  { href: "/antigo/financeiro", label: "Financeiro", icon: DollarSign },
 ];
 
 // Contadores das badges (publicações não lidas, triagens novas, briefings não lidos).

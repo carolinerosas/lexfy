@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
   if (body.acao === "testar") {
-    const n = await enviarPush({ title: "Justio ⚖️", body: "As notificações estão funcionando neste aparelho!", url: "/dashboard" });
+    const n = await enviarPush({ title: "Justio ⚖️", body: "As notificações estão funcionando neste aparelho!", url: "/antigo" });
     return NextResponse.json({ ok: true, enviados: n });
   }
   return NextResponse.json({ error: "ação inválida" }, { status: 400 });

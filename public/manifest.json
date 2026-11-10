@@ -2,11 +2,11 @@
   "name": "Justio",
   "short_name": "Justio",
   "description": "Sistema de gestão jurídica para escritórios de advocacia",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#21181d",
-  "theme_color": "#21181d",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/icon.svg",

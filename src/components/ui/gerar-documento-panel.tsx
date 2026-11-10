@@ -253,7 +253,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
               Ele pergunta os dados que faltam e gera o <strong>.docx</strong> com a sua formatação do Word (versalete etc.).
             </p>
           </div>
-          <Link href="/dashboard/modelos" className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          <Link href="/antigo/modelos" className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
             <Settings2 className="h-4 w-4" /> Gerenciar modelos
           </Link>
         </div>
@@ -263,7 +263,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
             <FileText className="mb-2 h-9 w-9 text-gray-200" />
             <p className="text-sm font-medium text-gray-600">Nenhum modelo seu ainda</p>
             <p className="mt-1 text-xs text-gray-400">
-              Suba seus modelos Word em <Link href="/dashboard/modelos" className="underline">Modelos</Link> para gerá-los aqui já preenchidos.
+              Suba seus modelos Word em <Link href="/antigo/modelos" className="underline">Modelos</Link> para gerá-los aqui já preenchidos.
             </p>
           </div>
         ) : (

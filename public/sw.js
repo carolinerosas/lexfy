@@ -16,14 +16,14 @@ self.addEventListener("push", (event) => {
       icon: "/icon.svg",
       badge: "/icon.svg",
       tag: data.tag,
-      data: { url: data.url || "/dashboard" },
+      data: { url: data.url || "/antigo" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || "/dashboard";
+  const url = (event.notification.data && event.notification.data.url) || "/antigo";
   event.waitUntil(
     (async () => {
       // Links externos (WhatsApp) abrem numa janela nova; os do Justio reaproveitam a aberta.

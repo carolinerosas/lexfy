@@ -1,5 +1,9 @@
 import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Onest } from "next/font/google";
 import "./globals.css";
+
+const corpo = Onest({ subsets: ["latin"], variable: "--font-corpo", display: "swap" });
+const titulo = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-titulo", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Justio",
@@ -21,12 +25,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#21181d",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="h-full">
+    <html lang="pt-BR" className={`h-full ${corpo.variable} ${titulo.variable}`}>
       <body className="h-full">{children}</body>
     </html>
   );

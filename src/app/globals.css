@@ -53,3 +53,139 @@ textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+/* ───────── Novo Justio ───────── */
+
+/* Justio: tema branco com preto. Os nomes dos tokens vêm da primeira versão;
+   "cobalto" hoje é o preto principal e "rail" é a barra lateral branca. */
+@theme {
+  --font-sans: var(--font-corpo), "Segoe UI", system-ui, sans-serif;
+
+  --color-rail: #ffffff;
+  --color-rail-2: #f2f2f2;
+  --color-rail-3: #0a0a0a;
+  --color-rail-ink: #2b2b2b;
+  --color-rail-mute: #6b6b6b;
+
+  --color-ground: #ffffff;
+  --color-surface: #ffffff;
+  --color-porcelana: #f7f7f7;
+  --color-line: #e4e4e4;
+  --color-line-2: #eeeeee;
+  --color-ink: #0a0a0a;
+  --color-ink-2: #454545;
+  --color-ink-3: #6b6b6b;
+
+  --color-cobalto: #0a0a0a;
+  --color-cobalto-2: #2a2a2a;
+  --color-cobalto-f: #f0f0f0;
+  --color-ocre: #8a5a00;
+  --color-ocre-v: #c8f03c;
+  --color-ocre-f: #fdf1d0;
+  --color-perigo: #c4281c;
+  --color-perigo-f: #fdeceb;
+  --color-ok: #17734b;
+  --color-ok-f: #e4f5ec;
+
+  --radius-peca: 12px;
+  --shadow-peca: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 16px -8px rgb(0 0 0 / 0.10);
+  --shadow-flutua: 0 4px 10px rgb(0 0 0 / 0.08), 0 24px 60px -16px rgb(0 0 0 / 0.30);
+}
+
+html { height: 100%; }
+body {
+  min-height: 100%;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  accent-color: #0a0a0a;
+  caret-color: #0a0a0a;
+}
+::selection { background: #c8f03c; color: #0a0a0a; }
+* { scrollbar-width: thin; scrollbar-color: #c9c9c9 transparent; }
+:focus-visible { outline: 2px solid #0a0a0a; outline-offset: 2px; border-radius: 8px; }
+a { text-underline-offset: 3px; }
+h1, h2, h3 { text-wrap: balance; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+@layer components {
+  .titulo { font-family: var(--font-titulo); font-weight: 650; letter-spacing: -0.028em; line-height: 1.1; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid transparent;
+    font-weight: 600; font-size: 13.5px; white-space: nowrap; transition: background-color .16s, border-color .16s, color .16s, transform .16s;
+  }
+  .btn:active:not(:disabled) { transform: scale(.98); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+  .btn-p { background: #0a0a0a; color: #fff; }
+  .btn-p:hover { background: #2e2e2e; }
+  .btn-g { background: #fff; border-color: var(--color-line); color: var(--color-ink); }
+  .btn-g:hover { border-color: #0a0a0a; }
+  .btn-q { color: var(--color-ink); padding: 0 10px; }
+  .btn-q:hover { background: var(--color-cobalto-f); }
+  .btn-perigo { color: var(--color-perigo); padding: 0 10px; }
+  .btn-perigo:hover { background: var(--color-perigo-f); }
+  .btn-sm { height: 30px; padding: 0 12px; font-size: 12.5px; }
+  .btn:disabled { opacity: .4; }
+  .btn-icone { width: 36px; padding: 0; }
+  .btn-icone.btn-sm { width: 30px; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; white-space: nowrap; background: #f0f0f0; color: var(--color-ink-2);
+  }
+  .tag-perigo { background: var(--color-perigo-f); color: var(--color-perigo); }
+  .tag-alerta { background: var(--color-ocre-f); color: #6f4b00; }
+  .tag-ok { background: var(--color-ok-f); color: var(--color-ok); }
+  .tag-info { background: #0a0a0a; color: #fff; }
+  .tag-tinta { background: #fff; color: #0a0a0a; box-shadow: inset 0 0 0 1px #0a0a0a; }
+
+  .rotulo { display: block; font-size: 12px; font-weight: 600; color: var(--color-ink-2); margin-bottom: 5px; }
+  .inp {
+    width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: 10px;
+    background: #fff; color: var(--color-ink); font: inherit; transition: border-color .16s, box-shadow .16s;
+  }
+  textarea.inp { height: auto; padding: 9px 12px; resize: vertical; min-height: 76px; }
+  .inp:hover { border-color: #bdbdbd; }
+  .inp:focus { outline: none; border-color: #0a0a0a; box-shadow: 0 0 0 3px rgb(10 10 10 / 0.10); }
+  .inp::placeholder { color: var(--color-ink-3); }
+
+  .painel { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; overflow: clip; }
+  .painel-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-line-2); }
+  .painel-cab h2 { font-family: var(--font-titulo); font-size: 15.5px; font-weight: 650; letter-spacing: -0.02em; }
+
+  .tb { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .tb th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--color-ink-3); padding: 10px 14px; border-bottom: 1px solid var(--color-line); white-space: nowrap; background: #fff; }
+  .tb td { padding: 11px 14px; border-bottom: 1px solid var(--color-line-2); vertical-align: middle; }
+  .tb tbody tr:last-child td { border-bottom: 0; }
+  .tb tbody tr:hover td { background: #fafafa; }
+  .tb .num { text-align: right; white-space: nowrap; }
+
+  .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: #f0f0f0; }
+  .seg button { height: 30px; padding: 0 13px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--color-ink-2); white-space: nowrap; transition: background-color .16s, color .16s; }
+  .seg button:hover { color: #0a0a0a; }
+  .seg button[aria-pressed="true"] { background: #0a0a0a; color: #fff; }
+
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--color-line); overflow-x: auto; }
+  .abas button { padding: 10px 12px; font-size: 13.5px; font-weight: 600; color: var(--color-ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+  .abas button:hover { color: #0a0a0a; }
+  .abas button[aria-selected="true"] { color: #0a0a0a; border-bottom-color: #0a0a0a; }
+
+  /* Linha nova (andamento ou publicação não lida): fica marcada até ser lida */
+  .nao-lido { box-shadow: inset 4px 0 0 #c8f03c; background: #fbfdee; }
+
+  dialog.dlg { border: 0; padding: 0; border-radius: 20px; box-shadow: var(--shadow-flutua); color: var(--color-ink); width: min(680px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); margin: auto; background: #fff; text-align: left; white-space: normal; font-weight: 400; }
+  dialog.dlg::backdrop { background: rgb(0 0 0 / 0.45); }
+  dialog.dlg[open] { animation: sobe .2s cubic-bezier(.16, 1, .3, 1); }
+  @keyframes sobe { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

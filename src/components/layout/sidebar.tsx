@@ -15,7 +15,7 @@ export function Sidebar() {
   return (
     <aside className="flex h-full w-60 flex-col border-r border-white/10 bg-[#21181d]">
       <Link
-        href="/dashboard"
+        href="/antigo"
         aria-label="Ir para o Painel"
         className="flex flex-col items-center justify-center border-b border-white/10 py-8 transition-colors hover:bg-white/5"
       >
@@ -24,7 +24,7 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map(({ href, label, icon: Icon, badge }) => {
-          const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+          const active = href === "/antigo" ? pathname === "/antigo" : pathname.startsWith(href);
           const count = getBadge(badge);
 
           return (

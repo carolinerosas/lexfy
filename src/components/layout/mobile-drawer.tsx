@@ -47,7 +47,7 @@ export function MobileMenuButton() {
 
           <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[82%] flex-col bg-[#21181d] shadow-2xl shadow-black/40">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-5">
-              <Link href="/dashboard" aria-label="Ir para o Painel" onClick={() => setAberto(false)}>
+              <Link href="/antigo" aria-label="Ir para o Painel" onClick={() => setAberto(false)}>
                 <JustioLogo size={64} dark layout="row" />
               </Link>
               <button
@@ -62,7 +62,7 @@ export function MobileMenuButton() {
 
             <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
               {navItems.map(({ href, label, icon: Icon, badge }) => {
-                const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+                const active = href === "/antigo" ? pathname === "/antigo" : pathname.startsWith(href);
                 const count = getBadge(badge);
                 return (
                   <Link

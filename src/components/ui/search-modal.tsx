@@ -75,7 +75,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: cliente.id,
         title: cliente.nome,
         sub: contatos.length > 0 ? contatos.join(" · ") : "Cliente cadastrado",
-        href: `/dashboard/clientes/${cliente.id}`,
+        href: `/antigo/clientes/${cliente.id}`,
       });
     }
   });
@@ -88,7 +88,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: p.id,
         title: p.titulo || p.numero,
         sub: `${clientesProcesso} · ${p.numero || p.numero_inquerito || "Sem número"}`,
-        href: `/dashboard/processos/${p.id}`,
+        href: `/antigo/processos/${p.id}`,
       });
     }
   });
@@ -100,7 +100,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: p.id,
         title: p.titulo,
         sub: `${p.processo?.cliente_nome ?? "—"} · ${formatDate(p.data_prazo)}`,
-        href: "/dashboard/prazos",
+        href: "/antigo/prazos",
       });
     }
   });
@@ -112,7 +112,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: t.id,
         title: t.titulo,
         sub: `${t.processo?.cliente_nome ?? "—"} · ${t.data_limite ? formatDate(t.data_limite) : "sem data"}`,
-        href: "/dashboard/tarefas",
+        href: "/antigo/tarefas",
       });
     }
   });
@@ -124,7 +124,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: a.id,
         title: a.titulo,
         sub: `${a.processo?.cliente_nome ?? "—"} · ${formatDate(a.data_hora)}${a.local ? ` · ${a.local}` : ""}`,
-        href: "/dashboard/audiencias",
+        href: "/antigo/audiencias",
       });
     }
   });
@@ -136,7 +136,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: a.id,
         title: a.cliente_nome,
         sub: `Atendimento · ${formatDate(a.data_hora)}`,
-        href: "/dashboard/atendimentos",
+        href: "/antigo/atendimentos",
       });
     }
   });
@@ -148,7 +148,7 @@ async function search(query: string): Promise<ResultItem[]> {
         id: h.id,
         title: h.descricao,
         sub: `${h.processo?.cliente_nome ?? "—"} · ${formatCurrency(h.valor)}`,
-        href: "/dashboard/financeiro",
+        href: "/antigo/financeiro",
       });
     }
   });

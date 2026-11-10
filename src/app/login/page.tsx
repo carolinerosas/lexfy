@@ -30,7 +30,7 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        router.push("/dashboard");
+        router.push("/");
         router.refresh();
       } else {
         const corpo = (await res.json().catch(() => null)) as { error?: string } | null;
