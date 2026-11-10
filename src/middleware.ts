@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_SESSAO, lerSessao } from "@/lib/sessao";
 
 export async function middleware(req: NextRequest) {
+  // Na pré-visualização da Vercel (protegida pela própria Vercel), o diagnóstico abre sem login do Justio.
+  if (process.env.VERCEL_ENV === "preview" && req.nextUrl.pathname.startsWith("/api/diagnostico/")) return NextResponse.next();
+
   // Confere assinatura e validade do cookie. A versão (senha trocada) é conferida no /api/supabase.
   const sessao = await lerSessao(req.cookies.get(COOKIE_SESSAO)?.value);
 
