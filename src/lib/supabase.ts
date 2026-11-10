@@ -5,7 +5,9 @@ import { createClient } from "@supabase/supabase-js";
 // - No navegador: fala com /api/supabase, que confere o login (cookie) e repassa com a chave secreta.
 //   Nenhuma chave do Supabase vai para o navegador.
 
-export const SUPABASE_URL = "https://upwckimpkpxfzejrupkg.supabase.co";
+// Endereço do projeto no Supabase (não é segredo). Para trocar de banco, defina NEXT_PUBLIC_SUPABASE_URL
+// e SUPABASE_SECRET_KEY na Vercel e publique de novo. Sem a variável, vale o projeto antigo (Califórnia).
+export const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || "https://upwckimpkpxfzejrupkg.supabase.co").replace(/\/+$/, "");
 export const SUPABASE_PROXY_PATH = "/api/supabase";
 
 const NO_SESSION = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
