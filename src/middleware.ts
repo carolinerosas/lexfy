@@ -30,6 +30,7 @@ export const config = {
     "/api/autos/:path*",
     "/api/supabase/:path*",
     "/api/publicacoes/status",
+    "/api/diagnostico/:path*",
     "/api/datajud",
     "/api/eproc",
     "/api/pje",

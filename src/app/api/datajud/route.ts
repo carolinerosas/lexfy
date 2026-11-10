@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 // Chave pública do CNJ — disponível em https://datajud-wiki.cnj.jus.br/api-publica/acesso
 const PUBLIC_KEY = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==";
 const BASE_URL = "https://api-publica.datajud.cnj.jus.br";
@@ -34,7 +36,7 @@ export async function POST(req: NextRequest) {
         },
         size: 1,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(50000),
     });
 
     const text = await res.text();

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { Processo, Publicacao } from "@/types";
 
+export const maxDuration = 60;
+
 const HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
@@ -445,6 +447,42 @@ async function buscarDJEN(nome?: string, oabNumero?: string, oabUF = "RJ"): Prom
   }
 
   const porHash = new Map<string, PubEncontrada>();
+  // Primeiro o período inteiro em uma consulta só (uma requisição por página, em vez de uma por dia).
+  // Se der erro, cai na busca dia a dia, logo abaixo.
+  try {
+    const dias = dateRangeRecentISO(PUBLICATION_SEARCH_DAYS).slice().sort();
+    for (const filtro of buscas) {
+      let pagina = 1;
+      let totalPaginas = 1;
+      do {
+        const params = new URLSearchParams({
+          pagina: String(pagina),
+          itensPorPagina: "100",
+          dataDisponibilizacaoInicio: dias[0],
+          dataDisponibilizacaoFim: dias[dias.length - 1],
+          meio: "D",
+          ...filtro,
+        });
+        const res = await fetch(`${COMUNICA_API_URL}/comunicacao?${params.toString()}`, {
+          headers: COMUNICA_HEADERS,
+          signal: AbortSignal.timeout(20000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const responseData = (await res.json()) as DjenResponse;
+        const items = responseData.items ?? [];
+        totalPaginas = Math.max(1, Math.ceil((responseData.count ?? items.length) / 100));
+        for (const item of items) {
+          const pub = mapDjenItem(item);
+          if (!porHash.has(pub.hash)) porHash.set(pub.hash, pub);
+        }
+        pagina += 1;
+      } while (pagina <= totalPaginas && pagina <= 30);
+    }
+    if (buscas.length > 0) return [...porHash.values()];
+  } catch {
+    porHash.clear();
+  }
+
   const jobs = dateRangeRecentISO(PUBLICATION_SEARCH_DAYS).flatMap((data) =>
     buscas.map((filtro) => ({ data, filtro }))
   );

@@ -7,6 +7,13 @@
     {
       "path": "/api/cron/resumo-diario",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/andamentos",
+      "schedule": "30 9 * * *"
     }
+  ],
+  "regions": [
+    "gru1"
   ]
 }
