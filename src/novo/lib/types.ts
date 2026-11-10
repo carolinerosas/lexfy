@@ -12,8 +12,11 @@ export interface Caso {
   responsavel_id: string; distribuido_em?: string; dados: Record<string, string | number>;
   /** Chance de êxito estimada pelo responsável (provisão). */
   risco?: "provavel" | "possivel" | "remoto";
+  /** Documentos que o cliente ainda precisa entregar. */
+  docs_pendentes?: DocPendente[];
   criado_em: string;
 }
+export interface DocPendente { id: string; nome: string; pedido_em: string; recebido: boolean; recebido_em?: string; obs?: string }
 export interface Prazo {
   id: string; caso_id: string; titulo: string; data: string; fatal: boolean; concluido: boolean;
   prioridade: Prioridade; responsavel_id: string; base?: string;

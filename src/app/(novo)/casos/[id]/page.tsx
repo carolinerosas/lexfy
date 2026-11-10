@@ -13,8 +13,9 @@ import { Abas, Avatar, CampoArea, Rotulado, Vazio, valorCampo, useMapas } from "
 import type { Caso, Custa } from "@/novo/lib/types";
 import { Cobrar, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
+import { Acoes, DocsPendentes } from "@/novo/components/acoes";
 
-type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "trabalho" | "pecas" | "autos" | "referencia";
+type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
 
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
@@ -78,7 +79,7 @@ export default function PaginaCaso() {
       </header>
 
       <div className="mt-4">
-        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["trabalho", "Tarefas e anotações"], ["pecas", "Peças com IA"], ["autos", "Autos"], ["referencia", "Prazos da área"]] as const} />
+        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["referencia", "Prazos da área"]] as const} />
       </div>
 
       <div className="mt-4">
@@ -97,7 +98,8 @@ export default function PaginaCaso() {
                       <p className="mt-0.5 text-[12px] text-ink-3">Fonte: {a.fonte}</p>
                     </div>
                     {!a.lido && <button className="btn btn-g btn-sm" onClick={() => alterar("andamentos", a.id, { lido: true })}>Marcar lido</button>}
-                    <button className="btn btn-perigo btn-icone btn-sm" aria-label="Excluir andamento" onClick={() => excluir("andamentos", a.id)}><Trash2 /></button>
+                    <Acoes oQue="o andamento" campos={[{ k: "data", rotulo: "Data", tipo: "data", obrig: true }, { k: "descricao", rotulo: "O que aconteceu", tipo: "longo", obrig: true }, { k: "texto_cliente", rotulo: "Versão em linguagem simples para o cliente", tipo: "longo" }]} inicial={{ data: a.data, descricao: a.descricao, texto_cliente: a.texto_cliente ?? "" }}
+                      aoSalvar={(v) => alterar("andamentos", a.id, { data: String(v.data), descricao: String(v.descricao), texto_cliente: v.texto_cliente ? String(v.texto_cliente) : undefined })} aoExcluir={() => excluir("andamentos", a.id)} />
                   </li>
                 ))}</ol>
               )}
@@ -119,7 +121,8 @@ export default function PaginaCaso() {
                         <button className={`btn btn-icone btn-sm ${p.concluido ? "btn-p" : "btn-g"}`} aria-label={p.concluido ? "Reabrir prazo" : "Marcar como cumprido"} onClick={() => alterar("prazos", p.id, { concluido: !p.concluido })}><Check /></button>
                         <div className={`min-w-0 flex-1 ${p.concluido ? "text-ink-3 line-through" : ""}`}><span className="font-semibold">{p.titulo}</span>{p.base && <span className="block text-[12.5px] text-ink-3">{p.base}</span>}</div>
                         <span className={`tag ${p.concluido ? "tag-ok" : n < 0 ? "tag-perigo" : n <= 2 ? "tag-alerta" : ""}`}>{p.concluido ? "Cumprido" : `${data(p.data)} · ${quando(p.data)}`}</span>
-                        <button className="btn btn-perigo btn-icone btn-sm" aria-label="Excluir prazo" onClick={() => excluir("prazos", p.id)}><Trash2 /></button>
+                        <Acoes oQue="o prazo" campos={[{ k: "titulo", rotulo: "Prazo", obrig: true, largo: true }, { k: "data", rotulo: "Vence em", tipo: "data", obrig: true }, { k: "base", rotulo: "Base legal ou observação", largo: true }, { k: "fatal", rotulo: "Prazo fatal", tipo: "check" }]} inicial={{ titulo: p.titulo, data: p.data, base: p.base ?? "", fatal: p.fatal }}
+                          aoSalvar={(v) => alterar("prazos", p.id, { titulo: String(v.titulo), data: String(v.data), base: v.base ? String(v.base) : undefined, fatal: !!v.fatal })} aoExcluir={() => excluir("prazos", p.id)} />
                       </li>
                     );
                   })}</ul>
@@ -133,6 +136,9 @@ export default function PaginaCaso() {
                       <span className="w-[112px] shrink-0"><span className="block font-semibold">{data(a.data_hora)}</span><span className="text-[12.5px] text-ink-3">{hora(a.data_hora)} · {a.modalidade}</span></span>
                       <span className="min-w-0 flex-1"><span className="block font-semibold">{a.titulo}</span><span className="block truncate text-[12.5px] text-ink-3">{a.local}</span></span>
                       <button className={`btn btn-sm ${a.realizada ? "btn-p" : "btn-g"}`} onClick={() => alterar("audiencias", a.id, { realizada: !a.realizada })}>{a.realizada ? "Realizada" : "Marcar realizada"}</button>
+                      <Acoes oQue="a audiência" campos={[{ k: "titulo", rotulo: "Tipo", obrig: true, largo: true }, { k: "dia", rotulo: "Data", tipo: "data", obrig: true }, { k: "hora", rotulo: "Hora", tipo: "hora", obrig: true }, { k: "local", rotulo: "Local ou link", largo: true }, { k: "modalidade", rotulo: "Modalidade", tipo: "opcoes", opcoes: ["presencial", "virtual", "híbrida"] }]}
+                        inicial={{ titulo: a.titulo, dia: a.data_hora.slice(0, 10), hora: a.data_hora.slice(11, 16), local: a.local ?? "", modalidade: a.modalidade }}
+                        aoSalvar={(v) => alterar("audiencias", a.id, { titulo: String(v.titulo), data_hora: `${v.dia}T${v.hora}:00`, local: v.local ? String(v.local) : undefined, modalidade: (v.modalidade ?? a.modalidade) as typeof a.modalidade })} aoExcluir={() => excluir("audiencias", a.id)} />
                     </li>
                   ))}</ul>
                 )}
@@ -153,7 +159,9 @@ export default function PaginaCaso() {
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
                 <tbody>{honorarios.map((h) => (
                   <tr key={h.id}><td>{h.descricao}<span className="block text-[12px] text-ink-3">{h.tipo}</span></td><td>{data(h.vencimento)}</td><td className="num">{brl(h.valor)}</td>
-                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><button className="btn btn-g btn-sm" onClick={() => alterar("honorarios", h.id, { status: "recebido", recebido_em: hojeISO() })}>Dar baixa</button></span>}</td></tr>
+                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><button className="btn btn-g btn-sm" onClick={() => alterar("honorarios", h.id, { status: "recebido", recebido_em: hojeISO() })}>Dar baixa</button>
+                      <Acoes oQue="o honorário" campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "vencimento", rotulo: "Vencimento", tipo: "data", obrig: true }]} inicial={{ descricao: h.descricao, valor: h.valor, vencimento: h.vencimento }}
+                        aoSalvar={(v) => alterar("honorarios", h.id, { descricao: String(v.descricao), valor: Number(v.valor) || h.valor, vencimento: String(v.vencimento) })} aoExcluir={() => excluir("honorarios", h.id)} /></span>}</td></tr>
                 ))}</tbody></table>
             </section>
             <section className="painel overflow-x-auto">
@@ -180,6 +188,8 @@ export default function PaginaCaso() {
                   <button className={`btn btn-icone btn-sm ${t.estado === "feito" ? "btn-p" : "btn-g"}`} aria-label="Concluir tarefa" onClick={() => alterar("tarefas", t.id, { estado: t.estado === "feito" ? "a fazer" : "feito" })}><Check /></button>
                   <span className={`min-w-0 flex-1 ${t.estado === "feito" ? "text-ink-3 line-through" : ""}`}>{t.titulo}</span>
                   {t.limite && <span className="text-[12.5px] text-ink-3">{data(t.limite)}</span>}<Avatar pessoa={pessoa(t.responsavel_id)} />
+                  <Acoes oQue="a tarefa" campos={[{ k: "titulo", rotulo: "Tarefa", obrig: true, largo: true }, { k: "limite", rotulo: "Data limite", tipo: "data" }, { k: "prioridade", rotulo: "Prioridade", tipo: "opcoes", opcoes: [["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] }]} inicial={{ titulo: t.titulo, limite: t.limite ?? "", prioridade: t.prioridade }}
+                    aoSalvar={(v) => alterar("tarefas", t.id, { titulo: String(v.titulo), limite: v.limite ? String(v.limite) : undefined, prioridade: (v.prioridade ?? t.prioridade) as typeof t.prioridade })} aoExcluir={() => excluir("tarefas", t.id)} />
                 </li>
               ))}</ul>
               <Rapido rotulo="Nova tarefa" aoIncluir={(titulo) => incluir("tarefas", { caso_id: caso.id, titulo, estado: "a fazer", prioridade: "media", responsavel_id: caso.responsavel_id })} />
@@ -188,12 +198,15 @@ export default function PaginaCaso() {
               <div className="painel-cab"><h2>Anotações</h2></div>
               {anotacoes.length === 0 && <Vazio titulo="Nenhuma anotação" />}
               <ul>{anotacoes.map((n) => (
-                <li key={n.id} className="border-b border-line-2 px-4 py-2.5"><p>{n.texto}</p><p className="mt-0.5 text-[12px] text-ink-3">{data(n.data)} · {pessoa(n.autor_id)?.nome}</p></li>
+                <li key={n.id} className="flex items-start gap-2 border-b border-line-2 px-4 py-2.5"><div className="min-w-0 flex-1"><p className="whitespace-pre-line">{n.texto}</p><p className="mt-0.5 text-[12px] text-ink-3">{data(n.data)} · {pessoa(n.autor_id)?.nome}</p></div>
+                  <Acoes oQue="a anotação" campos={[{ k: "texto", rotulo: "Anotação", tipo: "longo", obrig: true }]} inicial={{ texto: n.texto }} aoSalvar={(v) => alterar("anotacoes", n.id, { texto: String(v.texto) })} aoExcluir={() => excluir("anotacoes", n.id)} /></li>
               ))}</ul>
               <Rapido rotulo="Nova anotação" aoIncluir={(texto) => incluir("anotacoes", { caso_id: caso.id, texto, data: hojeISO(), autor_id: caso.responsavel_id })} />
             </section>
           </div>
         )}
+
+        {aba === "docs" && <DocsPendentes caso={caso} />}
 
         {aba === "pecas" && <div className="painel p-4"><PecasPanel processoId={caso.id} tipoProcesso={areaParaTipoAntigo(caso.area)} /></div>}
         {aba === "autos" && <div className="painel p-4"><AutosPanel processoId={caso.id} /></div>}

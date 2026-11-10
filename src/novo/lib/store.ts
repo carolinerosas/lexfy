@@ -95,7 +95,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
   casos: {
     antiga: "processos", select: "*", ordem: ["created_at", false],
     campos: { numero: "numero", titulo: "titulo", status: "status", orgao: "vara", comarca: "comarca", uf: "uf", cliente_id: "cliente_id", cliente_nome: "cliente_nome", parte_contraria: "parte_contraria", valor: "valor_causa", distribuido_em: "data_distribuicao" },
-    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id"],
+    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id", "docs_pendentes"],
     ler: (p, x) => {
       const area = String(x.area ?? TIPO_PARA_AREA[String(p.tipo ?? "")] ?? "civel");
       const a = areaDe(area);
@@ -103,7 +103,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
       return limpo({
         id: p.id, natureza: a.grupo, area: a.id, numero: p.numero ?? "", titulo: p.titulo ?? "", status: p.status ?? "ativo", fase: Math.min(fase, a.fases.length - 1),
         orgao: p.vara, comarca: p.comarca, uf: p.uf, cliente_id: p.cliente_id ?? "", cliente_nome: p.cliente_nome ?? "", parte_contraria: p.parte_contraria, valor: p.valor_causa ?? undefined,
-        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, criado_em: dia(p.created_at) ?? "",
+        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, criado_em: dia(p.created_at) ?? "",
       });
     },
     aoInserir: (c) => ({ tipo: areaParaTipoAntigo(String(c.area)), fase: areaDe(String(c.area)).fases[Number(c.fase) || 0], monitorar_datajud: !!c.numero, updated_at: agora() }),

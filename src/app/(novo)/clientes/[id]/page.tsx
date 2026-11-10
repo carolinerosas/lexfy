@@ -8,6 +8,8 @@ import { brl, data, hojeISO, hora } from "@/novo/lib/format";
 import { Azulejo } from "@/novo/components/azulejo";
 import { Vazio } from "@/novo/components/ui";
 import { Cobrar, NovoHonorario } from "@/novo/components/honorario";
+import { BotaoNovo } from "@/novo/components/form-rapido";
+import { Pencil } from "lucide-react";
 
 export default function PaginaCliente() {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +31,10 @@ export default function PaginaCliente() {
         <h1 className="titulo text-[34px]">{c.nome}</h1>
         <p className="mt-1 text-ink-2">{c.tipo === "pj" ? "Empresa" : "Pessoa física"} · {c.documento ?? "sem documento"} · cliente desde {data(c.criado_em)}</p>
         <p className="mt-3 flex flex-wrap gap-2">
+          <BotaoNovo rotulo="Editar cadastro" classe="btn btn-g btn-sm" icone={<Pencil />} titulo="Editar cliente"
+            inicial={{ nome: c.nome, tipo: c.tipo, documento: c.documento ?? "", celular: c.celular ?? "", email: c.email ?? "", cidade: c.cidade ?? "", uf: c.uf ?? "", profissao: c.profissao ?? "", origem: c.origem ?? "", observacoes: c.observacoes ?? "" }}
+            aoSalvar={(v) => alterar("clientes", c.id, { nome: String(v.nome), tipo: v.tipo === "pj" ? "pj" : "pf", documento: v.documento ? String(v.documento) : undefined, celular: v.celular ? String(v.celular) : undefined, email: v.email ? String(v.email) : undefined, cidade: v.cidade ? String(v.cidade) : undefined, uf: v.uf ? String(v.uf) : undefined, profissao: v.profissao ? String(v.profissao) : undefined, origem: v.origem ? String(v.origem) : undefined, observacoes: v.observacoes ? String(v.observacoes) : undefined })}
+            campos={[{ k: "nome", rotulo: "Nome ou razão social", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", opcoes: [["pf", "Pessoa física"], ["pj", "Empresa"]] }, { k: "documento", rotulo: "CPF ou CNPJ" }, { k: "celular", rotulo: "Celular" }, { k: "email", rotulo: "E-mail" }, { k: "cidade", rotulo: "Cidade" }, { k: "uf", rotulo: "UF" }, { k: "profissao", rotulo: "Profissão" }, { k: "origem", rotulo: "Como chegou ao escritório" }, { k: "observacoes", rotulo: "Observações", tipo: "longo" }]} />
           <Link href={`/documentos?cliente=${c.id}`} className="btn btn-g btn-sm">Gerar documento</Link>
           <Link href={`/portal/${c.id}`} className="btn btn-g btn-sm">Ver como o cliente vê</Link>
           <Link href={`/relatorio/${c.id}`} className="btn btn-g btn-sm">Relatório do cliente</Link>
