@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { Check, Copy, Plus, X } from "lucide-react";
+import { copiarTexto } from "@/novo/lib/whatsapp";
 import { areaDe, type Campo } from "@/novo/lib/areas";
 import { Azulejo } from "./azulejo";
 import { brl, data, iniciais } from "@/novo/lib/format";
@@ -102,10 +103,64 @@ export function Rotulado({ rotulo, children, className = "" }: { rotulo: string;
   );
 }
 
-/** Campo da ficha própria da área (texto, data, valor, opções…). */
-export function CampoArea({ campo, valor, aoMudar }: { campo: Campo; valor: string | number | undefined; aoMudar: (v: string | number) => void }) {
+/** Itens de um campo de lista (guardados um por linha). */
+export const itensDe = (v: string | number | undefined): string[] => String(v ?? "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+
+/** Botão pequeno de copiar, com confirmação. */
+export function Copiar({ texto, rotulo = "Copiar", comTexto }: { texto: string; rotulo?: string; comTexto?: boolean }) {
+  const [ok, setOk] = useState<"" | "sim" | "nao">("");
+  useEffect(() => { if (!ok) return; const t = setTimeout(() => setOk(""), 1800); return () => clearTimeout(t); }, [ok]);
+  return (
+    <button type="button" className={`btn btn-q btn-sm ${comTexto ? "" : "btn-icone"}`} title={rotulo} aria-label={rotulo}
+      onClick={async (e) => { e.preventDefault(); e.stopPropagation(); setOk((await copiarTexto(texto)) ? "sim" : "nao"); }}>
+      {ok === "sim" ? <Check /> : <Copy />}{comTexto && (ok === "sim" ? "Copiado" : ok === "nao" ? "Não copiou" : rotulo)}
+      {!comTexto && ok && <span role="status" className="sr-only">{ok === "sim" ? "Copiado" : "Não foi possível copiar"}</span>}
+    </button>
+  );
+}
+
+/** Lista editável: inclui um item por vez, com sugestões do que já foi usado. */
+export function CampoLista({ valor, aoMudar, sugestoes = [], rotulo }: { valor: string | number | undefined; aoMudar: (v: string) => void; sugestoes?: string[]; rotulo: string }) {
+  const itens = itensDe(valor);
+  const [novo, setNovo] = useState("");
+  const idLista = useId();
+  const livres = sugestoes.filter((x) => !itens.some((i) => i.toLowerCase() === x.toLowerCase()));
+  const incluir = (t: string) => { const x = t.trim(); if (!x || itens.some((i) => i.toLowerCase() === x.toLowerCase())) { setNovo(""); return; } aoMudar([...itens, x].join("\n")); setNovo(""); };
+  return (
+    <div>
+      {itens.length > 0 && (
+        <ul className="mb-2 flex flex-wrap gap-1.5">
+          {itens.map((it, n) => (
+            <li key={`${it}-${n}`} className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-porcelana py-1 pl-3 pr-1 text-[13px]">
+              <span className="min-w-0 break-words">{it}</span>
+              <button type="button" className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-line-2 hover:text-ink" aria-label={`Tirar ${it}`} onClick={() => aoMudar(itens.filter((_, k) => k !== n).join("\n"))}><X className="size-3.5" /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex gap-2">
+        <input className="inp" list={idLista} value={novo} placeholder="Digite e tecle Enter" aria-label={`Incluir em ${rotulo}`}
+          onChange={(e) => setNovo(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); incluir(novo); } }} />
+        <button type="button" className="btn btn-g shrink-0" disabled={!novo.trim()} onClick={() => incluir(novo)}><Plus />Incluir</button>
+      </div>
+      {livres.length > 0 && <datalist id={idLista}>{livres.slice(0, 200).map((x) => <option key={x} value={x} />)}</datalist>}
+    </div>
+  );
+}
+
+/** Campo da ficha própria da área (texto, lista, data, valor, opções…). */
+export function CampoArea({ campo, valor, aoMudar, sugestoes }: { campo: Campo; valor: string | number | undefined; aoMudar: (v: string | number) => void; sugestoes?: string[] }) {
   const v = valor ?? "";
-  const largo = campo.tipo === "l";
+  const idLista = useId();
+  const largo = campo.tipo === "l" || campo.tipo === "m";
+  if (campo.tipo === "m") {
+    return (
+      <div className="sm:col-span-2">
+        <span className="rotulo">{campo.rotulo}</span>
+        <CampoLista valor={valor} aoMudar={aoMudar} sugestoes={sugestoes} rotulo={campo.rotulo} />
+      </div>
+    );
+  }
   return (
     <Rotulado rotulo={campo.rotulo} className={largo ? "sm:col-span-2" : ""}>
       {campo.tipo === "o" || campo.tipo === "s" ? (
@@ -116,8 +171,11 @@ export function CampoArea({ campo, valor, aoMudar }: { campo: Campo; valor: stri
       ) : campo.tipo === "l" ? (
         <textarea className="inp" rows={3} value={String(v)} onChange={(e) => aoMudar(e.target.value)} />
       ) : (
-        <input className="inp" type={campo.tipo === "d" ? "date" : campo.tipo === "v" || campo.tipo === "n" ? "number" : "text"} step={campo.tipo === "v" ? "0.01" : undefined}
-          value={String(v)} onChange={(e) => aoMudar(campo.tipo === "v" || campo.tipo === "n" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)} />
+        <>
+          <input className="inp" list={campo.tipo === "t" && sugestoes?.length ? idLista : undefined} type={campo.tipo === "d" ? "date" : campo.tipo === "v" || campo.tipo === "n" ? "number" : "text"} step={campo.tipo === "v" ? "0.01" : undefined}
+            value={String(v)} onChange={(e) => aoMudar(campo.tipo === "v" || campo.tipo === "n" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)} />
+          {campo.tipo === "t" && sugestoes?.length ? <datalist id={idLista}>{sugestoes.slice(0, 200).map((x) => <option key={x} value={x} />)}</datalist> : null}
+        </>
       )}
     </Rotulado>
   );
@@ -127,7 +185,20 @@ export function valorCampo(campo: Campo, v: string | number | undefined): string
   if (v === undefined || v === "") return "";
   if (campo.tipo === "d") return data(String(v));
   if (campo.tipo === "v") return brl(Number(v));
+  if (campo.tipo === "m") return itensDe(v).join("; ");
   return String(v);
+}
+
+/** Valores já usados num campo, em todos os casos da área (os mais usados primeiro). */
+export function valoresUsados(casos: Caso[], area: string, campo: Campo): string[] {
+  const conta = new Map<string, number>();
+  for (const c of casos) {
+    if (c.area !== area) continue;
+    const v = c.dados[campo.k];
+    const lista = campo.tipo === "m" ? itensDe(v) : v !== undefined && v !== "" ? [String(v).trim()] : [];
+    for (const x of lista) conta.set(x, (conta.get(x) ?? 0) + 1);
+  }
+  return [...conta.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([x]) => x);
 }
 
 /** Atalhos de consulta sobre o banco. */

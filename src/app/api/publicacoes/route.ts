@@ -4,6 +4,7 @@ import type { Processo, Publicacao } from "@/types";
 import { sessaoValida } from "@/lib/acesso";
 import { COOKIE_SESSAO } from "@/lib/sessao";
 import { envLimpo } from "@/lib/env";
+import { aposSalvarPublicacoes } from "@/lib/publicacao-automatica";
 
 export const maxDuration = 60;
 
@@ -44,6 +45,10 @@ export interface PubEncontrada {
   diario: string;
   url?: string;
   hash: string;
+  /** Só para a tela de escolha (não vão para o banco). */
+  numero_processo?: string;
+  classe?: string;
+  orgao?: string;
 }
 
 type DjerjBusca = {
@@ -430,6 +435,9 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
     url: item.link || undefined,
     hash: `djen-${hash}`,
+    numero_processo: processo || undefined,
+    classe: classe || undefined,
+    orgao,
   };
 }
 
@@ -655,7 +663,7 @@ async function salvarResultadosNoBanco(resultados: PubEncontrada[]): Promise<num
       .select("titulo,conteudo,data_publicacao,diario,url"),
     supabase
       .from("processos")
-      .select("id,numero"),
+      .select("id,numero,tipo,titulo,cliente_nome"),
   ]);
 
   if (publicacoesError) throw publicacoesError;
@@ -697,7 +705,39 @@ async function salvarResultadosNoBanco(resultados: PubEncontrada[]): Promise<num
   const { error } = await supabase.from("publicacoes").insert(novas);
   if (error) throw error;
 
+  // prazo, audiência e aviso no celular; falha aqui não desfaz a gravação das publicações
+  try {
+    await aposSalvarPublicacoes(novas as Parameters<typeof aposSalvarPublicacoes>[0], processos as Parameters<typeof aposSalvarPublicacoes>[1]);
+  } catch (err) {
+    console.error("[publicacoes] prazo automático:", err instanceof Error ? err.message : err);
+  }
+
   return novas.length;
+}
+
+/** Marca o que já está salvo e a qual processo cada publicação pertence, sem gravar nada. */
+async function marcarResultados(resultados: PubEncontrada[]) {
+  const [{ data: existentes, error: e1 }, { data: procs, error: e2 }] = await Promise.all([
+    supabase.from("publicacoes").select("titulo,conteudo,data_publicacao,diario,url"),
+    supabase.from("processos").select("id,numero"),
+  ]);
+  if (e1) throw e1;
+  if (e2) throw e2;
+  const chaves = new Set(((existentes ?? []) as Publicacao[]).map((p) => publicacaoKey(p)));
+  const soltas = new Set(((existentes ?? []) as Publicacao[]).map((p) => publicacaoLooseKey(p)));
+  const processos = (procs ?? []) as Pick<Processo, "id" | "numero">[];
+  const vistos = new Set<string>();
+  return resultados.filter((r) => {
+    const k = publicacaoKey(r);
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  }).map((r) => ({
+    ...r,
+    numero_processo: r.numero_processo || extractCNJ(r.titulo) || extractCNJ(r.conteudo) || undefined,
+    ja_salva: chaves.has(publicacaoKey(r)) || soltas.has(publicacaoLooseKey(r)),
+    processo_id: findProcessoIdByCNJ(processos, r.numero_processo, r.titulo, r.conteudo),
+  }));
 }
 
 async function getSyncStatus(): Promise<PublicacoesSyncStatus | null> {
@@ -799,7 +839,25 @@ export async function POST(req: NextRequest) {
       oabUF?: string;
       resultados?: PubEncontrada[];
       buscadoEm?: string;
+      /** true: só busca e devolve a lista para escolher o que salvar. */
+      apenasBuscar?: boolean;
     };
+
+    if (input.apenasBuscar) {
+      let { nome, oabNumero, oabUF } = input;
+      if (!nome && !oabNumero) {
+        const perfil = await getPerfilCron();
+        nome = perfil?.nome?.trim() || undefined;
+        oabNumero = perfil?.oab_numero?.trim() || undefined;
+        oabUF = perfil?.oab_uf?.trim().toUpperCase() || "RJ";
+      }
+      if (!nome && !oabNumero) {
+        return NextResponse.json({ error: "Cadastre nome e OAB no perfil (Configurações) para buscar." }, { status: 400 });
+      }
+      const busca = await executarBuscaPublicacoes({ nome, oabNumero, oabUF });
+      const resultados = await marcarResultados(busca.resultados);
+      return NextResponse.json({ resultados, erros: busca.erros, buscadoEm: busca.buscadoEm, oab: oabNumero ? `${oabNumero}/${oabUF ?? "RJ"}` : null });
+    }
 
     const startedAt = new Date().toISOString();
     await updateSyncStatus({ last_run_at: startedAt, last_errors: [] });

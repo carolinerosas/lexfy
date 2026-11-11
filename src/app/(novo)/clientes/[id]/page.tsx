@@ -7,7 +7,7 @@ import { areaDe } from "@/novo/lib/areas";
 import { brl, data, hojeISO, hora } from "@/novo/lib/format";
 import { Azulejo } from "@/novo/components/azulejo";
 import { Vazio } from "@/novo/components/ui";
-import { Cobrar, NovoHonorario } from "@/novo/components/honorario";
+import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Pencil } from "lucide-react";
 
@@ -74,7 +74,7 @@ export default function PaginaCliente() {
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
                 <tbody>{hon.map((h) => (
                   <tr key={h.id}><td>{h.descricao}<span className="block max-w-[260px] truncate text-[12px] text-ink-3">{casos.find((x) => x.id === h.caso_id)?.titulo}</span></td><td className={h.status === "pendente" && h.vencimento < hoje ? "font-semibold text-perigo" : ""}>{data(h.vencimento)}</td><td className="num">{brl(h.valor)}</td>
-                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><button className="btn btn-g btn-sm" onClick={() => alterar("honorarios", h.id, { status: "recebido", recebido_em: hoje })}>Dar baixa</button></span>}</td></tr>
+                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><Receber honorario={h} /></span>}</td></tr>
                 ))}</tbody></table>
             )}
           </section>

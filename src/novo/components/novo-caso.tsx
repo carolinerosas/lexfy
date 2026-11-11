@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AREAS, areaDe } from "@/novo/lib/areas";
+import { AREAS, areaDe, secaoVisivel, tipoDoCaso } from "@/novo/lib/areas";
 import { incluir, useDB } from "@/novo/lib/store";
 import { hojeISO, semAcento } from "@/novo/lib/format";
 import { Azulejo } from "./azulejo";
@@ -9,10 +9,10 @@ import { CampoArea, Dialogo, Rotulado } from "./ui";
 
 const INICIAL = { area: "", titulo: "", cliente: "", numero: "", orgao: "", comarca: "", contraria: "", valor: "", responsavel: "" };
 
-export function NovoCaso({ aberto, aoFechar, areaInicial }: { aberto: boolean; aoFechar: () => void; areaInicial?: string }) {
+export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar }: { aberto: boolean; aoFechar: () => void; areaInicial?: string; preenchido?: Partial<typeof INICIAL>; aoCriar?: (id: string) => void }) {
   const db = useDB();
   const router = useRouter();
-  const [f, setF] = useState({ ...INICIAL, area: areaInicial ?? "" });
+  const [f, setF] = useState({ ...INICIAL, area: areaInicial ?? "", ...preenchido });
   const [dados, setDados] = useState<Record<string, string | number>>({});
   const [erro, setErro] = useState("");
   const ativas = useMemo(() => AREAS.filter((a) => db.config.areasAtivas.includes(a.id)), [db.config.areasAtivas]);
@@ -33,7 +33,8 @@ export function NovoCaso({ aberto, aoFechar, areaInicial }: { aberto: boolean; a
       parte_contraria: f.contraria.trim() || undefined, valor: f.valor ? Number(f.valor) : undefined, responsavel_id: resp, dados, criado_em: hojeISO(),
     });
     fechar();
-    router.push(`/casos/${id}`);
+    if (aoCriar) aoCriar(id);
+    else router.push(`/casos/${id}`);
   }
 
   return (
@@ -67,7 +68,15 @@ export function NovoCaso({ aberto, aoFechar, areaInicial }: { aberto: boolean; a
           </select>
         </Rotulado>
       </div>
-      {area && area.secoes.map((s, i) => (
+      {area?.tipos && (
+        <Rotulado rotulo={`Tipo de processo em ${area.nome}`} className="mt-3">
+          <select className="inp" value={String(dados.tipo_caso ?? "")} onChange={(e) => setDados({ ...dados, tipo_caso: e.target.value })}>
+            <option value="">Escolher</option>
+            {area.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Rotulado>
+      )}
+      {area && area.secoes.filter((s) => secaoVisivel(s, tipoDoCaso(area, dados), dados)).map((s, i) => (
         <details key={s.titulo} open={i === 0} className="mt-4 border-t border-line-2 pt-3">
           <summary className="cursor-pointer text-[13.5px] font-semibold">Ficha de {area.nome}: {s.titulo}</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

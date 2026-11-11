@@ -56,9 +56,9 @@ function fichaDoAntigo(p: Linha, area: string): Linha {
     bens: lista(f.bens, (x) => String(x.descricao ?? "")), dividas: lista(f.dividas, (x) => String(x.descricao ?? "")), renda_cliente: f.cliente_renda, renda_outra: f.outra_parte_renda,
   });
   if (["criminal", "juri", "inquerito", "execucao_penal"].includes(area)) return limpo({
-    tipo_penal: p.tipo_penal ?? (Array.isArray(p.tipos_penais) ? (p.tipos_penais as string[]).join("; ") : undefined), imputacao: p.tipo_penal, fato_data: c.data_fato, fato_local: c.local_fato, ro: c.numero_ro,
+    tipo_penal: Array.isArray(p.tipos_penais) && p.tipos_penais.length ? (p.tipos_penais as string[]).join("\n") : p.tipo_penal, imputacao: p.tipo_penal, fato_data: c.data_fato, fato_local: c.local_fato, ro: c.numero_ro,
     vitimas: lista(c.vitimas, (x) => String(x.nome ?? "")), situacao: c.prisao, unidade: p.unidade_prisional, citacao: c.data_citacao, lmp: c.maria_da_penha ? "Sim" : undefined,
-    protetivas: Array.isArray(prot.aplicadas) ? (prot.aplicadas as string[]).join("; ") : undefined, testemunhas: lista(c.testemunhas, (x) => String(x.nome ?? "")),
+    protetivas: Array.isArray(prot.aplicadas) ? (prot.aplicadas as string[]).join("\n") : undefined, testemunhas: lista(c.testemunhas, (x) => String(x.nome ?? "")),
     numero_ip: p.numero_inquerito, delegacia: p.delegacia, autoridade: p.autoridade_policial, instauracao: p.data_instauracao, pena: p.pena,
   });
   return {};
@@ -95,7 +95,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
   casos: {
     antiga: "processos", select: "*", ordem: ["created_at", false],
     campos: { numero: "numero", titulo: "titulo", status: "status", orgao: "vara", comarca: "comarca", uf: "uf", cliente_id: "cliente_id", cliente_nome: "cliente_nome", parte_contraria: "parte_contraria", valor: "valor_causa", distribuido_em: "data_distribuicao" },
-    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id", "docs_pendentes"],
+    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id", "docs_pendentes", "vinculados"],
     ler: (p, x) => {
       const area = String(x.area ?? TIPO_PARA_AREA[String(p.tipo ?? "")] ?? "civel");
       const a = areaDe(area);
@@ -103,7 +103,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
       return limpo({
         id: p.id, natureza: a.grupo, area: a.id, numero: p.numero ?? "", titulo: p.titulo ?? "", status: p.status ?? "ativo", fase: Math.min(fase, a.fases.length - 1),
         orgao: p.vara, comarca: p.comarca, uf: p.uf, cliente_id: p.cliente_id ?? "", cliente_nome: p.cliente_nome ?? "", parte_contraria: p.parte_contraria, valor: p.valor_causa ?? undefined,
-        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, criado_em: dia(p.created_at) ?? "",
+        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, vinculados: x.vinculados, criado_em: dia(p.created_at) ?? "",
       });
     },
     aoInserir: (c) => ({ tipo: areaParaTipoAntigo(String(c.area)), fase: areaDe(String(c.area)).fases[Number(c.fase) || 0], monitorar_datajud: !!c.numero, updated_at: agora() }),
@@ -267,6 +267,13 @@ export function useSituacao(): Situacao {
   return useSyncExternalStore(assinar, () => situacao, () => situacao);
 }
 export function recarregar() { carga = carregar(); }
+/** Estado atual (para quem precisa ler depois de um incluir, fora do ciclo de render). */
+export const lerDB = (): DB => db;
+/** Espera as gravações pendentes (inclusive o documento de extras) chegarem ao banco. */
+export async function aguardarGravacoes(): Promise<void> {
+  if (timerExtras) { clearTimeout(timerExtras); timerExtras = null; const copia = JSON.parse(JSON.stringify(extras)); enfileirar(async () => { const { error } = await supabase.from(TABELA_EXTRAS).upsert({ id: ID_EXTRAS, dados: copia, updated_at: agora() }, { onConflict: "id" }); if (error && !tabelaAusente(error)) throw new Error(error.message); }); }
+  await fila.then(() => undefined, () => undefined);
+}
 
 // ───────────── gravação ─────────────
 let fila: Promise<unknown> = Promise.resolve();
@@ -325,7 +332,7 @@ function guardarExtrasDoRegistro(tabela: Tabela, spec: Spec, id: string, parcial
   salvarExtras();
 }
 /** Registro de pagamento do antigo, criado quando uma cobrança é dada como recebida. */
-const pagamentoDe = (h: Linha) => ({ id: crypto.randomUUID(), processo_id: h.caso_id, descricao: `Recebimento — ${h.descricao}`, valor: h.valor, categoria: "pagamento", status: "recebido", data_recebimento: h.recebido_em ?? agora().slice(0, 10), created_at: agora(), user_id: USER_ID });
+const pagamentoDe = (h: Linha, ref?: string) => ({ id: crypto.randomUUID(), processo_id: h.caso_id, descricao: `Recebimento — ${h.descricao}${ref ? ` (${ref})` : ""}`, valor: h.valor, categoria: "pagamento", status: "recebido", data_recebimento: h.recebido_em ?? agora().slice(0, 10), created_at: agora(), user_id: USER_ID });
 
 type Item<T extends Tabela> = DB[T][number];
 const publicar = (novo: DB) => { db = novo; avisar(); };
@@ -346,7 +353,7 @@ export function incluir<T extends Tabela>(tabela: T, item: Omit<Item<T>, "id"> &
   return id;
 }
 
-export function alterar<T extends Tabela>(tabela: T, id: string, mudanca: Partial<Item<T>>) {
+export function alterar<T extends Tabela>(tabela: T, id: string, mudanca: Partial<Item<T>>, opcoes?: { referencia?: string }) {
   const antes = (db[tabela] as unknown as Linha[]).find((x) => x.id === id);
   if (!antes) return;
   const completo = { ...antes, ...(mudanca as Linha) };
@@ -361,7 +368,7 @@ export function alterar<T extends Tabela>(tabela: T, id: string, mudanca: Partia
   enfileirar(async () => {
     await conferir(supabase.from(spec.antiga).update(cols).eq("id", id));
     // baixa de honorário: registra também o pagamento, como o Justio antigo faz
-    if (tabela === "honorarios" && parcial.status === "recebido" && antes.status !== "recebido") await conferir(supabase.from("honorarios").insert(pagamentoDe(completo)));
+    if (tabela === "honorarios" && parcial.status === "recebido" && antes.status !== "recebido") await conferir(supabase.from("honorarios").insert(pagamentoDe(completo, opcoes?.referencia)));
   });
 }
 
@@ -373,6 +380,50 @@ export function excluir(tabela: Tabela, id: string) {
   const spec = SPECS[tabela]!;
   if (extras.reg[tabela]?.[id]) { delete extras.reg[tabela][id]; salvarExtras(); }
   enfileirar(() => conferir(supabase.from(spec.antiga).delete().eq("id", id)));
+}
+
+/** Pagamento avulso no formato do antigo (categoria "pagamento"). */
+function lancarPagamento(casoId: string, descricao: string, valor: number, quando: string) {
+  enfileirar(() => conferir(supabase.from("honorarios").insert({ id: crypto.randomUUID(), processo_id: casoId, descricao, valor, categoria: "pagamento", status: "recebido", data_recebimento: quando, created_at: agora(), user_id: USER_ID })));
+}
+
+/**
+ * Recebimento de um honorário, como no Justio antigo:
+ * - igual ao valor: quita;
+ * - menor: quita o que entrou e gera nova cobrança com a diferença;
+ * - maior: quita e abate o excedente das últimas parcelas em aberto do mesmo caso; a sobra fica como adiantamento.
+ */
+export function registrarRecebimento(id: string, opts: { data: string; valor: number; vencimentoDiferenca?: string; referencia?: string }) {
+  const ref = opts.referencia?.trim() || undefined;
+  const h = db.honorarios.find((x) => x.id === id);
+  if (!h) return;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const recebido = r2(Math.max(0, opts.valor));
+  if (recebido <= 0) return;
+  if (recebido <= h.valor + 0.005) {
+    const diferenca = r2(h.valor - recebido);
+    alterar("honorarios", h.id, { valor: recebido, status: "recebido", recebido_em: opts.data }, { referencia: ref });
+    if (diferenca > 0.005) {
+      const base = h.descricao.replace(/ — diferença$/, "");
+      incluir("honorarios", { caso_id: h.caso_id, descricao: `${base} — diferença`, valor: diferenca, vencimento: opts.vencimentoDiferenca || h.vencimento, status: "pendente", tipo: h.tipo });
+    }
+    return;
+  }
+  alterar("honorarios", h.id, { status: "recebido", recebido_em: opts.data }, { referencia: ref });
+  let excedente = r2(recebido - h.valor);
+  const outras = db.honorarios.filter((p) => p.caso_id === h.caso_id && p.id !== h.id && p.status === "pendente").sort((a, b) => b.vencimento.localeCompare(a.vencimento));
+  for (const p of outras) {
+    if (excedente <= 0.005) break;
+    if (excedente >= p.valor - 0.005) {
+      alterar("honorarios", p.id, { status: "recebido", recebido_em: opts.data });
+      excedente = r2(excedente - p.valor);
+    } else {
+      alterar("honorarios", p.id, { valor: r2(p.valor - excedente) });
+      lancarPagamento(p.caso_id, `Recebimento — ${p.descricao}`, excedente, opts.data);
+      excedente = 0;
+    }
+  }
+  if (excedente > 0.005) lancarPagamento(h.caso_id, `Recebimento — ${h.descricao} (${ref ? `${ref}, ` : ""}adiantamento)`, excedente, opts.data);
 }
 
 export function alterarConfig(mudanca: Partial<Config>) {

@@ -6,12 +6,14 @@ import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { alterar, areaParaTipoAntigo, excluir, incluir, useDB } from "@/novo/lib/store";
 import { PecasPanel } from "@/components/ui/pecas-panel";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { areaDe } from "@/novo/lib/areas";
+import { areaDe, secaoVisivel, SUGESTOES_FIXAS, tipoDoCaso } from "@/novo/lib/areas";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, CampoArea, Rotulado, Vazio, valorCampo, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, CampoArea, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
+import { semAcento } from "@/novo/lib/format";
 import type { Caso, Custa } from "@/novo/lib/types";
-import { Cobrar, NovoHonorario } from "@/novo/components/honorario";
+import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Acoes, DocsPendentes } from "@/novo/components/acoes";
 
@@ -50,14 +52,22 @@ export default function PaginaCaso() {
               {caso.status !== "ativo" && <span className="tag tag-alerta">{caso.status}</span>}
               {typeof caso.dados.situacao === "string" && /pris/i.test(caso.dados.situacao) && <span className="tag tag-perigo">Cliente preso</span>}
             </p>
-            <h1 className="titulo mt-2 text-[28px]">{caso.titulo}</h1>
+            <h1 className="titulo mt-2 break-words text-[24px] sm:text-[28px]">{caso.titulo}</h1>
             <p className="mt-1 text-ink-2">
               <Link href={`/clientes/${caso.cliente_id}`} className="font-semibold text-ink hover:text-cobalto hover:underline">{caso.cliente_nome}</Link>
               {caso.parte_contraria && <> <span className="text-ink-3">×</span> {caso.parte_contraria}</>}
             </p>
-            <p className="mt-0.5 text-[13px] text-ink-3">{[caso.numero || (caso.natureza === "judicial" ? "Ainda sem número" : null), caso.orgao, caso.comarca && `${caso.comarca}/${caso.uf ?? ""}`].filter(Boolean).join(" · ")}</p>
+            {caso.numero ? (
+              <p className="mt-1 flex flex-wrap items-center gap-x-1 text-[13px] text-ink-2"><span className="break-all font-mono font-semibold text-ink">{caso.numero}</span><Copiar texto={caso.numero} rotulo="Copiar número do processo" /></p>
+            ) : caso.natureza === "judicial" ? <p className="mt-1 text-[13px] text-ink-3">Ainda sem número</p> : null}
+            <p className="mt-0.5 text-[13px] text-ink-3">{[caso.orgao, caso.comarca && `${caso.comarca}/${caso.uf ?? ""}`].filter(Boolean).join(" · ")}</p>
+            {(caso.vinculados ?? []).length > 0 && (
+              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-ink-2">{caso.vinculados!.map((v) => <span key={v.id} className="inline-flex items-center gap-1"><span className="text-ink-3">{v.tipo}:</span><span className="break-all font-mono">{v.numero}</span><Copiar texto={v.numero} rotulo={`Copiar número do ${v.tipo.toLowerCase()}`} /></span>)}</p>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <MensagemCliente caso={caso} />
+            <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" comTexto />
             <Link href={`/documentos?caso=${caso.id}`} className="btn btn-g">Gerar documento</Link>
             <Avatar pessoa={pessoa(caso.responsavel_id)} tamanho={30} />
             <select className="inp w-auto" aria-label="Situação do caso" value={caso.status} onChange={(e) => alterar("casos", caso.id, { status: e.target.value as Caso["status"] })}>
@@ -88,6 +98,7 @@ export default function PaginaCaso() {
         {aba === "andamentos" && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <section className="painel">
+              <div className="painel-cab"><h2>Andamentos</h2><span className="flex flex-wrap gap-2"><BuscarAndamentos casos={[caso]} rotulo="Buscar no tribunal" classe="btn btn-g btn-sm" /><MensagemCliente caso={caso} modeloInicial="andamento" rotulo="Avisar cliente" classe="btn btn-g btn-sm" /></span></div>
               {andamentos.length === 0 ? <Vazio titulo="Sem andamentos">Registre o primeiro ao lado. Os que vierem do tribunal aparecem aqui marcados como novos.</Vazio> : (
                 <ol>{andamentos.map((a) => (
                   <li key={a.id} className={`flex items-start gap-3 border-b border-line-2 px-4 py-3 last:border-0 ${a.lido ? "" : "nao-lido"}`}>
@@ -129,7 +140,7 @@ export default function PaginaCaso() {
                 )}
               </section>
               <section className="painel">
-                <div className="painel-cab"><h2>Audiências e sessões</h2></div>
+                <div className="painel-cab"><h2>Audiências e sessões</h2>{audiencias.some((a) => !a.realizada) && <MensagemCliente caso={caso} modeloInicial="audiencia" rotulo="Lembrar cliente" classe="btn btn-g btn-sm" />}</div>
                 {audiencias.length === 0 ? <Vazio titulo="Nenhuma audiência marcada" /> : (
                   <ul>{audiencias.map((a) => (
                     <li key={a.id} className="flex items-center gap-3 border-b border-line-2 px-4 py-2.5 last:border-0">
@@ -151,6 +162,7 @@ export default function PaginaCaso() {
         {aba === "financeiro" && (
           <><div className="mb-3 flex flex-wrap gap-2">
             <NovoHonorario casoId={caso.id} />
+            {honorarios.some((h) => h.status === "pendente") && <MensagemCliente caso={caso} modeloInicial="honorarios" rotulo="Lembrar honorários" />}
             <BotaoNovo rotulo="Lançar custa ou repasse" classe="btn btn-g" aoSalvar={(v) => incluir("custas", { caso_id: caso.id, descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hojeISO()), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hojeISO() }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
           </div><div className="grid gap-4 lg:grid-cols-2">
@@ -159,7 +171,7 @@ export default function PaginaCaso() {
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
                 <tbody>{honorarios.map((h) => (
                   <tr key={h.id}><td>{h.descricao}<span className="block text-[12px] text-ink-3">{h.tipo}</span></td><td>{data(h.vencimento)}</td><td className="num">{brl(h.valor)}</td>
-                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><button className="btn btn-g btn-sm" onClick={() => alterar("honorarios", h.id, { status: "recebido", recebido_em: hojeISO() })}>Dar baixa</button>
+                    <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><Receber honorario={h} />
                       <Acoes oQue="o honorário" campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "vencimento", rotulo: "Vencimento", tipo: "data", obrig: true }]} inicial={{ descricao: h.descricao, valor: h.valor, vencimento: h.vencimento }}
                         aoSalvar={(v) => alterar("honorarios", h.id, { descricao: String(v.descricao), valor: Number(v.valor) || h.valor, vencimento: String(v.vencimento) })} aoExcluir={() => excluir("honorarios", h.id)} /></span>}</td></tr>
                 ))}</tbody></table>
@@ -206,7 +218,7 @@ export default function PaginaCaso() {
           </div>
         )}
 
-        {aba === "docs" && <DocsPendentes caso={caso} />}
+        {aba === "docs" && <><div className="mb-3 flex justify-end">{(caso.docs_pendentes ?? []).some((d) => !d.recebido) && <MensagemCliente caso={caso} modeloInicial="documentos" rotulo="Pedir documentos ao cliente" />}</div><DocsPendentes caso={caso} /></>}
 
         {aba === "pecas" && <div className="painel p-4"><PecasPanel processoId={caso.id} tipoProcesso={areaParaTipoAntigo(caso.area)} /></div>}
         {aba === "autos" && <div className="painel p-4"><AutosPanel processoId={caso.id} /></div>}
@@ -225,30 +237,70 @@ export default function PaginaCaso() {
 }
 
 function Ficha({ caso }: { caso: Caso }) {
+  const db = useDB();
   const area = areaDe(caso.area);
   const [edit, setEdit] = useState(false);
   const [dados, setDados] = useState(caso.dados);
-  const [geral, setGeral] = useState({ titulo: caso.titulo, numero: caso.numero, orgao: caso.orgao ?? "", comarca: caso.comarca ?? "", parte_contraria: caso.parte_contraria ?? "", valor: caso.valor ?? "" });
-  const salvar = () => { alterar("casos", caso.id, { ...geral, valor: geral.valor === "" ? undefined : Number(geral.valor), dados }); setEdit(false); };
-  const preenchidos = area.secoes.flatMap((s) => s.campos).filter((c) => caso.dados[c.k] !== undefined && caso.dados[c.k] !== "").length;
-  const total = area.secoes.flatMap((s) => s.campos).length;
+  const geralDe = (c: Caso) => ({ titulo: c.titulo, numero: c.numero, orgao: c.orgao ?? "", comarca: c.comarca ?? "", uf: c.uf ?? "", parte_contraria: c.parte_contraria ?? "", valor: c.valor ?? "", cliente: c.cliente_nome ?? "" });
+  const [geral, setGeral] = useState(geralDe(caso));
+  const base = edit ? dados : caso.dados;
+  const tipo = tipoDoCaso(area, base);
+  const secoes = area.secoes.filter((s) => secaoVisivel(s, tipo, base));
+  const campos = secoes.flatMap((s) => s.campos);
+  const preenchidos = campos.filter((c) => caso.dados[c.k] !== undefined && caso.dados[c.k] !== "").length;
+  const sugestoes = (k: string) => { const c = campos.find((x) => x.k === k)!; return [...new Set([...valoresUsados(db.casos, area.id, c), ...(SUGESTOES_FIXAS[k] ?? [])])].filter((x) => x); };
+  const distintos = (f: (c: Caso) => string | undefined) => [...new Set(db.casos.map(f).filter((x): x is string => !!x))].sort();
+
+  function salvar() {
+    const nomeCli = geral.cliente.trim();
+    let cliente_id = caso.cliente_id, cliente_nome = caso.cliente_nome;
+    if (nomeCli && semAcento(nomeCli) !== semAcento(caso.cliente_nome ?? "")) {
+      const achado = db.clientes.find((c) => semAcento(c.nome) === semAcento(nomeCli));
+      cliente_id = achado?.id ?? incluir("clientes", { nome: nomeCli, tipo: "pf", criado_em: hojeISO() });
+      cliente_nome = achado?.nome ?? nomeCli;
+    }
+    const { cliente: _c, ...resto } = geral; // eslint-disable-line @typescript-eslint/no-unused-vars
+    alterar("casos", caso.id, { ...resto, uf: resto.uf || undefined, valor: geral.valor === "" ? undefined : Number(geral.valor), dados, cliente_id, cliente_nome });
+    setEdit(false);
+  }
+  const mudarTipo = (t: string) => {
+    if (edit) setDados({ ...dados, tipo_caso: t });
+    else alterar("casos", caso.id, { dados: { ...caso.dados, tipo_caso: t } });
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <div className="space-y-4">
-        {area.secoes.map((s) => (
+      <div className="min-w-0 space-y-4">
+        {area.tipos && (
+          <section className="painel p-4">
+            <Rotulado rotulo={`Tipo de processo em ${area.nome}`}>
+              <select className="inp" value={tipo} onChange={(e) => mudarTipo(e.target.value)}>
+                <option value="">Escolher</option>
+                {area.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </Rotulado>
+            <p className="mt-1.5 text-[12.5px] text-ink-3">{tipo ? "A ficha mostra só o que cabe neste tipo. Seções de outros tipos voltam a aparecer se já tiverem algo preenchido." : "Escolha o tipo para a ficha mostrar os campos próprios dele."}</p>
+          </section>
+        )}
+        <Vinculados caso={caso} />
+        {secoes.map((s) => (
           <section key={s.titulo} className="painel">
             <div className="painel-cab"><h2>{s.titulo}</h2></div>
             {edit ? (
-              <div className="grid gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+              <div className="grid gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
             ) : (
               <dl className="grid gap-x-6 sm:grid-cols-2">
                 {s.campos.map((c) => {
                   const v = valorCampo(c, caso.dados[c.k]);
+                  const largo = c.tipo === "l" || c.tipo === "m";
                   return (
-                    <div key={c.k} className={`border-b border-line-2 px-4 py-2.5 ${c.tipo === "l" ? "sm:col-span-2" : ""}`}>
+                    <div key={c.k} className={`min-w-0 border-b border-line-2 px-4 py-2.5 ${largo ? "sm:col-span-2" : ""}`}>
                       <dt className="text-[12px] font-semibold text-ink-3">{c.rotulo}</dt>
-                      <dd className={`whitespace-pre-line ${v ? "" : "text-ink-3"}`}>{v || "Não informado"}</dd>
+                      {!v ? <dd className="text-ink-3">Não informado</dd> : c.tipo === "m" ? (
+                        <dd><ul className="mt-0.5 space-y-0.5">{itensDe(caso.dados[c.k]).map((it, n) => <li key={n} className="flex items-start gap-1"><span className="min-w-0 flex-1 break-words">• {it}</span><Copiar texto={it} rotulo={`Copiar ${it}`} /></li>)}</ul></dd>
+                      ) : (
+                        <dd className="flex items-start gap-1"><span className="min-w-0 flex-1 whitespace-pre-line break-words">{v}</span><Copiar texto={v} rotulo={`Copiar ${c.rotulo.toLowerCase()}`} /></dd>
+                      )}
                     </div>
                   );
                 })}
@@ -257,27 +309,37 @@ function Ficha({ caso }: { caso: Caso }) {
           </section>
         ))}
       </div>
-      <aside className="space-y-4">
+      <aside className="min-w-0 space-y-4">
         <section className="painel p-4">
-          <p className="text-[12.5px] text-ink-2">Ficha de {area.nome}: {preenchidos} de {total} campos preenchidos.</p>
-          <div className="mt-2 h-1.5 rounded-full bg-cobalto-f"><div className="h-1.5 rounded-full bg-ink" style={{ width: `${(preenchidos / total) * 100}%` }} /></div>
+          <p className="text-[12.5px] text-ink-2">Ficha de {area.nome}{tipo ? ` (${tipo})` : ""}: {preenchidos} de {campos.length} campos preenchidos.</p>
+          <div className="mt-2 h-1.5 rounded-full bg-cobalto-f"><div className="h-1.5 rounded-full bg-ink" style={{ width: `${campos.length ? (preenchidos / campos.length) * 100 : 0}%` }} /></div>
           {edit ? (
             <div className="mt-3 flex gap-2"><button className="btn btn-p flex-1" onClick={salvar}>Salvar ficha</button><button className="btn btn-g" onClick={() => { setDados(caso.dados); setEdit(false); }}>Cancelar</button></div>
-          ) : <button className="btn btn-g mt-3 w-full" onClick={() => { setDados(caso.dados); setEdit(true); }}><Pencil />Editar ficha</button>}
+          ) : <button className="btn btn-g mt-3 w-full" onClick={() => { setDados(caso.dados); setGeral(geralDe(caso)); setEdit(true); }}><Pencil />Editar ficha</button>}
         </section>
         <section className="painel">
           <div className="painel-cab"><h2>Dados gerais</h2></div>
           {edit ? (
             <div className="space-y-3 p-4">
               <Rotulado rotulo="Título"><input className="inp" value={geral.titulo} onChange={(e) => setGeral({ ...geral, titulo: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Número"><input className="inp" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Vara ou órgão"><input className="inp" value={geral.orgao} onChange={(e) => setGeral({ ...geral, orgao: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Comarca"><input className="inp" value={geral.comarca} onChange={(e) => setGeral({ ...geral, comarca: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Parte contrária"><input className="inp" value={geral.parte_contraria} onChange={(e) => setGeral({ ...geral, parte_contraria: e.target.value })} /></Rotulado>
+              <Rotulado rotulo="Cliente"><input className="inp" list="ficha-clientes" value={geral.cliente} onChange={(e) => setGeral({ ...geral, cliente: e.target.value })} /></Rotulado>
+              <datalist id="ficha-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
+              <Rotulado rotulo="Número"><input className="inp" inputMode="numeric" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
+              <Rotulado rotulo="Vara ou órgão"><input className="inp" list="ficha-orgaos" value={geral.orgao} onChange={(e) => setGeral({ ...geral, orgao: e.target.value })} /></Rotulado>
+              <datalist id="ficha-orgaos">{distintos((c) => c.orgao).map((x) => <option key={x} value={x} />)}</datalist>
+              <div className="grid grid-cols-[1fr_80px] gap-2">
+                <Rotulado rotulo="Comarca"><input className="inp" list="ficha-comarcas" value={geral.comarca} onChange={(e) => setGeral({ ...geral, comarca: e.target.value })} /></Rotulado>
+                <Rotulado rotulo="UF"><input className="inp" maxLength={2} value={geral.uf} onChange={(e) => setGeral({ ...geral, uf: e.target.value.toUpperCase() })} /></Rotulado>
+              </div>
+              <datalist id="ficha-comarcas">{distintos((c) => c.comarca).map((x) => <option key={x} value={x} />)}</datalist>
+              <Rotulado rotulo="Parte contrária"><input className="inp" list="ficha-contrarias" value={geral.parte_contraria} onChange={(e) => setGeral({ ...geral, parte_contraria: e.target.value })} /></Rotulado>
+              <datalist id="ficha-contrarias">{distintos((c) => c.parte_contraria).map((x) => <option key={x} value={x} />)}</datalist>
               <Rotulado rotulo="Valor (R$)"><input className="inp" type="number" value={geral.valor} onChange={(e) => setGeral({ ...geral, valor: e.target.value })} /></Rotulado>
             </div>
           ) : (
             <dl className="divide-y divide-line-2 text-[13.5px]">
+              {caso.numero && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Número</dt><dd className="flex min-w-0 items-center gap-1"><span className="break-all font-mono text-[12.5px]">{caso.numero}</span><Copiar texto={caso.numero} rotulo="Copiar número do processo" /></dd></div>}
+              {caso.orgao && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Juízo</dt><dd className="flex min-w-0 items-center gap-1 text-right"><span className="break-words">{caso.orgao}{caso.comarca ? `, ${caso.comarca}` : ""}</span><Copiar texto={`${caso.orgao}${caso.comarca ? `, ${caso.comarca}` : ""}${caso.uf ? `/${caso.uf}` : ""}`} rotulo="Copiar juízo" /></dd></div>}
               {([["Valor", caso.valor ? brl(caso.valor) : "—"], ["Distribuído em", data(caso.distribuido_em)], ["Cadastrado em", data(caso.criado_em)]] as const).map(([k, v]) => <div key={k} className="flex justify-between gap-3 px-4 py-2"><dt className="text-ink-3">{k}</dt><dd>{v}</dd></div>)}
               <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Chance de êxito</dt>
                 <dd><select className="inp h-7 w-auto text-[13px]" aria-label="Chance de êxito" value={caso.risco ?? ""} onChange={(e) => alterar("casos", caso.id, { risco: (e.target.value || undefined) as Caso["risco"] })}><option value="">Não avaliada</option><option value="provavel">Provável</option><option value="possivel">Possível</option><option value="remoto">Remota</option></select></dd></div>

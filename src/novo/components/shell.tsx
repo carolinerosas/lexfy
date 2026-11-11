@@ -74,7 +74,7 @@ function Avisos() {
     <div className="mb-4 space-y-2">
       {s.erro && (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-[12px] bg-perigo-f px-4 py-3 text-perigo">
-          <p className="min-w-0 flex-1 font-semibold">{s.erro}</p>
+          <p className="min-w-0 flex-1 basis-full font-semibold sm:basis-auto">{s.erro}</p>
           <button className="btn btn-g btn-sm" onClick={() => recarregar()}>Carregar de novo</button>
           <a className="btn btn-g btn-sm" href="/login">Entrar de novo</a>
         </div>
@@ -197,6 +197,30 @@ function Busca({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void }) 
   );
 }
 
+/** No celular as tabelas viram cartões; aqui cada célula ganha o nome da sua coluna (data-rotulo). */
+function RotulosTabela() {
+  useEffect(() => {
+    let quadro = 0;
+    const rotular = () => {
+      quadro = 0;
+      document.querySelectorAll<HTMLTableElement>("table.tb").forEach((t) => {
+        const nomes = Array.from(t.querySelectorAll("thead th")).map((th) => th.textContent?.trim() ?? "");
+        if (!nomes.length) return;
+        t.querySelectorAll("tbody tr").forEach((tr) => Array.from(tr.children).forEach((td, i) => {
+          const n = nomes[i];
+          if (n && td.getAttribute("data-rotulo") !== n) td.setAttribute("data-rotulo", n);
+        }));
+      });
+    };
+    const agendar = () => { if (!quadro) quadro = requestAnimationFrame(rotular); };
+    const obs = new MutationObserver(agendar);
+    obs.observe(document.body, { childList: true, subtree: true });
+    agendar();
+    return () => { obs.disconnect(); if (quadro) cancelAnimationFrame(quadro); };
+  }, []);
+  return null;
+}
+
 export function Shell({ children }: { children: ReactNode }) {
   const db = useDB();
   const pathname = usePathname();
@@ -248,6 +272,7 @@ export function Shell({ children }: { children: ReactNode }) {
         {db.versao === 0 ? <div className="h-[60vh] animate-pulse rounded-[16px] bg-porcelana" aria-busy="true" aria-label="Carregando" /> : children}
       </main>
 
+      <RotulosTabela />
       <Busca aberta={busca} aoFechar={() => setBusca(false)} />
       <NovoCaso aberto={novo} aoFechar={() => setNovo(false)} />
     </div>

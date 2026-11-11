@@ -2,11 +2,12 @@
 // (campos específicos), as fases típicas e os prazos de referência.
 //
 // Campos usam uma notação curta: "chave:Rótulo|tipo|opção 1;opção 2"
-// tipos: t texto · l texto longo · d data · v valor (R$) · n número · s sim/não · o opções
+// tipos: t texto · l texto longo · m lista (um item por linha) · d data · v valor (R$) · n número · s sim/não · o opções
 
-export type TipoCampo = "t" | "l" | "d" | "v" | "n" | "s" | "o";
+export type TipoCampo = "t" | "l" | "m" | "d" | "v" | "n" | "s" | "o";
 export interface Campo { k: string; rotulo: string; tipo: TipoCampo; opcoes?: string[] }
-export interface Secao { titulo: string; campos: Campo[] }
+/** `so`: tipos de processo da área em que a seção aparece (sem `so`, aparece sempre). */
+export interface Secao { titulo: string; campos: Campo[]; so?: string[] }
 export interface PrazoRef { nome: string; prazo: string; base: string }
 export interface Exemplo {
   titulo: string; cliente: string; contraria?: string; fase: number;
@@ -20,6 +21,8 @@ export interface Area {
   cnj?: string;
   /** Chaves dos campos que aparecem na listagem de casos da área. */
   destaque: string[];
+  /** Tipos de processo dentro da área; cada um mostra só as seções que lhe cabem. */
+  tipos?: string[];
 }
 
 export const TINTAS: Record<Tinta, { cor: string; fundo: string; nome: string }> = {
@@ -39,6 +42,7 @@ function campo(def: string): Campo {
   return { k: cabeca.slice(0, i), rotulo: cabeca.slice(i + 1), tipo: tipo as TipoCampo, opcoes: ops ? ops.split(";") : undefined };
 }
 const sec = (titulo: string, ...campos: string[]): Secao => ({ titulo, campos: campos.map(campo) });
+const secSo = (so: string[], titulo: string, ...campos: string[]): Secao => ({ ...sec(titulo, ...campos), so });
 const pz = (nome: string, prazo: string, base: string): PrazoRef => ({ nome, prazo, base });
 
 const FASES_CIVEL = ["A ajuizar", "Inicial distribuída", "Citação", "Contestação e réplica", "Saneamento", "Instrução", "Sentença", "Recurso", "Cumprimento de sentença", "Encerrado"];
@@ -51,8 +55,8 @@ export const AREAS: Area[] = [
     fases: FASES_CIVEL, destaque: ["acao", "polo", "tutela"],
     secoes: [
       sec("Ação", "acao:Tipo de ação", "rito:Rito|o|Comum;Juizado Especial Cível;Procedimento especial;Execução de título;Monitória", "polo:Polo do cliente|o|Autor;Réu;Terceiro interessado", "tutela:Tutela de urgência|o|Não pedida;Pedida;Deferida;Indeferida;Revogada", "gratuidade:Justiça gratuita|s", "condenacao:Valor da condenação|v"),
-      sec("Prova", "pericia:Perícia|s", "perito:Perito nomeado", "assistente:Assistente técnico", "testemunhas:Testemunhas|l"),
-      sec("Cumprimento e execução", "executado:Valor em execução|v", "sisbajud:Sisbajud|o|Não pedido;Pedido;Positivo;Negativo", "penhora:Bens penhorados|l"),
+      sec("Prova", "pericia:Perícia|s", "perito:Perito nomeado", "assistente:Assistente técnico", "testemunhas:Testemunhas|m"),
+      sec("Cumprimento e execução", "executado:Valor em execução|v", "sisbajud:Sisbajud|o|Não pedido;Pedido;Positivo;Negativo", "penhora:Bens penhorados|m"),
     ],
     prazos: [
       pz("Contestação", "15 dias úteis", "CPC, art. 335"),
@@ -73,7 +77,7 @@ export const AREAS: Area[] = [
     resumo: "Vício e defeito de produto, recall, negativação, cobrança indevida, cancelamentos.",
     fases: FASES_CIVEL, destaque: ["problema", "fornecedor", "dano_moral"],
     secoes: [
-      sec("Relação de consumo", "fornecedor:Fornecedor", "produto:Produto ou serviço", "problema:Tipo de problema|o|Vício do produto;Acidente de consumo;Cobrança indevida;Negativação indevida;Atraso ou cancelamento;Recall;Assinatura não contratada", "compra:Data da compra|d", "reclamacao:Data da primeira reclamação|d", "protocolo:Protocolos de atendimento|l"),
+      sec("Relação de consumo", "fornecedor:Fornecedor", "produto:Produto ou serviço", "problema:Tipo de problema|o|Vício do produto;Acidente de consumo;Cobrança indevida;Negativação indevida;Atraso ou cancelamento;Recall;Assinatura não contratada", "compra:Data da compra|d", "reclamacao:Data da primeira reclamação|d", "protocolo:Protocolos de atendimento|m"),
       sec("Tentativa administrativa", "procon:Reclamação no Procon ou consumidor.gov|s", "resposta:Resposta do fornecedor|l"),
       sec("Pedidos", "negativacao:Há negativação|s", "orgao_neg:Órgão negativador", "dano_material:Dano material|v", "dano_moral:Dano moral pedido|v", "inversao:Inversão do ônus da prova|o|Não pedida;Pedida;Deferida;Indeferida"),
     ],
@@ -94,10 +98,15 @@ export const AREAS: Area[] = [
     resumo: "Divórcio, união estável, guarda, convivência, alimentos e partilha.",
     fases: ["A ajuizar", "Inicial distribuída", "Citação", "Mediação ou conciliação", "Contestação", "Estudo psicossocial", "Instrução", "Sentença", "Recurso", "Cumprimento", "Encerrado"],
     destaque: ["acao", "guarda", "alimentos_prov"],
+    tipos: ["Divórcio", "Dissolução de união estável", "Guarda e convivência", "Alimentos", "Execução de alimentos", "Revisional ou exoneração de alimentos", "Investigação de paternidade", "Interdição e curatela", "Outro"],
     secoes: [
-      sec("Relação", "acao:Ação", "relacao:Relação|o|Casamento;União estável", "inicio:Início da convivência|d", "casamento:Data do casamento|d", "regime:Regime de bens|o|Comunhão parcial;Comunhão universal;Separação convencional;Separação obrigatória;Participação final nos aquestos", "separacao:Separação de fato|d", "moradia:Quem ficou no imóvel"),
-      sec("Filhos", "filhos:Filhos (nome, nascimento, escola)|l", "guarda:Guarda pretendida|o|Compartilhada;Unilateral materna;Unilateral paterna;Não há filhos menores", "convivencia:Convivência pretendida|l", "alimentos:Alimentos pedidos", "alimentos_prov:Alimentos provisórios fixados|v", "despesas:Despesas mensais dos filhos|v"),
-      sec("Patrimônio", "bens:Bens a partilhar|l", "dividas:Dívidas|l", "partilha:Partilha pretendida|l"),
+      secSo(["Divórcio", "Dissolução de união estável"], "Relação", "acao:Ação", "relacao:Relação|o|Casamento;União estável", "inicio:Início da convivência|d", "casamento:Data do casamento|d", "regime:Regime de bens|o|Comunhão parcial;Comunhão universal;Separação convencional;Separação obrigatória;Participação final nos aquestos", "separacao:Separação de fato|d", "moradia:Quem ficou no imóvel"),
+      secSo(["Divórcio", "Dissolução de união estável", "Guarda e convivência", "Alimentos", "Execução de alimentos", "Revisional ou exoneração de alimentos", "Investigação de paternidade"], "Filhos", "filhos:Filhos (nome, nascimento, escola)|m", "guarda:Guarda pretendida|o|Compartilhada;Unilateral materna;Unilateral paterna;Não há filhos menores", "convivencia:Convivência pretendida|l", "alimentos:Alimentos pedidos", "alimentos_prov:Alimentos provisórios fixados|v", "despesas:Despesas mensais dos filhos|v"),
+      secSo(["Divórcio", "Dissolução de união estável"], "Patrimônio", "bens:Bens a partilhar|m", "dividas:Dívidas|m", "partilha:Partilha pretendida|l"),
+      secSo(["Execução de alimentos"], "Execução de alimentos", "debito:Débito atualizado|v", "meses_aberto:Meses em aberto|m", "rito_exec:Rito|o|Prisão (art. 528, § 3º);Penhora (art. 523);Desconto em folha", "titulo_exec:Título (sentença ou acordo)"),
+      secSo(["Revisional ou exoneração de alimentos"], "Revisão de alimentos", "valor_atual:Valor atual|v", "valor_pretendido:Valor pretendido", "mudanca:Mudança de situação alegada|l"),
+      secSo(["Investigação de paternidade"], "Paternidade", "suposto_pai:Suposto pai", "dna:Exame de DNA|o|Não requerido;Requerido;Agendado;Realizado: positivo;Realizado: negativo;Recusa do investigado"),
+      secSo(["Interdição e curatela"], "Curatela", "curatelando:Pessoa a ser curatelada", "laudo_medico:Laudo médico e CID", "curador:Curador pretendido", "pericia_curatela:Perícia|o|Não marcada;Marcada;Realizada", "limites:Atos sujeitos à curatela|l"),
       sec("Partes", "renda_cliente:Renda do cliente", "renda_outra:Renda da outra parte", "protetiva:Medida protetiva em vigor|s", "acordo:Possibilidade de acordo|o|Provável;Possível;Improvável"),
     ],
     prazos: [
@@ -119,7 +128,7 @@ export const AREAS: Area[] = [
     destaque: ["falecido", "rito", "itcmd"],
     secoes: [
       sec("Sucessão", "falecido:Autor da herança", "obito:Data do óbito|d", "rito:Rito|o|Inventário;Arrolamento sumário;Arrolamento comum;Alvará judicial", "inventariante:Inventariante", "testamento:Há testamento|s", "conjuge:Cônjuge ou companheiro e regime"),
-      sec("Herdeiros e bens", "herdeiros:Herdeiros|l", "incapaz:Herdeiro menor ou incapaz|s", "bens:Bens|l", "dividas:Dívidas do espólio|l", "monte:Valor do monte|v"),
+      sec("Herdeiros e bens", "herdeiros:Herdeiros|m", "incapaz:Herdeiro menor ou incapaz|s", "bens:Bens|m", "dividas:Dívidas do espólio|m", "monte:Valor do monte|v"),
       sec("Imposto e encerramento", "itcmd:ITCMD|o|Não declarado;Declarado;Guia emitida;Pago;Isento", "itcmd_valor:Valor do ITCMD|v", "formal:Formal de partilha|o|Não expedido;Expedido;Registrado"),
     ],
     prazos: [
@@ -138,11 +147,17 @@ export const AREAS: Area[] = [
     resumo: "Ação penal, prisão e liberdade, habeas corpus, violência doméstica.",
     fases: ["Flagrante e custódia", "Denúncia", "Resposta à acusação", "Instrução", "Alegações finais", "Sentença", "Recurso", "Trânsito em julgado", "Encerrado"],
     destaque: ["tipo_penal", "situacao", "revisao"],
+    tipos: ["Crime contra a pessoa", "Violência doméstica (Lei Maria da Penha)", "Crime contra o patrimônio", "Tráfico e drogas (Lei 11.343/06)", "Crime contra a dignidade sexual", "Armas (Lei 10.826/03)", "Crime de trânsito", "Crime contra a administração pública", "Organização criminosa", "Outro"],
     secoes: [
-      sec("Fato", "tipo_penal:Tipo penal", "fato_data:Data do fato|d", "fato_local:Local do fato", "ro:Nº do registro de ocorrência", "vitimas:Vítimas|l"),
-      sec("Prisão e liberdade", "situacao:Situação|o|Solto;Preso em flagrante;Prisão preventiva;Prisão temporária;Prisão domiciliar;Monitoração eletrônica;Liberdade provisória com cautelares", "unidade:Unidade prisional", "prisao_data:Data da prisão|d", "revisao:Última revisão da preventiva|d", "fianca:Fiança arbitrada|v", "hc:Habeas corpus|o|Não impetrado;Impetrado no TJ;Impetrado no STJ;Impetrado no STF;Concedido;Denegado"),
-      sec("Processo", "representacao:Representação da vítima|o|Não se aplica;Oferecida;Não oferecida;Retratada", "recebimento:Recebimento da denúncia|d", "citacao:Citação|d", "anpp:Acordo de não persecução penal|o|Não cabe;Proposto;Aceito;Recusado;Homologado;Descumprido", "sursis:Suspensão condicional do processo|o|Não cabe;Proposta;Aceita;Em cumprimento;Revogada", "tese:Tese de defesa|l", "testemunhas:Testemunhas de defesa|l"),
-      sec("Violência doméstica", "lmp:Lei Maria da Penha|s", "protetivas:Medidas protetivas|l", "fonar:Risco no formulário nacional|o|Não preenchido;Baixo;Médio;Elevado"),
+      sec("Fato", "tipo_penal:Tipos penais|m", "fato_data:Data do fato|d", "fato_local:Local do fato", "ro:Nº do registro de ocorrência", "flagrante:Houve flagrante|s", "correus:Corréus|m"),
+      secSo(["Crime contra a pessoa", "Violência doméstica (Lei Maria da Penha)", "Crime contra o patrimônio", "Crime contra a dignidade sexual", "Crime de trânsito", "Outro"], "Vítima", "vitimas:Vítimas|m", "representacao:Representação da vítima|o|Não se aplica;Oferecida;Não oferecida;Retratada", "reparacao:Reparação do dano|o|Não discutida;Pedida pelo MP;Feita;Acordo com a vítima"),
+      sec("Prisão e liberdade", "situacao:Situação|o|Solto;Preso em flagrante;Prisão preventiva;Prisão temporária;Prisão domiciliar;Monitoração eletrônica;Liberdade provisória com cautelares", "unidade:Unidade prisional", "prisao_data:Data da prisão|d", "revisao:Última revisão da preventiva|d", "fianca:Fiança arbitrada|v", "cautelares:Cautelares impostas|m", "hc:Habeas corpus (situação)|o|Não impetrado;Impetrado no TJ;Impetrado no STJ;Impetrado no STF;Concedido;Denegado"),
+      sec("Processo", "recebimento:Recebimento da denúncia|d", "citacao:Citação|d", "anpp:Acordo de não persecução penal|o|Não cabe;Proposto;Aceito;Recusado;Homologado;Descumprido", "sursis:Suspensão condicional do processo|o|Não cabe;Proposta;Aceita;Em cumprimento;Revogada", "tese:Tese de defesa|l"),
+      sec("Testemunhas", "testemunhas_acusacao:Testemunhas de acusação|m", "testemunhas:Testemunhas de defesa|m", "informantes:Informantes e declarantes|m"),
+      secSo(["Tráfico e drogas (Lei 11.343/06)"], "Drogas", "substancias:Substâncias e quantidades|m", "laudo_constatacao:Laudo de constatação|o|Não juntado;Juntado;Inconclusivo", "laudo_definitivo:Laudo definitivo|o|Pendente;Juntado;Inconclusivo", "busca_domiciliar:Ingresso em domicílio|o|Não houve;Com mandado;Sem mandado (alegado flagrante);Com autorização do morador", "privilegiado:Tráfico privilegiado (art. 33, § 4º)|o|Não analisado;Cabível;Afastado;Reconhecido", "defesa_previa:Notificação para defesa prévia (art. 55)|d", "associacao:Imputação de associação (art. 35)|s"),
+      secSo(["Armas (Lei 10.826/03)"], "Arma", "arma:Arma e munições apreendidas|m", "laudo_arma:Laudo de eficiência|o|Pendente;Apta a disparar;Inapta;Inconclusivo", "uso:Uso|o|Permitido;Restrito;Proibido"),
+      secSo(["Crime de trânsito"], "Trânsito", "etilometro:Teste do etilômetro|o|Não realizado;Recusado;Positivo;Negativo", "cnh:Situação da CNH|o|Regular;Suspensa;Cassada;Sem habilitação", "vitima_transito:Houve vítima|s"),
+      secSo(["Violência doméstica (Lei Maria da Penha)"], "Violência doméstica", "protetivas:Medidas protetivas|m", "fonar:Risco no formulário nacional|o|Não preenchido;Baixo;Médio;Elevado", "descumprimento:Descumprimento de medida (art. 24-A)|s", "relacao_vitima:Relação com a vítima|o|Cônjuge ou companheira;Ex-cônjuge ou ex-companheira;Namorada ou ex-namorada;Filha ou enteada;Mãe;Irmã;Outra relação doméstica"),
     ],
     prazos: [
       pz("Resposta à acusação", "10 dias da citação", "CPP, art. 396"),
@@ -166,9 +181,9 @@ export const AREAS: Area[] = [
     fases: ["Inquérito", "Denúncia", "Sumário da culpa", "Pronúncia", "Recurso da pronúncia", "Preparação do plenário", "Plenário", "Apelação", "Encerrado"],
     destaque: ["imputacao", "plenario", "tese"],
     secoes: [
-      sec("Imputação", "imputacao:Imputação", "qualificadoras:Qualificadoras|l", "situacao:Situação do acusado|o|Solto;Prisão preventiva;Prisão domiciliar;Monitoração eletrônica", "unidade:Unidade prisional"),
+      sec("Imputação", "imputacao:Imputação", "vitimas:Vítimas|m", "qualificadoras:Qualificadoras|m", "situacao:Situação do acusado|o|Solto;Prisão preventiva;Prisão domiciliar;Monitoração eletrônica", "unidade:Unidade prisional"),
       sec("Primeira fase", "pronuncia:Data da pronúncia|d", "decisao:Decisão|o|Pendente;Pronúncia;Impronúncia;Desclassificação;Absolvição sumária", "rese:Recurso em sentido estrito|o|Não interposto;Interposto;Provido;Desprovido"),
-      sec("Plenário", "plenario:Data do plenário|d", "rol:Rol de testemunhas (art. 422)|l", "tese:Tese principal", "subsidiarias:Teses subsidiárias|l", "quesitos:Quesitos e pontos de atenção|l", "resultado:Resultado", "pena:Pena aplicada"),
+      sec("Plenário", "plenario:Data do plenário|d", "testemunhas_acusacao:Testemunhas de acusação|m", "rol:Rol de testemunhas da defesa (art. 422)|m", "tese:Tese principal", "subsidiarias:Teses subsidiárias|m", "quesitos:Quesitos e pontos de atenção|l", "resultado:Resultado", "pena:Pena aplicada"),
     ],
     prazos: [
       pz("Recurso em sentido estrito contra a pronúncia", "5 dias", "CPP, art. 581, IV, e art. 586"),
@@ -189,7 +204,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Pena", "pena:Pena total", "natureza:Natureza do crime|o|Comum sem violência;Comum com violência ou grave ameaça;Hediondo ou equiparado;Hediondo com resultado morte", "reincidencia:Condição|o|Primário;Reincidente;Reincidente específico", "data_base:Data-base|d", "termino:Término da pena|d"),
       sec("Cumprimento", "regime:Regime atual|o|Fechado;Semiaberto;Aberto;Prisão domiciliar;Livramento condicional", "unidade:Unidade prisional", "fracao:Fração para progressão", "remicao:Dias remidos|n", "detracao:Detração (dias)|n", "trabalho:Trabalho ou estudo"),
-      sec("Benefícios", "progressao:Previsão de progressão|d", "livramento:Previsão de livramento|d", "saida:Saída temporária|o|Não cabe;Não requerida;Requerida;Deferida;Indeferida", "faltas:Faltas graves|l", "indulto:Indulto ou comutação (decreto)"),
+      sec("Benefícios", "progressao:Previsão de progressão|d", "livramento:Previsão de livramento|d", "saida:Saída temporária|o|Não cabe;Não requerida;Requerida;Deferida;Indeferida", "faltas:Faltas graves|m", "indulto:Indulto ou comutação (decreto)"),
     ],
     prazos: [
       pz("Agravo em execução", "5 dias", "LEP, art. 197, e Súmula 700 do STF"),
@@ -210,7 +225,7 @@ export const AREAS: Area[] = [
     destaque: ["delegacia", "situacao", "oitiva"],
     secoes: [
       sec("Inquérito", "numero_ip:Nº do inquérito", "delegacia:Delegacia", "autoridade:Autoridade policial", "instauracao:Data de instauração|d", "situacao:Situação|o|Em andamento;Relatado;Denunciado;Arquivado;Baixado para diligências", "posicao:Posição do cliente|o|Investigado;Vítima;Testemunha"),
-      sec("Diligências", "preso:Investigado preso|s", "oitiva:Oitiva marcada|d", "cautelares:Medidas cautelares|l", "apreendidos:Bens apreendidos|l", "restituicao:Pedido de restituição|o|Não se aplica;Não requerido;Requerido;Deferido;Indeferido"),
+      sec("Diligências", "preso:Investigado preso|s", "oitiva:Oitiva marcada|d", "cautelares:Medidas cautelares|m", "apreendidos:Bens apreendidos|m", "restituicao:Pedido de restituição|o|Não se aplica;Não requerido;Requerido;Deferido;Indeferido"),
     ],
     prazos: [
       pz("Conclusão do inquérito (investigado preso)", "10 dias", "CPP, art. 10"),
@@ -231,8 +246,8 @@ export const AREAS: Area[] = [
     destaque: ["polo", "desligamento", "valor_pedidos"],
     secoes: [
       sec("Contrato de trabalho", "polo:Polo do cliente|o|Reclamante;Reclamada", "empregador:Empregador", "funcao:Função", "admissao:Admissão|d", "demissao:Desligamento|d", "desligamento:Tipo de desligamento|o|Sem justa causa;Justa causa;Pedido de demissão;Rescisão indireta;Acordo (art. 484-A);Término de contrato", "salario:Último salário|v", "ctps:CTPS anotada|s", "jornada:Jornada cumprida"),
-      sec("Pedidos", "pedidos:Pedidos|l", "valor_pedidos:Valor dos pedidos|v", "rito:Rito|o|Sumaríssimo;Ordinário;Sumário", "pericia:Perícia|o|Não;Insalubridade;Periculosidade;Médica;Contábil"),
-      sec("Audiência e prova", "preposto:Preposto", "testemunhas:Testemunhas|l"),
+      sec("Pedidos", "pedidos:Pedidos|m", "valor_pedidos:Valor dos pedidos|v", "rito:Rito|o|Sumaríssimo;Ordinário;Sumário", "pericia:Perícia|o|Não;Insalubridade;Periculosidade;Médica;Contábil"),
+      sec("Audiência e prova", "preposto:Preposto", "testemunhas:Testemunhas|m"),
       sec("Recurso e execução", "deposito:Depósito recursal|v", "acordo:Acordo homologado|v", "liquidacao:Valor liquidado|v"),
     ],
     prazos: [
@@ -256,7 +271,7 @@ export const AREAS: Area[] = [
     destaque: ["beneficio", "der", "via"],
     secoes: [
       sec("Benefício", "beneficio:Benefício|o|Aposentadoria por idade;Aposentadoria por tempo de contribuição;Aposentadoria especial;Aposentadoria por incapacidade permanente;Auxílio por incapacidade temporária;Auxílio-acidente;Pensão por morte;BPC/LOAS;Salário-maternidade;Revisão de benefício", "nb:Número do benefício (NB)", "der:Data de entrada do requerimento (DER)|d", "dib:Início do benefício (DIB)|d", "dcb:Cessação do benefício (DCB)|d", "via:Via|o|Administrativa;Juizado Especial Federal;Vara Federal;Justiça Estadual (competência delegada)"),
-      sec("Tempo e carência", "tempo:Tempo de contribuição reconhecido", "carencia:Carência (contribuições)|n", "especiais:Períodos especiais|l", "ppp:PPP e LTCAT juntados|s", "cnis:CNIS conferido|s", "segurado:Qualidade de segurado|o|Mantida;Período de graça;Perdida;A comprovar"),
+      sec("Tempo e carência", "tempo:Tempo de contribuição reconhecido", "carencia:Carência (contribuições)|n", "especiais:Períodos especiais|m", "ppp:PPP e LTCAT juntados|s", "cnis:CNIS conferido|s", "segurado:Qualidade de segurado|o|Mantida;Período de graça;Perdida;A comprovar"),
       sec("Incapacidade", "pericia:Perícia médica|d", "cid:CID", "laudo:Conclusão do laudo|l"),
       sec("Valores", "rmi:Renda mensal inicial estimada|v", "atrasados:Atrasados estimados|v"),
     ],
@@ -420,7 +435,7 @@ export const AREAS: Area[] = [
     destaque: ["tipo", "cargo", "eleicao"],
     secoes: [
       sec("Feito", "tipo:Tipo|o|Registro de candidatura;Investigação judicial eleitoral;Impugnação de mandato eletivo;Representação por propaganda;Prestação de contas;Recurso contra expedição de diploma", "candidato:Candidato ou partido", "cargo:Cargo", "eleicao:Eleição (ano)", "zona:Zona eleitoral"),
-      sec("Contas", "contas:Situação das contas|o|Não se aplica;A prestar;Prestadas;Aprovadas;Aprovadas com ressalvas;Desaprovadas;Não prestadas", "diligencias:Diligências|l"),
+      sec("Contas", "contas:Situação das contas|o|Não se aplica;A prestar;Prestadas;Aprovadas;Aprovadas com ressalvas;Desaprovadas;Não prestadas", "diligencias:Diligências|m"),
     ],
     prazos: [
       pz("Recurso eleitoral", "3 dias", "Código Eleitoral, art. 258"),
@@ -439,7 +454,7 @@ export const AREAS: Area[] = [
     fases: ["Preservação de provas", "Notificação da plataforma", "Ação ajuizada", "Liminar", "Fornecimento de registros", "Sentença", "Recurso", "Encerrado"],
     destaque: ["tipo", "plataforma", "liminar"],
     secoes: [
-      sec("Caso", "tipo:Tipo|o|Remoção de conteúdo;Vazamento de dados;Identificação de usuário;Crime contra a honra;Fraude ou golpe;Perfil falso", "plataforma:Plataforma ou controlador", "url:Endereços (URL)|l", "ata:Ata notarial ou captura certificada|s", "conhecimento:Data do conhecimento|d"),
+      sec("Caso", "tipo:Tipo|o|Remoção de conteúdo;Vazamento de dados;Identificação de usuário;Crime contra a honra;Fraude ou golpe;Perfil falso", "plataforma:Plataforma ou controlador", "url:Endereços (URL)|m", "ata:Ata notarial ou captura certificada|s", "conhecimento:Data do conhecimento|d"),
       sec("Medidas", "preservacao:Preservação de registros pedida|s", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Cumprida", "anpd:Comunicação à ANPD|o|Não se aplica;Pendente;Feita", "dano:Dano moral pedido|v"),
     ],
     prazos: [
@@ -461,9 +476,9 @@ export const AREAS: Area[] = [
     fases: ["Levantamento de documentos", "Certidões", "Declaração do ITCMD", "Imposto pago", "Minuta da escritura", "Assinatura", "Registro e transferências", "Concluído"],
     destaque: ["falecido", "tabelionato", "itcmd"],
     secoes: [
-      sec("Sucessão", "falecido:Autor da herança", "obito:Data do óbito|d", "tabelionato:Tabelionato", "inventariante:Inventariante", "testamento:Há testamento|s", "incapaz:Herdeiro menor ou incapaz|s", "herdeiros:Herdeiros|l"),
-      sec("Bens e imposto", "bens:Bens|l", "monte:Valor do monte|v", "itcmd:ITCMD|o|Não declarado;Declarado;Guia emitida;Pago;Isento", "itcmd_valor:Valor do ITCMD|v", "emolumentos:Emolumentos estimados|v"),
-      sec("Documentos", "certidoes:Certidões pendentes|l", "escritura:Data da escritura|d", "registro:Registro nos cartórios de imóveis|o|Não iniciado;Protocolado;Com exigência;Concluído"),
+      sec("Sucessão", "falecido:Autor da herança", "obito:Data do óbito|d", "tabelionato:Tabelionato", "inventariante:Inventariante", "testamento:Há testamento|s", "incapaz:Herdeiro menor ou incapaz|s", "herdeiros:Herdeiros|m"),
+      sec("Bens e imposto", "bens:Bens|m", "monte:Valor do monte|v", "itcmd:ITCMD|o|Não declarado;Declarado;Guia emitida;Pago;Isento", "itcmd_valor:Valor do ITCMD|v", "emolumentos:Emolumentos estimados|v"),
+      sec("Documentos", "certidoes:Certidões pendentes|m", "escritura:Data da escritura|d", "registro:Registro nos cartórios de imóveis|o|Não iniciado;Protocolado;Com exigência;Concluído"),
     ],
     prazos: [
       pz("Abertura da sucessão", "2 meses do óbito", "CPC, art. 611"),
@@ -482,7 +497,7 @@ export const AREAS: Area[] = [
     destaque: ["tipo", "tabelionato", "averbacao"],
     secoes: [
       sec("Acordo", "tipo:Tipo|o|Divórcio consensual;Dissolução de união estável;Conversão de separação em divórcio", "tabelionato:Tabelionato", "filhos:Filhos menores ou incapazes|s", "judicial:Guarda e alimentos já resolvidos em juízo|s", "nome:Retomada do nome de solteiro|s", "alimentos:Alimentos entre os cônjuges"),
-      sec("Partilha", "bens:Bens e divisão|l", "imposto:Imposto sobre excesso de meação|o|Não há;A recolher;Recolhido", "escritura:Data da escritura|d", "averbacao:Averbação no registro civil|o|Pendente;Protocolada;Concluída"),
+      sec("Partilha", "bens:Bens e divisão|m", "imposto:Imposto sobre excesso de meação|o|Não há;A recolher;Recolhido", "escritura:Data da escritura|d", "averbacao:Averbação no registro civil|o|Pendente;Protocolada;Concluída"),
     ],
     prazos: [
       pz("Divórcio com filhos menores", "Possível em cartório quando guarda, convivência e alimentos já estão resolvidos em juízo", "Resolução CNJ 35/2007, alterada pela 571/2024"),
@@ -501,7 +516,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Posse", "modalidade:Modalidade|o|Extraordinária;Ordinária;Especial urbana;Especial rural;Familiar", "imovel:Imóvel", "matricula:Matrícula ou transcrição", "tempo:Tempo de posse", "origem:Origem da posse|l"),
       sec("Documentos técnicos", "planta:Planta e memorial com responsabilidade técnica|s", "ata:Ata notarial|o|Não lavrada;Agendada;Lavrada", "anuencia:Anuência dos confrontantes|o|Pendente;Parcial;Completa"),
-      sec("Registro", "cartorio:Registro de imóveis", "prenotacao:Prenotação (número e data)", "notificacoes:Notificações expedidas|l", "impugnacao:Houve impugnação|s"),
+      sec("Registro", "cartorio:Registro de imóveis", "prenotacao:Prenotação (número e data)", "notificacoes:Notificações expedidas|m", "impugnacao:Houve impugnação|s"),
     ],
     prazos: [
       pz("Manifestação dos notificados", "15 dias (o silêncio vale como concordância)", "Lei 6.015/73, art. 216-A, § 2º"),
@@ -520,7 +535,7 @@ export const AREAS: Area[] = [
     fases: ["Pedido", "Minuta", "Em negociação", "Versão final", "Assinatura", "Vigente", "Encerrado"],
     destaque: ["tipo", "fim", "renovacao"],
     secoes: [
-      sec("Contrato", "tipo:Tipo de contrato", "partes:Partes|l", "objeto:Objeto|l", "valor:Valor|v", "versao:Versão atual", "assinatura:Forma de assinatura|o|Física;Certificado digital;Assinatura eletrônica"),
+      sec("Contrato", "tipo:Tipo de contrato", "partes:Partes|m", "objeto:Objeto|l", "valor:Valor|v", "versao:Versão atual", "assinatura:Forma de assinatura|o|Física;Certificado digital;Assinatura eletrônica"),
       sec("Vigência", "inicio:Início|d", "fim:Fim da vigência|d", "renovacao:Renovação automática|s", "aviso:Aviso prévio para rescisão", "reajuste:Índice e data de reajuste"),
       sec("Cláusulas de atenção", "multa:Multa por rescisão", "foro:Foro ou arbitragem", "exclusividade:Exclusividade ou não concorrência|s", "obs:Pontos negociados|l"),
     ],
@@ -554,7 +569,7 @@ export const AREAS: Area[] = [
     fases: ["Coleta de informações", "Minuta", "Assinaturas", "Protocolo no registro", "Exigência", "Registrado", "Atualização cadastral", "Concluído"],
     destaque: ["ato", "empresa", "protocolo"],
     secoes: [
-      sec("Sociedade", "empresa:Empresa", "cnpj:CNPJ", "tipo:Tipo societário|o|Limitada;Limitada unipessoal;Sociedade anônima;Sociedade simples;Cooperativa;Associação", "capital:Capital social|v", "socios:Sócios e participações|l"),
+      sec("Sociedade", "empresa:Empresa", "cnpj:CNPJ", "tipo:Tipo societário|o|Limitada;Limitada unipessoal;Sociedade anônima;Sociedade simples;Cooperativa;Associação", "capital:Capital social|v", "socios:Sócios e participações|m"),
       sec("Ato", "ato:Ato|o|Constituição;Alteração contratual;Cessão de quotas;Transformação;Fusão, cisão ou incorporação;Distrato;Acordo de sócios;Ata de assembleia ou reunião", "orgao:Órgão de registro|o|Junta Comercial;Registro Civil de Pessoas Jurídicas", "assinatura:Data da assinatura|d", "protocolo:Protocolo", "exigencia:Exigências|l", "registro:Registrado em|d"),
     ],
     prazos: [
@@ -573,7 +588,7 @@ export const AREAS: Area[] = [
     destaque: ["escopo", "mapeamento", "incidentes"],
     secoes: [
       sec("Programa", "escopo:Escopo|o|Adequação à LGPD;Programa de integridade;Canal de denúncias;Investigação interna;Código de conduta", "encarregado:Encarregado de dados", "mapeamento:Mapeamento de dados|o|Não iniciado;Em andamento;Concluído", "politicas:Políticas entregues|l"),
-      sec("Rotina", "treinamentos:Treinamentos realizados|l", "incidentes:Incidentes registrados|n", "pedidos:Pedidos de titulares em aberto|n", "revisao:Próxima revisão|d"),
+      sec("Rotina", "treinamentos:Treinamentos realizados|m", "incidentes:Incidentes registrados|n", "pedidos:Pedidos de titulares em aberto|n", "revisao:Próxima revisão|d"),
     ],
     prazos: [
       pz("Comunicar incidente de segurança à ANPD e aos titulares", "3 dias úteis do conhecimento", "Resolução CD/ANPD 15/2024"),
@@ -591,7 +606,7 @@ export const AREAS: Area[] = [
     destaque: ["tipo", "camara", "disputa"],
     secoes: [
       sec("Procedimento", "tipo:Tipo|o|Mediação;Conciliação;Arbitragem;Negociação direta", "camara:Câmara", "mediador:Mediador ou árbitro", "disputa:Valor em disputa|v", "custas:Custas da câmara|v"),
-      sec("Sessões", "sessoes:Sessões realizadas|n", "proxima:Próxima sessão|d", "pontos:Pontos de impasse|l", "resultado:Resultado|o|Em andamento;Acordo total;Acordo parcial;Sem acordo;Sentença arbitral"),
+      sec("Sessões", "sessoes:Sessões realizadas|n", "proxima:Próxima sessão|d", "pontos:Pontos de impasse|m", "resultado:Resultado|o|Em andamento;Acordo total;Acordo parcial;Sem acordo;Sentença arbitral"),
     ],
     prazos: [
       pz("Pedido de esclarecimentos da sentença arbitral", "5 dias", "Lei 9.307/96, art. 30"),
@@ -628,7 +643,7 @@ export const AREAS: Area[] = [
     destaque: ["pendencia", "imovel", "prenotacao"],
     secoes: [
       sec("Imóvel", "imovel:Imóvel", "matricula:Matrícula", "cartorio:Registro de imóveis", "pendencia:Serviço|o|Averbação de construção;Retificação de área;Desmembramento ou unificação;Adjudicação compulsória em cartório;Regularização fundiária;Georreferenciamento;Baixa de hipoteca ou alienação;Compra e venda com escritura"),
-      sec("Andamento", "prenotacao:Prenotação (número e data)", "exigencias:Exigências|l", "imposto:Imposto de transmissão|o|Não se aplica;A recolher;Recolhido", "habite:Habite-se ou certidão de construção|s", "emolumentos:Emolumentos|v"),
+      sec("Andamento", "prenotacao:Prenotação (número e data)", "exigencias:Exigências|m", "imposto:Imposto de transmissão|o|Não se aplica;A recolher;Recolhido", "habite:Habite-se ou certidão de construção|s", "emolumentos:Emolumentos|v"),
     ],
     prazos: [
       pz("Validade da prenotação", "20 dias úteis", "Lei 6.015/73, art. 205"),
@@ -646,7 +661,7 @@ export const AREAS: Area[] = [
     fases: ["Entrevista", "Levantamento patrimonial", "Proposta de estrutura", "Minutas", "Assinatura e registro", "Revisão periódica"],
     destaque: ["instrumento", "patrimonio", "revisao"],
     secoes: [
-      sec("Família e patrimônio", "titular:Titular do patrimônio", "herdeiros:Herdeiros e legatários|l", "patrimonio:Patrimônio estimado|v", "regime:Regime de bens"),
+      sec("Família e patrimônio", "titular:Titular do patrimônio", "herdeiros:Herdeiros e legatários|m", "patrimonio:Patrimônio estimado|v", "regime:Regime de bens"),
       sec("Estrutura", "instrumento:Instrumento|o|Testamento público;Testamento particular;Doação com reserva de usufruto;Holding familiar;Pacto antenupcial;Contrato de convivência;Diretivas antecipadas de vontade", "clausulas:Cláusulas restritivas|l", "imposto:Imposto estimado|v", "revisao:Próxima revisão|d"),
     ],
     prazos: [
@@ -689,4 +704,50 @@ export const TIPO_JUSTIO_PARA_AREA: Record<string, string> = {
   civel: "civel", familia: "familia", criminal: "criminal", juri: "juri", execucao_penal: "execucao_penal",
   inquerito_policial: "inquerito", bo_pm: "inquerito", trabalhista: "trabalhista", previdenciario: "previdenciario",
   tributario: "tributario", federal: "administrativo", outro: "civel",
+};
+
+/** Tipo de processo do caso; nos casos antigos, deduzido do que já está preenchido. */
+export function tipoDoCaso(area: Area, dados: Record<string, string | number | undefined>): string {
+  const t = String(dados.tipo_caso ?? "");
+  if (t || !area.tipos) return t;
+  if (area.id === "criminal") {
+    const pen = String(dados.tipo_penal ?? "");
+    if (dados.lmp === "Sim" || /11\.340|maria da penha|24-a/i.test(pen)) return "Violência doméstica (Lei Maria da Penha)";
+    if (/tr[áa]fico|11\.343|drogas?/i.test(pen)) return "Tráfico e drogas (Lei 11.343/06)";
+    if (/10\.826|arma/i.test(pen)) return "Armas (Lei 10.826/03)";
+    if (/306|302|303|ctb|tr[âa]nsito/i.test(pen)) return "Crime de trânsito";
+  }
+  return "";
+}
+
+const preenchido = (v: unknown) => v !== undefined && v !== null && v !== "";
+/** A seção aparece quando cabe no tipo do caso ou quando já tem algo preenchido. */
+export function secaoVisivel(sec: Secao, tipo: string, dados: Record<string, string | number | undefined>): boolean {
+  if (!sec.so) return true;
+  if (tipo && sec.so.includes(tipo)) return true;
+  return sec.campos.some((c) => preenchido(dados[c.k]));
+}
+
+/** Sugestões fixas para alguns campos de lista (além do que já foi usado em outros casos). */
+export const SUGESTOES_FIXAS: Record<string, string[]> = {
+  tipo_penal: [
+    "Tráfico de drogas (art. 33, Lei 11.343/06)", "Associação para o tráfico (art. 35, Lei 11.343/06)", "Porte de droga para consumo (art. 28, Lei 11.343/06)",
+    "Furto (art. 155, CP)", "Furto qualificado (art. 155, § 4º, CP)", "Roubo (art. 157, CP)", "Roubo majorado (art. 157, § 2º, CP)", "Roubo com arma de fogo (art. 157, § 2º-A, I, CP)",
+    "Latrocínio (art. 157, § 3º, II, CP)", "Extorsão (art. 158, CP)", "Receptação (art. 180, CP)", "Estelionato (art. 171, CP)", "Dano (art. 163, CP)",
+    "Homicídio simples (art. 121, CP)", "Homicídio qualificado (art. 121, § 2º, CP)", "Feminicídio (art. 121-A, CP)", "Lesão corporal (art. 129, CP)", "Lesão corporal em violência doméstica (art. 129, § 13, CP)",
+    "Ameaça (art. 147, CP)", "Perseguição (art. 147-A, CP)", "Violência psicológica contra a mulher (art. 147-B, CP)", "Descumprimento de medida protetiva (art. 24-A, Lei 11.340/06)",
+    "Estupro (art. 213, CP)", "Estupro de vulnerável (art. 217-A, CP)", "Importunação sexual (art. 215-A, CP)",
+    "Porte ilegal de arma de uso permitido (art. 14, Lei 10.826/03)", "Posse ou porte de arma de uso restrito (art. 16, Lei 10.826/03)", "Posse irregular de arma (art. 12, Lei 10.826/03)",
+    "Embriaguez ao volante (art. 306, CTB)", "Homicídio culposo na direção (art. 302, CTB)", "Lesão culposa na direção (art. 303, CTB)", "Direção sem habilitação (art. 309, CTB)",
+    "Organização criminosa (art. 2º, Lei 12.850/13)", "Associação criminosa (art. 288, CP)", "Corrupção ativa (art. 333, CP)", "Desacato (art. 331, CP)", "Resistência (art. 329, CP)",
+    "Lavagem de dinheiro (art. 1º, Lei 9.613/98)", "Falsidade ideológica (art. 299, CP)", "Uso de documento falso (art. 304, CP)",
+  ],
+  protetivas: [
+    "Afastamento do lar", "Proibição de aproximação da ofendida", "Proibição de contato por qualquer meio", "Proibição de frequentar determinados lugares",
+    "Suspensão da posse ou restrição do porte de armas", "Restrição ou suspensão de visitas aos dependentes", "Alimentos provisionais", "Comparecimento a programa de recuperação e reeducação", "Monitoração eletrônica",
+  ],
+  cautelares: [
+    "Comparecimento periódico em juízo", "Proibição de acesso ou frequência a lugares", "Proibição de contato com pessoa determinada", "Proibição de ausentar-se da comarca",
+    "Recolhimento domiciliar noturno e nos dias de folga", "Suspensão do exercício de função pública", "Fiança", "Monitoração eletrônica", "Entrega do passaporte",
+  ],
 };

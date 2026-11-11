@@ -160,12 +160,31 @@ button:disabled { cursor: not-allowed; }
   .painel-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-line-2); }
   .painel-cab h2 { font-family: var(--font-titulo); font-size: 15.5px; font-weight: 650; letter-spacing: -0.02em; }
 
+  /* Grade sem colunas definidas (celular) não pode crescer além da tela por causa do conteúdo. */
+  .grid { grid-template-columns: minmax(0, 1fr); }
+
   .tb { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .tb th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--color-ink-3); padding: 10px 14px; border-bottom: 1px solid var(--color-line); white-space: nowrap; background: #fff; }
   .tb td { padding: 11px 14px; border-bottom: 1px solid var(--color-line-2); vertical-align: middle; }
   .tb tbody tr:last-child td { border-bottom: 0; }
   .tb tbody tr:hover td { background: #fafafa; }
   .tb .num { text-align: right; white-space: nowrap; }
+
+  /* Celular: cada linha da tabela vira um cartão, com o nome da coluna antes do dado
+     (o rótulo vem do cabeçalho, copiado para data-rotulo pelo RotulosTabela do shell). */
+  @media (max-width: 640px) {
+    .tb { min-width: 0 !important; }
+    .tb thead { display: none; }
+    .tb, .tb tbody, .tb tr, .tb td { display: block; width: 100%; }
+    .tb tbody tr { padding: 10px 14px; border-bottom: 1px solid var(--color-line-2); }
+    .tb tbody tr:last-child { border-bottom: 0; }
+    .tb td { padding: 3px 0; border: 0; max-width: none; white-space: normal; overflow-wrap: anywhere; }
+    .tb td.truncate, .tb td .truncate { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; max-width: none !important; }
+    .tb td:empty { display: none; }
+    .tb .num { text-align: left; white-space: normal; }
+    .tb td[data-rotulo]:not(:first-child)::before { content: attr(data-rotulo); display: block; font-size: 11px; font-weight: 600; color: var(--color-ink-3); }
+    .tb tbody tr:hover td { background: transparent; }
+  }
 
   .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: #f0f0f0; }
   .seg button { height: 30px; padding: 0 13px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--color-ink-2); white-space: nowrap; transition: background-color .16s, color .16s; }

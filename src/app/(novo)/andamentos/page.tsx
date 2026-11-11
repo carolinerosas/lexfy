@@ -5,6 +5,7 @@ import { alterar, useDB } from "@/novo/lib/store";
 import { AREAS } from "@/novo/lib/areas";
 import { data, diasAte, quando } from "@/novo/lib/format";
 import { Cabecalho, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { BuscarAndamentos } from "@/novo/components/caso-extras";
 
 export default function Andamentos() {
   const db = useDB();
@@ -27,6 +28,7 @@ export default function Andamentos() {
       <Cabecalho titulo="Andamentos" sub="Movimentações de todos os casos, das mais recentes para as mais antigas. As novas ficam marcadas até serem lidas.">
         <select className="inp w-auto" value={area} onChange={(e) => setArea(e.target.value)} aria-label="Área"><option value="">Todas as áreas</option>{AREAS.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}</select>
         <Seg rotulo="Filtro" valor={ver} aoMudar={setVer} opcoes={[["novos", `Não lidos (${novos.length})`], ["todos", "Todos"]] as const} />
+        <BuscarAndamentos casos={db.casos.filter((c) => c.natureza === "judicial" && c.status !== "encerrado" && c.status !== "arquivado")} rotulo="Buscar andamentos em lote" />
         <button className="btn btn-g" disabled={novos.length === 0} onClick={() => novos.forEach((a) => alterar("andamentos", a.id, { lido: true }))}><CheckCheck />Marcar tudo como lido</button>
       </Cabecalho>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -57,7 +59,7 @@ export default function Andamentos() {
           </section>
           <section className="painel p-4 text-[13px] text-ink-2">
             <p className="font-semibold text-ink">De onde vêm os andamentos</p>
-            <p className="mt-1">Tribunais (consulta automática pelo número do processo), diários, cartórios e registros feitos à mão. A busca automática roda todo dia às 6h30.</p>
+            <p className="mt-1">Tribunais (consulta automática pelo número do processo), diários, cartórios e registros feitos à mão. A busca automática roda todo dia às 6h30. “Buscar andamentos em lote” consulta na hora os processos que você marcar e deixa escolher o que entra no Justio.</p>
           </section>
         </aside>
       </div>

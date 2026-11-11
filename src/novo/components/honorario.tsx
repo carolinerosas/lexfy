@@ -2,12 +2,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { addMonths, format } from "date-fns";
-import { Check, Copy, MessageCircle, Plus, QrCode } from "lucide-react";
-import { incluir, useDB } from "@/novo/lib/store";
+import { Check, Copy, HandCoins, MessageCircle, Plus, QrCode } from "lucide-react";
+import { incluir, registrarRecebimento, useDB } from "@/novo/lib/store";
+import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
 import { brl, data, hojeISO } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { FormRapido, type Valores } from "./form-rapido";
-import { Dialogo } from "./ui";
+import { Dialogo, Rotulado } from "./ui";
 import type { Honorario } from "@/novo/lib/types";
 
 /** Lança honorários de um caso: à vista ou com entrada e parcelas mensais. */
@@ -66,8 +67,7 @@ export function Cobrar({ honorario }: { honorario: Honorario }) {
   const primeiro = (cliente?.nome ?? caso?.cliente_nome ?? "").split(" ")[0];
   const atrasado = honorario.vencimento < hojeISO();
   const msg = `Olá, ${primeiro}. ${atrasado ? "Consta em aberto" : "Lembrete"}: ${honorario.descricao.toLowerCase()} no valor de ${brl(honorario.valor)}, ${atrasado ? "vencida em" : "com vencimento em"} ${data(honorario.vencimento)}.${pix ? " Segue o Pix copia e cola:\n\n" + pix : ""}\n\n${db.config.escritorio}`;
-  const fone = (cliente?.celular ?? "").replace(/\D/g, "");
-  const copiar = async (texto: string, qual: string) => { try { await navigator.clipboard.writeText(texto); setCopiado(qual); } catch { setCopiado("erro"); } };
+  const copiar = async (texto: string, qual: string) => setCopiado((await copiarTexto(texto)) ? qual : "erro");
 
   return (
     <>
@@ -89,10 +89,71 @@ export function Cobrar({ honorario }: { honorario: Honorario }) {
         <p className="mt-1.5 whitespace-pre-line break-words rounded-[12px] bg-porcelana p-3 text-[13px]">{msg}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <button className="btn btn-g btn-sm" onClick={() => copiar(msg, "msg")}>{copiado === "msg" ? <Check /> : <Copy />}{copiado === "msg" ? "Copiada" : "Copiar mensagem"}</button>
-          {fone.length >= 10 && <a className="btn btn-p btn-sm" target="_blank" rel="noreferrer" href={`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`}><MessageCircle />Abrir no WhatsApp</a>}
+          <a className="btn btn-p btn-sm" target="_blank" rel="noreferrer" href={linkWhatsApp(msg, cliente?.celular)}><MessageCircle />{cliente?.celular ? "Abrir no WhatsApp" : "Escolher contato no WhatsApp"}</a>
         </div>
         {copiado === "erro" && <p role="alert" className="mt-2 text-[13px] text-perigo">O navegador bloqueou a cópia. Selecione o texto e copie à mão.</p>}
-        <p className="mt-4 text-[12.5px] text-ink-3">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Dar baixa”.</p>
+        <p className="mt-4 text-[12.5px] text-ink-3">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Receber”.</p>
+      </Dialogo>
+    </>
+  );
+}
+
+/** "Honorários: parcela 2 de 5" → "Parcela 2"; ": entrada" → "Entrada". */
+function referenciaDe(descricao: string): string {
+  const m = /parcela\s+(\d+)/i.exec(descricao);
+  if (m) return `Parcela ${m[1]}`;
+  if (/entrada/i.test(descricao)) return "Entrada";
+  if (/[êe]xito/i.test(descricao)) return "Honorários de êxito";
+  return "";
+}
+
+/** Recebimento total ou parcial: a parte paga é quitada e a diferença vira nova cobrança. */
+export function Receber({ honorario }: { honorario: Honorario }) {
+  const db = useDB();
+  const [aberto, setAberto] = useState(false);
+  const [f, setF] = useState({ valor: "", data: hojeISO(), venc: "", ref: "", refLivre: "" });
+  const abertas = db.honorarios.filter((h) => h.caso_id === honorario.caso_id && h.status === "pendente");
+  const maiorParcela = Math.max(12, ...db.honorarios.filter((h) => h.caso_id === honorario.caso_id).map((h) => Number(/de\s+(\d+)/i.exec(h.descricao)?.[1] ?? 0)));
+  const opcoesRef = ["Entrada", ...Array.from({ length: maiorParcela }, (_, i) => `Parcela ${i + 1}`), "Honorários de êxito", "Consulta", "Mensalidade", "Acordo", "Reembolso de custas"];
+  const valor = Number(String(f.valor).replace(/\./g, "").replace(",", ".")) || Number(f.valor) || 0;
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const diferenca = r2(honorario.valor - valor);
+  const excedente = r2(valor - honorario.valor);
+  const ref = f.ref === "outro" ? f.refLivre.trim() : f.ref;
+
+  function abrir() {
+    const sugerida = referenciaDe(honorario.descricao);
+    setF({ valor: String(honorario.valor).replace(".", ","), data: hojeISO(), venc: honorario.vencimento, ref: sugerida, refLivre: "" });
+    setAberto(true);
+  }
+  function salvar() {
+    if (valor <= 0) return;
+    registrarRecebimento(honorario.id, { valor, data: f.data || hojeISO(), vencimentoDiferenca: f.venc || undefined, referencia: ref || undefined });
+    setAberto(false);
+  }
+
+  return (
+    <>
+      <button className="btn btn-g btn-sm" onClick={abrir}><HandCoins />Receber</button>
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Registrar recebimento"
+        rodape={<><button className="btn btn-g" onClick={() => setAberto(false)}>Cancelar</button><button className="btn btn-p" disabled={valor <= 0} onClick={salvar}>Registrar</button></>}>
+        <p className="text-ink-2">{honorario.descricao}</p>
+        <p className="mt-0.5 text-[13px] text-ink-3">Em aberto: <strong className="text-ink">{brl(honorario.valor)}</strong> · vence em {data(honorario.vencimento)}</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Rotulado rotulo="Valor recebido (R$)"><input className="inp" inputMode="decimal" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} /></Rotulado>
+          <Rotulado rotulo="Recebido em"><input className="inp" type="date" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} /></Rotulado>
+          <Rotulado rotulo="A que se refere">
+            <select className="inp" value={f.ref} onChange={(e) => setF({ ...f, ref: e.target.value })}>
+              <option value="">Não informar</option>
+              {opcoesRef.map((o) => <option key={o} value={o}>{o}</option>)}
+              <option value="outro">Outro (escrever)</option>
+            </select>
+          </Rotulado>
+          {f.ref === "outro" && <Rotulado rotulo="Descreva"><input className="inp" value={f.refLivre} placeholder="Ex.: parte da parcela 3" onChange={(e) => setF({ ...f, refLivre: e.target.value })} /></Rotulado>}
+          {diferenca > 0.005 && valor > 0 && <Rotulado rotulo="Vencimento da diferença"><input className="inp" type="date" value={f.venc} onChange={(e) => setF({ ...f, venc: e.target.value })} /></Rotulado>}
+        </div>
+        {valor > 0 && diferenca > 0.005 && <p role="status" className="mt-3 rounded-[12px] bg-porcelana p-3 text-[13.5px]">Pagamento parcial: fica quitado {brl(valor)} e entra uma nova cobrança de <strong>{brl(diferenca)}</strong> com o nome “{honorario.descricao.replace(/ — diferença$/, "")} — diferença”.</p>}
+        {valor > 0 && excedente > 0.005 && <p role="status" className="mt-3 rounded-[12px] bg-porcelana p-3 text-[13.5px]">Entraram {brl(excedente)} a mais. O excedente abate as últimas parcelas em aberto deste caso{abertas.length <= 1 ? "; como não há outras, fica registrado como adiantamento" : ""}.</p>}
       </Dialogo>
     </>
   );

@@ -14,8 +14,11 @@ export interface Caso {
   risco?: "provavel" | "possivel" | "remoto";
   /** Documentos que o cliente ainda precisa entregar. */
   docs_pendentes?: DocPendente[];
+  /** Apensos, habeas corpus, recursos, medidas protetivas e outros processos ligados a este. */
+  vinculados?: Vinculado[];
   criado_em: string;
 }
+export interface Vinculado { id: string; tipo: string; numero: string; tribunal?: string; situacao?: string; obs?: string }
 export interface DocPendente { id: string; nome: string; pedido_em: string; recebido: boolean; recebido_em?: string; obs?: string }
 export interface Prazo {
   id: string; caso_id: string; titulo: string; data: string; fatal: boolean; concluido: boolean;

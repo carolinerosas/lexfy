@@ -7,7 +7,7 @@ import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { areaDe, AREAS } from "@/novo/lib/areas";
 import { brl, brlCurto, data, hojeISO, horas } from "@/novo/lib/format";
 import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Rotulado, Seg, Vazio, useMapas } from "@/novo/components/ui";
-import { Cobrar, NovoHonorario } from "@/novo/components/honorario";
+import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import type { Custa } from "@/novo/lib/types";
 
@@ -103,7 +103,7 @@ export default function Financeiro() {
                   <tbody>{listaH.map((h) => (
                     <tr key={h.id}><td className="max-w-[300px]"><LinkCaso caso={caso(h.caso_id)} /></td><td>{h.descricao}<span className="block text-[12px] text-ink-3">{h.tipo}</span></td>
                       <td className={fh === "vencidos" ? "font-semibold text-perigo" : ""}>{data(fh === "recebidos" ? h.recebido_em : h.vencimento)}</td><td className="num font-semibold">{brl(h.valor)}</td>
-                      <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><button className="btn btn-g btn-sm" onClick={() => alterar("honorarios", h.id, { status: "recebido", recebido_em: hoje })}>Dar baixa</button></span>}</td></tr>
+                      <td className="num">{h.status === "recebido" ? <span className="tag tag-ok">Recebido</span> : <span className="inline-flex items-center gap-1"><Cobrar honorario={h} /><Receber honorario={h} /></span>}</td></tr>
                   ))}</tbody></table>
               )}
             </div>

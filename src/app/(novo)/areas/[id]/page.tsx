@@ -10,7 +10,7 @@ import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
 import { Abas, Avatar, Vazio, valorCampo, useMapas } from "@/novo/components/ui";
 import { NovoCaso } from "@/novo/components/novo-caso";
 
-const TIPO = { t: "Texto", l: "Texto longo", d: "Data", v: "Valor", n: "Número", s: "Sim ou não", o: "Opções" } as const;
+const TIPO = { t: "Texto", l: "Texto longo", m: "Lista", d: "Data", v: "Valor", n: "Número", s: "Sim ou não", o: "Opções" } as const;
 
 export default function PaginaArea() {
   const { id } = useParams<{ id: string }>();
