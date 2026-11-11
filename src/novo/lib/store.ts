@@ -200,14 +200,18 @@ const mudarSituacao = (m: Partial<Situacao>) => { situacao = { ...situacao, ...m
 
 const tabelaAusente = (e: unknown) => { const c = (e as { code?: string } | null)?.code; return c === "PGRST205" || c === "42P01"; };
 
-async function lerTabela(spec: Spec): Promise<Linha[]> {
+/** Tabelas do antigo que não existem neste banco: o novo guarda os registros delas no documento de extras. */
+const ausentes = new Set<Tabela>();
+
+/** null quando a tabela não existe no banco. */
+async function lerTabela(spec: Spec): Promise<Linha[] | null> {
   let q = supabase.from(spec.antiga).select(spec.select);
   if (spec.filtro) q = q.eq(spec.filtro[0], spec.filtro[1]);
   if (spec.ordem) q = q.order(spec.ordem[0], { ascending: spec.ordem[1] });
   if (spec.limite) q = q.limit(spec.limite);
   const { data, error } = await q;
   if (error) {
-    if (tabelaAusente(error)) return [];
+    if (tabelaAusente(error)) return null;
     throw new Error(`${spec.antiga}: ${error.message}`);
   }
   return (data ?? []) as unknown as Linha[];
@@ -232,7 +236,12 @@ async function carregar() {
     const novo: DB = { ...VAZIO, versao: 1 };
     nomes.forEach((n, i) => {
       const reg = extras.reg[n] ?? {};
-      (novo as unknown as Record<string, unknown>)[n] = tabelas[i].map((l) => SPECS[n]!.ler(l, reg[String(l.id)] ?? {}));
+      const linhas = tabelas[i];
+      if (linhas === null) ausentes.add(n); else ausentes.delete(n);
+      const doBanco = (linhas ?? []).map((l) => SPECS[n]!.ler(l, reg[String(l.id)] ?? {}));
+      // registros gravados no documento de extras enquanto a tabela não existia (tarefas sem caso são tratadas abaixo)
+      const locais = n === "tarefas" ? [] : ((extras.col[n] ?? []) as Linha[]).filter((x) => !doBanco.some((b) => b.id === x.id));
+      (novo as unknown as Record<string, unknown>)[n] = [...locais, ...doBanco];
     });
     SO_NOVO.forEach((n) => { (novo as unknown as Record<string, unknown>)[n] = extras.col[n] ?? []; });
     // tarefas sem caso vivem só no documento de extras
@@ -308,10 +317,13 @@ if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", (e) => { if (timerExtras || situacao.gravando > 0) { e.preventDefault(); } });
 }
 
-const soExtras = (tabela: Tabela, item: Linha) => SO_NOVO.includes(tabela) || (tabela === "tarefas" && !item.caso_id);
+const ehLocal = (tabela: Tabela, id: unknown) => ((extras.col[tabela] ?? []) as Linha[]).some((x) => x.id === id);
+const soExtras = (tabela: Tabela, item: Linha) => SO_NOVO.includes(tabela) || (tabela === "tarefas" && !item.caso_id) || (tabela !== "tarefas" && (ausentes.has(tabela) || ehLocal(tabela, item.id)));
 function guardarColecao(tabela: Tabela) {
   const todos = db[tabela] as unknown as Linha[];
-  extras.col[tabela] = tabela === "tarefas" ? todos.filter((t) => !t.caso_id) : todos;
+  if (tabela === "tarefas") extras.col.tarefas = todos.filter((t) => !t.caso_id);
+  else if (SO_NOVO.includes(tabela) || ausentes.has(tabela)) extras.col[tabela] = todos;
+  else extras.col[tabela] = todos.filter((x) => ehLocal(tabela, x.id));
   salvarExtras();
 }
 function colunas(spec: Spec, parcial: Linha, completo: Linha): Linha {
@@ -347,7 +359,14 @@ export function incluir<T extends Tabela>(tabela: T, item: Omit<Item<T>, "id"> &
   guardarExtrasDoRegistro(tabela, spec, id, completo);
   const linha = { ...colunas(spec, completo, completo), ...(spec.aoInserir?.(completo) ?? {}), id, created_at: agora(), user_id: USER_ID };
   enfileirar(async () => {
-    await conferir(supabase.from(spec.antiga).insert(linha));
+    const { error } = await supabase.from(spec.antiga).insert(linha);
+    if (error && tabelaAusente(error) && tabela !== "tarefas") {
+      // tabela não existe neste banco: o registro fica guardado no documento de extras
+      ausentes.add(tabela);
+      guardarColecao(tabela);
+      return;
+    }
+    if (error) throw new Error(error.message);
     if (tabela === "honorarios" && completo.status === "recebido") await conferir(supabase.from("honorarios").insert(pagamentoDe(completo)));
   });
   return id;

@@ -3,13 +3,14 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AREAS, areaDe, secaoVisivel, tipoDoCaso } from "@/novo/lib/areas";
 import { incluir, useDB } from "@/novo/lib/store";
+import type { ParteLida } from "@/lib/prazo-publicacao";
 import { hojeISO, semAcento } from "@/novo/lib/format";
 import { Azulejo } from "./azulejo";
 import { CampoArea, Dialogo, Rotulado } from "./ui";
 
 const INICIAL = { area: "", titulo: "", cliente: "", numero: "", orgao: "", comarca: "", contraria: "", valor: "", responsavel: "" };
 
-export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar }: { aberto: boolean; aoFechar: () => void; areaInicial?: string; preenchido?: Partial<typeof INICIAL>; aoCriar?: (id: string) => void }) {
+export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, partes }: { aberto: boolean; aoFechar: () => void; areaInicial?: string; preenchido?: Partial<typeof INICIAL>; aoCriar?: (id: string) => void; partes?: ParteLida[] }) {
   const db = useDB();
   const router = useRouter();
   const [f, setF] = useState({ ...INICIAL, area: areaInicial ?? "", ...preenchido });
@@ -40,6 +41,18 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar }:
   return (
     <Dialogo aberto={aberto} aoFechar={fechar} titulo="Novo caso" largo
       rodape={<>{erro && <p role="alert" className="mr-auto self-center font-semibold text-perigo">{erro}</p>}<button className="btn btn-g" onClick={fechar}>Cancelar</button><button className="btn btn-p" onClick={salvar}>Criar caso</button></>}>
+      {partes && partes.length > 0 && (
+        <div className="mb-3 rounded-[12px] bg-porcelana p-3 text-[13px]">
+          <p className="font-semibold">Partes na publicação</p>
+          <ul className="mt-1.5 space-y-1.5">{partes.map((p) => (
+            <li key={p.nome} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 flex-1">{p.nome}<span className="text-ink-3">{p.papel ? ` (${p.papel})` : p.polo ? ` (polo ${p.polo})` : ""}</span></span>
+              <button type="button" className={`btn btn-sm ${f.cliente === p.nome ? "btn-p" : "btn-g"}`} onClick={() => setF({ ...f, cliente: p.nome, contraria: f.contraria === p.nome ? "" : f.contraria })}>Cliente</button>
+              <button type="button" className={`btn btn-sm ${f.contraria === p.nome ? "btn-p" : "btn-g"}`} onClick={() => setF({ ...f, contraria: p.nome, cliente: f.cliente === p.nome ? "" : f.cliente })}>Parte contrária</button>
+            </li>
+          ))}</ul>
+        </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Rotulado rotulo="Área de atuação" className="sm:col-span-2">
           <div className="flex items-center gap-2.5">

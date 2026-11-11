@@ -49,6 +49,7 @@ export interface PubEncontrada {
   numero_processo?: string;
   classe?: string;
   orgao?: string;
+  partes?: { nome: string; polo: "ativo" | "passivo" | "" }[];
 }
 
 type DjerjBusca = {
@@ -81,6 +82,8 @@ type DjenComunicacao = {
   numeroprocessocommascara?: string;
   meiocompleto?: string;
   destinatarioadvogados?: DjenAdvogado[];
+  /** Partes intimadas; polo "A" (ativo) ou "P" (passivo). */
+  destinatarios?: { nome?: string; polo?: string }[];
 };
 
 type DjenResponse = {
@@ -416,11 +419,15 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
     .filter(Boolean);
 
   const teor = item.texto ? stripHtml(item.texto) : "";
+  const partes = (item.destinatarios ?? [])
+    .filter((d) => d.nome?.trim())
+    .map((d) => ({ nome: d.nome!.trim(), polo: (d.polo === "A" ? "ativo" : d.polo === "P" ? "passivo" : "") as "ativo" | "passivo" | "" }));
 
   // Metadados compactos no rodapé (o teor vem primeiro para leitura)
   const metaParts = [
     orgao,
     classe ? `Classe: ${classe}` : "",
+    partes.length ? `Partes: ${partes.map((p) => `${p.nome}${p.polo ? ` (polo ${p.polo})` : ""}`).join("; ")}` : "",
     advogados.length ? `Adv.: ${advogados.join("; ")}` : "",
   ].filter(Boolean);
   const meta = metaParts.length ? `\n\n— ${metaParts.join(" · ")}` : "";
@@ -438,6 +445,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
     numero_processo: processo || undefined,
     classe: classe || undefined,
     orgao,
+    partes: partes.length ? partes : undefined,
   };
 }
 

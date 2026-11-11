@@ -5,7 +5,8 @@ import { CalendarPlus, Check, Loader2, Plus, Search, Server } from "lucide-react
 import { aguardarGravacoes, alterar, incluir, lerDB, recarregar, useDB } from "@/novo/lib/store";
 import { data, hojeISO, quando } from "@/novo/lib/format";
 import { areaDe } from "@/novo/lib/areas";
-import { areaPelaClasse, detectarAudiencia, detectarPrazo, ePenal, extrairCNJ, soDigitos, vencimentoDaPublicacao } from "@/lib/prazo-publicacao";
+import { dadosDaPublicacao, detectarAudiencia, detectarPrazo, ePenal, extrairCNJ, soDigitos, vencimentoDaPublicacao, type DadosPublicacao } from "@/lib/prazo-publicacao";
+import { semAcento } from "@/novo/lib/format";
 import { Cabecalho, Copiar, Dialogo, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { NovoCaso } from "@/novo/components/novo-caso";
@@ -27,6 +28,12 @@ function lancarDaPublicacao(p: Publicacao, c: Caso, db: DB): string | null {
     msg = `${msg ?? ""} Audiência de ${data(aud.data_hora)} na agenda.`.trim();
   }
   return msg;
+}
+
+/** Campos do formulário de caso novo a partir do que a publicação traz. */
+function preencherCaso(d: DadosPublicacao) {
+  const classe = d.classe ? d.classe.charAt(0) + d.classe.slice(1).toLowerCase() : "";
+  return { numero: d.numero ?? "", titulo: classe, cliente: d.cliente, contraria: d.contraria, orgao: d.orgao, comarca: d.comarca };
 }
 
 /** Prazo já lançado a partir desta publicação (pelo texto de origem). */
@@ -116,11 +123,13 @@ function Publicacoes() {
         )}
       </div>
 
-      {incluirPara && (
-        <NovoCaso aberto aoFechar={() => setIncluirPara(null)} areaInicial={areaPelaClasse(incluirPara.orgao + " " + incluirPara.texto.slice(0, 400), extrairCNJ(incluirPara.orgao, incluirPara.texto))}
-          preenchido={{ numero: extrairCNJ(incluirPara.orgao, incluirPara.texto) ?? "", titulo: "" }}
-          aoCriar={(id) => { const p = incluirPara; setIncluirPara(null); vincular(p, id); }} />
-      )}
+      {incluirPara && (() => {
+        const d = dadosDaPublicacao(incluirPara.texto, { titulo: incluirPara.orgao });
+        return (
+          <NovoCaso aberto aoFechar={() => setIncluirPara(null)} areaInicial={d.area} partes={d.partes} preenchido={preencherCaso(d)}
+            aoCriar={(id) => { const p = incluirPara; setIncluirPara(null); vincular(p, id); }} />
+        );
+      })()}
     </>
   );
 }
@@ -129,7 +138,7 @@ function Publicacoes() {
 
 interface Achada {
   titulo: string; conteudo?: string; data_publicacao: string; diario: string; url?: string; hash: string;
-  numero_processo?: string; classe?: string; orgao?: string; ja_salva: boolean; processo_id?: string;
+  numero_processo?: string; classe?: string; orgao?: string; ja_salva: boolean; processo_id?: string; partes?: { nome: string; polo: string }[];
 }
 
 function BuscarPublicacoes() {
@@ -141,18 +150,19 @@ function BuscarPublicacoes() {
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
   const [procMarcados, setProcMarcados] = useState<Set<string>>(new Set());
   const [aviso, setAviso] = useState("");
-  const [detalhar, setDetalhar] = useState<{ numero: string; classe?: string; orgao?: string } | null>(null);
+  const [detalhar, setDetalhar] = useState<DadosPublicacao | null>(null);
 
   const casoPeloNumero = (n?: string) => (n ? db.casos.find((c) => c.numero && soDigitos(c.numero) === soDigitos(n)) : undefined);
   const novas = (achadas ?? []).filter((a) => !a.ja_salva);
   const jaSalvas = (achadas ?? []).length - novas.length;
   const foraDoJustio = useMemo(() => {
-    const m = new Map<string, { numero: string; classe?: string; orgao?: string; qtd: number }>();
+    const m = new Map<string, { numero: string; classe?: string; orgao?: string; qtd: number; dados: DadosPublicacao }>();
     for (const a of achadas ?? []) {
       const n = a.numero_processo;
       if (!n || soDigitos(n).length !== 20 || casoPeloNumero(n)) continue;
       const x = m.get(soDigitos(n));
-      if (x) x.qtd++; else m.set(soDigitos(n), { numero: extrairCNJ(n) ?? n, classe: a.classe, orgao: a.orgao, qtd: 1 });
+      if (x) x.qtd++;
+      else m.set(soDigitos(n), { numero: extrairCNJ(n) ?? n, classe: a.classe, orgao: a.orgao, qtd: 1, dados: dadosDaPublicacao(a.conteudo ?? "", { titulo: a.titulo, classe: a.classe, orgao: a.orgao, numero: n, partes: a.partes }) });
     }
     return [...m.values()];
   }, [achadas, db.casos]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -194,13 +204,22 @@ function BuscarPublicacoes() {
   function cadastrarEmLote() {
     const resp = db.equipe[0]?.id ?? "e1";
     const lista = foraDoJustio.filter((p) => procMarcados.has(p.numero));
+    let semCliente = 0;
     for (const p of lista) {
-      const area = areaDe(areaPelaClasse(p.classe, p.numero));
-      incluir("casos", { natureza: "judicial", area: area.id, numero: p.numero, titulo: p.classe || "Processo encontrado pela OAB", status: "ativo", fase: 0, orgao: p.orgao, uf: "RJ",
-        cliente_id: undefined as unknown as string, cliente_nome: "Cliente a identificar", responsavel_id: resp, dados: {}, criado_em: hojeISO() });
+      const d = p.dados;
+      const area = areaDe(d.area);
+      const f = preencherCaso(d);
+      let clienteId: string | undefined, clienteNome = "Cliente a identificar";
+      if (d.cliente) {
+        const ja = lerDB().clientes.find((c) => semAcento(c.nome) === semAcento(d.cliente));
+        clienteId = ja?.id ?? incluir("clientes", { nome: d.cliente, tipo: "pf", criado_em: hojeISO() });
+        clienteNome = ja?.nome ?? d.cliente;
+      } else semCliente++;
+      incluir("casos", { natureza: "judicial", area: area.id, numero: p.numero, titulo: f.titulo || "Processo encontrado pela OAB", status: "ativo", fase: 0, orgao: f.orgao || undefined, comarca: f.comarca || undefined, uf: "RJ",
+        cliente_id: clienteId as unknown as string, cliente_nome: clienteNome, parte_contraria: f.contraria || undefined, responsavel_id: resp, dados: {}, criado_em: hojeISO() });
     }
     setProcMarcados(new Set());
-    setAviso(`${lista.length} caso${lista.length === 1 ? "" : "s"} cadastrado${lista.length === 1 ? "" : "s"} com cliente a identificar. Grave as publicações agora para elas já entrarem vinculadas e com prazo.`);
+    setAviso(`${lista.length} caso${lista.length === 1 ? "" : "s"} cadastrado${lista.length === 1 ? "" : "s"}${semCliente ? ` (${semCliente} sem nome de cliente na publicação: ficou “a identificar”)` : ""}. Grave as publicações agora para elas já entrarem vinculadas e com prazo.`);
     aguardarGravacoes().then(() => recarregar());
   }
 
@@ -234,9 +253,10 @@ function BuscarPublicacoes() {
                     <input type="checkbox" className="mt-1 size-4 shrink-0" aria-label={`Selecionar ${p.numero}`} checked={procMarcados.has(p.numero)} onChange={() => setProcMarcados(alternar(procMarcados, p.numero))} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1"><span className="break-all font-mono text-[13px] font-semibold">{p.numero}</span><Copiar texto={p.numero} rotulo="Copiar número" /></span>
-                      <span className="block text-[12.5px] text-ink-3">{[p.classe, p.orgao, `${p.qtd} publicação${p.qtd > 1 ? "ões" : ""}`].filter(Boolean).join(" · ")} · área provável: {areaDe(areaPelaClasse(p.classe, p.numero)).nome}</span>
+                      {p.dados.cliente && <span className="block text-[13px]">{p.dados.cliente}{p.dados.contraria ? <span className="text-ink-3"> × {p.dados.contraria}</span> : null}</span>}
+                      <span className="block text-[12.5px] text-ink-3">{[p.classe, p.dados.orgao || p.orgao, `${p.qtd} publicação${p.qtd > 1 ? "ões" : ""}`].filter(Boolean).join(" · ")} · área provável: {areaDe(p.dados.area).nome}</span>
                     </span>
-                    <button className="btn btn-g btn-sm shrink-0" onClick={() => setDetalhar(p)}>Com detalhes</button>
+                    <button className="btn btn-g btn-sm shrink-0" onClick={() => setDetalhar(p.dados)}>Com detalhes</button>
                   </li>
                 ))}</ul>
                 <p className="border-t border-line-2 px-3 py-2 text-[12.5px] text-ink-3">“Cadastrar” cria o caso com o número, a classe e o órgão, e cliente a identificar. “Com detalhes” abre o formulário completo.</p>
@@ -271,8 +291,7 @@ function BuscarPublicacoes() {
         )}
       </Dialogo>
       {detalhar && (
-        <NovoCaso aberto aoFechar={() => setDetalhar(null)} areaInicial={areaPelaClasse(detalhar.classe, detalhar.numero)}
-          preenchido={{ numero: detalhar.numero, titulo: detalhar.classe ?? "", orgao: detalhar.orgao ?? "" }}
+        <NovoCaso aberto aoFechar={() => setDetalhar(null)} areaInicial={detalhar.area} partes={detalhar.partes} preenchido={preencherCaso(detalhar)}
           aoCriar={() => { setDetalhar(null); setAviso("Caso cadastrado. Grave as publicações para elas entrarem vinculadas e com prazo."); aguardarGravacoes().then(() => recarregar()); }} />
       )}
     </>

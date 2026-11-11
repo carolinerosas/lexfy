@@ -106,3 +106,65 @@ export function areaPelaClasse(classe?: string | null, numero?: string | null): 
   if (/consum/.test(c)) return "consumidor";
   return "civel";
 }
+
+// ───────────── dados do processo a partir da publicação ─────────────
+
+export interface ParteLida { nome: string; papel: string; polo: "ativo" | "passivo" | "" }
+export interface DadosPublicacao {
+  numero: string | null; classe: string; orgao: string; comarca: string; uf: string;
+  partes: ParteLida[]; cliente: string; contraria: string; area: string;
+}
+
+const PAPEIS_ATIVO = ["autor", "autora", "requerente", "exequente", "reclamante", "impetrante", "apelante", "agravante", "embargante", "recorrente", "querelante", "promovente", "alimentando", "assistente de acusação"];
+const PAPEIS_PASSIVO = ["réu", "ré", "reu", "requerido", "requerida", "executado", "executada", "reclamado", "reclamada", "impetrado", "autoridade coatora", "apelado", "apelada", "agravado", "agravada", "embargado", "recorrido", "recorrida", "querelado", "promovido", "acusado", "acusada", "denunciado", "denunciada", "investigado", "investigada", "indiciado", "paciente", "custodiado", "flagranteado", "autor do fato", "alimentante", "apenado", "sentenciado"];
+const PAPEIS = [...PAPEIS_ATIVO, ...PAPEIS_PASSIVO].sort((a, b) => b.length - a.length);
+/** Defendidos no penal: ficam no polo passivo, mas são o cliente da defesa. */
+const DEFESA = /acusad|denunciad|investigad|indiciad|paciente|custodiad|flagranteado|autor do fato|apenado|sentenciado|r[ée]u?$|querelad/i;
+const ORGAO_PUBLICO = /minist[ée]rio p[úu]blico|^mp\b|justi[çc]a p[úu]blica|delegad|estado d[oe] |munic[íi]pio|uni[ãa]o federal|inss|fazenda/i;
+
+const limparNome = (n: string) => n.replace(/\s+/g, " ").replace(/^[\s:–—-]+|[\s,.;:–—-]+$/g, "").replace(/\s*\((?:polo\s+)?(?:ativo|passivo)\)$/i, "").trim();
+const titulo = (n: string) => (n === n.toUpperCase() ? n.toLowerCase().replace(/(^|\s|-)(\p{L})/gu, (_, a, l) => a + l.toUpperCase()).replace(/\b(D[aeo]s?|E)\b/g, (m) => m.toLowerCase()) : n);
+
+export function dadosDaPublicacao(texto: string, extra?: { titulo?: string; classe?: string; orgao?: string; numero?: string; partes?: { nome: string; polo: string }[] }): DadosPublicacao {
+  const t = `${extra?.titulo ?? ""}\n${texto}`;
+  const numero = extra?.numero ? extrairCNJ(extra.numero) : extrairCNJ(t);
+  const classe = (extra?.classe ?? /Classe(?: judicial| processual)?:\s*([^·\n]+)/i.exec(t)?.[1] ?? "").trim();
+  // rodapé que o Justio monta: "— <órgão> · Classe: ... · Partes: ... · Adv.: ..."
+  const rodape = /—\s*([^·\n]+?)\s*(?:·|$)/m.exec(t)?.[1]?.trim() ?? "";
+  const ORG = /((?:\d+[ªºa]?\s+)?(?:Vara|Juizado|Juízo|Câmara|Turma|Tribunal do Júri|Central de Inquéritos|Cartório|Seção|Gabinete)[^\n·;,.]{0,90})/gi;
+  const orgaos = [...t.matchAll(ORG)].map((m) => m[1].trim());
+  // processo no tribunal (origem 0000): vale a câmara ou turma, não a vara de origem citada no texto
+  const orgaoTexto = (numero?.endsWith(".0000") ? orgaos.find((o) => /c[âa]mara|turma|se[çc][ãa]o/i.test(o)) : undefined) ?? orgaos[0] ?? "";
+  const orgao = (extra?.orgao && !/^dje|^djen$/i.test(extra.orgao) ? extra.orgao : "") || (rodape && !/^classe/i.test(rodape) ? rodape : "") || orgaoTexto;
+  const comarca = (/Comarca de ([\p{Lu}][\p{L}'´ ]+?)(?=\s*(?:[-–·,.;/\n]|$|\s+-))/u.exec(`${orgao}\n${t}`)?.[1] ?? /Regional d[eao] ([\p{Lu}][\p{L} ]+?)(?=\s*[-–·,.;\n])/u.exec(t)?.[1] ?? "").trim();
+
+  const partes: ParteLida[] = [];
+  const incluir = (nome: string, papel: string, polo: ParteLida["polo"]) => {
+    const n = limparNome(nome);
+    if (n.length < 3 || n.length > 120 || /^(e outros?|outros?)$/i.test(n) || partes.some((p) => p.nome.toLowerCase() === n.toLowerCase())) return;
+    partes.push({ nome: titulo(n), papel, polo });
+  };
+  for (const p of extra?.partes ?? []) incluir(p.nome, "", p.polo === "ativo" || p.polo === "passivo" ? p.polo : "");
+  const lista = /Partes:\s*([^\n]+?)(?:\s*·\s*Adv\.|\n|$)/i.exec(t)?.[1];
+  if (lista && !extra?.partes?.length) for (const pedaco of lista.split(/;\s*/)) { const m = /^(.*?)\s*\(polo (ativo|passivo)\)$/i.exec(pedaco); incluir(m ? m[1] : pedaco, "", m ? (m[2].toLowerCase() as "ativo" | "passivo") : ""); }
+  const papeis = PAPEIS.map((p) => p.replace(/ /g, String.raw`\s+`)).join("|");
+  const rePapel = new RegExp(String.raw`(?<![\p{L}])(${papeis})(?:\(?s\)?|\(a\)|\(es\))?\s*:\s*([^\n;|]{3,140}?)(?=\s+(?:${papeis})(?:\(?s\)?)?\s*:|\s*(?:adv(?:ogad[oa])?\.?\s*:|advogad[oa]s?\b|\(?oab)|\.\s+(?=[\p{Lu}\d][\p{Ll}\dªº])|[\n;|]|$)`, "giu");
+  for (const m of t.matchAll(rePapel)) {
+    const papel = m[1].toLowerCase().replace(/\s+/g, " ");
+    incluir(m[2], papel, PAPEIS_ATIVO.includes(papel) ? "ativo" : "passivo");
+  }
+
+  const area = areaPelaClasse(classe || t.slice(0, 600), numero);
+  const penal = ePenal(area);
+  // impetrante costuma ser a própria advogada; no penal o cliente é quem está sendo processado ou preso
+  const pessoas = partes.filter((p) => !ORGAO_PUBLICO.test(p.nome) && !(penal && p.papel === "impetrante"));
+  let cliente = "";
+  if (penal) cliente = (pessoas.find((p) => DEFESA.test(p.papel)) ?? pessoas.find((p) => p.polo === "passivo") ?? pessoas[0])?.nome ?? "";
+  else cliente = (pessoas.find((p) => p.polo === "ativo") ?? pessoas[0])?.nome ?? "";
+  const outras = partes.filter((p) => p.nome !== cliente && p.papel !== "impetrante");
+  const poloCliente = partes.find((p) => p.nome === cliente)?.polo;
+  const contraria = (penal
+    ? outras.find((p) => ORGAO_PUBLICO.test(p.nome) || p.papel === "autoridade coatora")
+    : outras.find((p) => p.polo && p.polo !== poloCliente)) ?? outras[0];
+  return { numero, classe, orgao, comarca, uf: "", partes, cliente, contraria: contraria?.nome ?? "", area };
+}
