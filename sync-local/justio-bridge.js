@@ -14,7 +14,7 @@ import path from "node:path";
 const JUSTIO_URL = (process.env.JUSTIO_URL || "https://www.justio.com.br").replace(/\/+$/, "");
 const TOKEN_PATH = process.env.JUSTIO_TOKEN_PATH || path.join(homedir(), ".justio-agent-token.txt");
 const OUTBOX = process.env.JUSTIO_OUTBOX
-  || path.join(homedir(), "OneDrive", "Documentos", "Claude", "justio", "outbox");
+  || path.join(homedir(), "OneDrive - Caroline Fraga", "Documentos", "Claude", "justio", "outbox");
 const INTERVAL_MS = 10 * 60 * 1000;
 // Arquivos de cliente: o agente do Cowork deixa em <Claude>\justio\arquivos\<Nome do Cliente>\...
 // e a ponte move para a pasta do cliente no OneDrive PROFISSIONAL.
