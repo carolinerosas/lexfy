@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 import { Loader2, MessageCircle, RefreshCw, Share2 } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
-import { areaDe, tipoDoCaso, secaoVisivel } from "@/novo/lib/areas";
+import { areaDe, tiposDoCaso, secaoVisivel } from "@/novo/lib/areas";
+import { resumoExecucao } from "@/novo/lib/execucao";
 import { brl, data, hojeISO, hora } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
@@ -56,21 +57,22 @@ export function Vinculados({ caso }: { caso: Caso }) {
 
 export function resumoDoCaso(caso: Caso): string {
   const area = areaDe(caso.area);
-  const tipo = tipoDoCaso(area, caso.dados);
+  const tipos = tiposDoCaso(area, caso.dados);
   const l: string[] = [caso.titulo, `Cliente: ${caso.cliente_nome}`];
   if (caso.parte_contraria) l.push(`Parte contrária: ${caso.parte_contraria}`);
   if (caso.numero) l.push(`Processo: ${caso.numero}`);
   const local = [caso.orgao, caso.comarca && `${caso.comarca}${caso.uf ? `/${caso.uf}` : ""}`].filter(Boolean).join(", ");
   if (local) l.push(`Juízo: ${local}`);
-  l.push(`Área: ${area.nome}${tipo ? ` (${tipo})` : ""}`);
+  l.push(`Área: ${area.nome}${tipos.length ? ` (${tipos.join(", ")})` : ""}`);
   for (const v of caso.vinculados ?? []) l.push(`${v.tipo}: ${v.numero}${v.tribunal ? ` (${v.tribunal})` : ""}${v.situacao ? `, ${v.situacao.toLowerCase()}` : ""}`);
   for (const s of area.secoes) {
-    if (!secaoVisivel(s, tipo, caso.dados)) continue;
+    if (!secaoVisivel(s, tipos, caso.dados)) continue;
     const linhas = s.campos.map((c) => [c, valorCampo(c, caso.dados[c.k])] as const).filter(([, v]) => v);
     if (!linhas.length) continue;
     l.push("", s.titulo.toUpperCase());
     linhas.forEach(([c, v]) => l.push(`${c.rotulo}: ${v}`));
   }
+  if (caso.area === "execucao_penal" && caso.execucao) l.push("", ...resumoExecucao(caso));
   return l.join("\n");
 }
 

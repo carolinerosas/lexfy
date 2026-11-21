@@ -1,12 +1,17 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, UserPlus, X } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, FileText, UserPlus, X } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { AREAS, areaDe } from "@/novo/lib/areas";
 import { brl, hojeISO, quando, semAcento } from "@/novo/lib/format";
 import { Cabecalho, TagArea } from "@/novo/components/ui";
-import { BotaoNovo } from "@/novo/components/form-rapido";
-import type { Lead } from "@/novo/lib/types";
+import { BotaoNovo, type CampoF } from "@/novo/components/form-rapido";
+import { Acoes } from "@/novo/components/acoes";
+import { CartaoOrcamento, EditorOrcamento, lancarOrcamento, novoOrcamento, totalOrcamento } from "@/novo/components/orcamento";
+import type { Lead, Orcamento } from "@/novo/lib/types";
+
+const linhas = (v: unknown) => String(v ?? "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 
 const ETAPAS: Lead["etapa"][] = ["novo", "em análise", "proposta enviada", "fechado"];
 const NOME: Record<Lead["etapa"], string> = { novo: "Novo contato", "em análise": "Em análise", "proposta enviada": "Proposta enviada", fechado: "Contrato fechado", descartado: "Descartado" };
@@ -16,6 +21,15 @@ const EXPLICA: Record<string, string> = {
   "proposta enviada": "Honorários propostos, aguardando resposta.",
   fechado: "Aceitou. Falta virar cliente e caso.",
 };
+
+const camposContato: CampoF[] = [
+  { k: "nome", rotulo: "Nome", obrig: true }, { k: "contato", rotulo: "Telefone ou e-mail" },
+  { k: "area", rotulo: "Área provável", tipo: "opcoes", inicial: "civel", opcoes: AREAS.map((a) => [a.id, a.nome] as const) },
+  { k: "canal", rotulo: "Canal", tipo: "opcoes", inicial: "WhatsApp", opcoes: ["WhatsApp", "Telefone", "Instagram", "Site", "Indicação", "Presencial"], lista: "canal" },
+  { k: "acoes", rotulo: "Tipo de ação (pode ser mais de um)", tipo: "lista", lista: "acoes", sugestoes: AREAS.flatMap((a) => a.tipos ?? []) },
+  { k: "urgencia", rotulo: "Urgência", tipo: "opcoes", inicial: "media", opcoes: [["alta", "Alta (prazo correndo ou pessoa presa)"], ["media", "Média"], ["baixa", "Baixa"]] },
+  { k: "resumo", rotulo: "O que a pessoa contou", tipo: "longo", obrig: true },
+];
 
 export default function Captacao() {
   const db = useDB();
@@ -31,8 +45,12 @@ export default function Captacao() {
     const ehFone = /\d{4}/.test(l.contato) && !l.contato.includes("@");
     const clienteId = existente?.id ?? incluir("clientes", { nome: l.nome, tipo: "pf", celular: ehFone ? l.contato : undefined, email: ehFone ? undefined : l.contato, origem: l.canal, observacoes: l.resumo, criado_em: hojeISO() });
     const resp = db.equipe.find((e) => e.areas.includes(area.id) && e.vinculo !== "estágio")?.id ?? db.equipe[0]?.id ?? "";
-    const casoId = incluir("casos", { natureza: area.grupo, area: area.id, numero: "", titulo: l.resumo.length > 70 ? `${l.resumo.slice(0, 67)}…` : l.resumo, status: "ativo", fase: 0, cliente_id: clienteId, cliente_nome: l.nome, responsavel_id: resp, dados: {}, criado_em: hojeISO() });
-    if (l.valor_proposta) incluir("honorarios", { caso_id: casoId, descricao: "Honorários contratuais", valor: l.valor_proposta, vencimento: hojeISO(), status: "pendente", tipo: "contratual" });
+    const acoes = l.acoes ?? [];
+    const tituloBase = acoes.length ? acoes.join(" e ") : l.resumo;
+    const orc: Orcamento | undefined = l.orcamento ? { ...l.orcamento, status: "aceito", aceito_em: l.orcamento.aceito_em ?? hojeISO() } : undefined;
+    const casoId = incluir("casos", { natureza: area.grupo, area: area.id, numero: "", titulo: tituloBase.length > 70 ? `${tituloBase.slice(0, 67)}…` : tituloBase, status: "ativo", fase: 0, cliente_id: clienteId, cliente_nome: l.nome, responsavel_id: resp, dados: acoes.length ? { tipo_caso: acoes.join("\n") } : {}, orcamentos: orc ? [orc] : undefined, criado_em: hojeISO() });
+    if (orc && totalOrcamento(orc) > 0) lancarOrcamento(casoId, orc);
+    else if (l.valor_proposta) incluir("honorarios", { caso_id: casoId, descricao: "Honorários contratuais", valor: l.valor_proposta, vencimento: hojeISO(), status: "pendente", tipo: "contratual" });
     incluir("anotacoes", { caso_id: casoId, texto: `Veio da captação (${l.canal}). Relato inicial: ${l.resumo}`, data: hojeISO(), autor_id: resp });
     alterar("leads", l.id, { convertido_caso_id: casoId });
   }
@@ -40,8 +58,8 @@ export default function Captacao() {
   return (
     <>
       <Cabecalho titulo="Captação" sub="Quem procurou o escritório e ainda não é cliente. O contato avança de etapa e, quando fecha contrato, vira cliente e caso com um clique.">
-        <BotaoNovo rotulo="Novo contato" aoSalvar={(v) => incluir("leads", { nome: String(v.nome), contato: String(v.contato ?? ""), area: String(v.area ?? "civel"), resumo: String(v.resumo ?? ""), canal: String(v.canal ?? "WhatsApp"), urgencia: (v.urgencia ?? "media") as Lead["urgencia"], etapa: "novo", criado_em: hojeISO() })}
-          campos={[{ k: "nome", rotulo: "Nome", obrig: true }, { k: "contato", rotulo: "Telefone ou e-mail" }, { k: "area", rotulo: "Área provável", tipo: "opcoes", inicial: "civel", opcoes: AREAS.map((a) => [a.id, a.nome] as const) }, { k: "canal", rotulo: "Canal", tipo: "opcoes", inicial: "WhatsApp", opcoes: ["WhatsApp", "Telefone", "Instagram", "Site", "Indicação", "Presencial"] }, { k: "urgencia", rotulo: "Urgência", tipo: "opcoes", inicial: "media", opcoes: [["alta", "Alta (prazo correndo ou pessoa presa)"], ["media", "Média"], ["baixa", "Baixa"]] }, { k: "resumo", rotulo: "O que a pessoa contou", tipo: "longo", obrig: true }]} />
+        <BotaoNovo rotulo="Novo contato" aoSalvar={(v) => incluir("leads", { nome: String(v.nome), contato: String(v.contato ?? ""), area: String(v.area ?? "civel"), acoes: linhas(v.acoes).length ? linhas(v.acoes) : undefined, resumo: String(v.resumo ?? ""), canal: String(v.canal ?? "WhatsApp"), urgencia: (v.urgencia ?? "media") as Lead["urgencia"], etapa: "novo", criado_em: hojeISO() })}
+          campos={camposContato} />
       </Cabecalho>
       <p className="mb-4 text-ink-2">{ativos.length} contatos em aberto · {brl(propostas)} em propostas aguardando resposta · {decididos ? Math.round((fechados / decididos) * 100) : 0}% dos contatos decididos viraram contrato.</p>
 
@@ -57,10 +75,14 @@ export default function Captacao() {
                 {itens.map((l) => (
                   <li key={l.id} className="rounded-[12px] border border-line bg-surface p-3.5">
                     <p className="flex items-start justify-between gap-2"><span className="font-semibold">{l.nome}</span>{l.urgencia === "alta" && !l.convertido_caso_id && <span className="tag tag-perigo">Urgente</span>}</p>
+                    {(l.acoes ?? []).length > 0 && <p className="mt-1.5 flex flex-wrap gap-1">{l.acoes!.map((a) => <span key={a} className="tag">{a}</span>)}</p>}
                     <p className="mt-1 text-[13px] text-ink-2">{l.resumo}</p>
                     <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-ink-3"><TagArea id={l.area} /><span>{l.canal}</span><span>{quando(l.criado_em)}</span></p>
-                    <p className="mt-1 text-[12.5px] text-ink-3">{l.contato}</p>
-                    {(etapa === "proposta enviada" || (etapa === "fechado" && !l.convertido_caso_id)) && (
+                    <div className="mt-1 flex items-center justify-between gap-2 text-[12.5px] text-ink-3"><span className="min-w-0 break-words">{l.contato}</span>
+                      {!l.convertido_caso_id && <Acoes oQue="o contato" campos={camposContato} inicial={{ nome: l.nome, contato: l.contato, area: l.area, canal: l.canal, acoes: (l.acoes ?? []).join("\n"), urgencia: l.urgencia, resumo: l.resumo }}
+                        aoSalvar={(v) => alterar("leads", l.id, { nome: String(v.nome), contato: String(v.contato ?? ""), area: String(v.area ?? l.area), canal: String(v.canal ?? l.canal), acoes: linhas(v.acoes), urgencia: (v.urgencia ?? l.urgencia) as Lead["urgencia"], resumo: String(v.resumo ?? l.resumo) })} />}</div>
+                    {!l.convertido_caso_id && <OrcamentoContato lead={l} />}
+                    {!l.orcamento && (etapa === "proposta enviada" || (etapa === "fechado" && !l.convertido_caso_id)) && (
                       <label className="mt-2 flex items-center gap-2 text-[12.5px] text-ink-2">Honorários (R$)<input type="number" className="inp h-8 w-28" value={l.valor_proposta ?? ""} onChange={(e) => alterar("leads", l.id, { valor_proposta: e.target.value ? Number(e.target.value) : undefined })} /></label>
                     )}
                     {etapa === "fechado" && (l.convertido_caso_id ? (
@@ -68,7 +90,7 @@ export default function Captacao() {
                     ) : (
                       <>
                         <button className="btn btn-p btn-sm mt-2.5 w-full" onClick={() => converter(l)}><UserPlus />Criar cliente e caso</button>
-                        <p className="mt-1.5 text-[12px] text-ink-3">Cadastra o cliente, abre o caso em {areaDe(l.area).nome} e lança os honorários{l.valor_proposta ? ` de ${brl(l.valor_proposta)}` : ", se houver valor"}.</p>
+                        <p className="mt-1.5 text-[12px] text-ink-3">Cadastra o cliente, abre o caso em {areaDe(l.area).nome} e lança os honorários{l.orcamento ? ` do orçamento (${brl(totalOrcamento(l.orcamento))}, com entrada e parcelas)` : l.valor_proposta ? ` de ${brl(l.valor_proposta)}` : ", se houver valor"}.</p>
                       </>
                     ))}
                     {i < ETAPAS.length - 1 && (
@@ -89,5 +111,27 @@ export default function Captacao() {
           <ul className="mt-2 space-y-1">{db.leads.filter((l) => l.etapa === "descartado").map((l) => <li key={l.id}>{l.nome}: {l.resumo} <button className="btn btn-q btn-sm" onClick={() => alterar("leads", l.id, { etapa: "novo" })}>Reabrir</button></li>)}</ul></details>
       )}
     </>
+  );
+}
+
+/** Orçamento do contato: cria, edita, envia e marca como aceito (os honorários entram quando vira caso). */
+function OrcamentoContato({ lead }: { lead: Lead }) {
+  const [novo, setNovo] = useState(false);
+  const salvar = (o: Orcamento) => alterar("leads", lead.id, {
+    orcamento: o, acoes: o.acoes.length ? o.acoes : lead.acoes, valor_proposta: totalOrcamento(o) || lead.valor_proposta,
+    ...(o.status === "enviado" && (lead.etapa === "novo" || lead.etapa === "em análise") ? { etapa: "proposta enviada" as const } : {}),
+  });
+  if (!lead.orcamento) return (
+    <>
+      <button className="btn btn-g btn-sm mt-2 w-full" onClick={() => setNovo(true)}><FileText />Fazer orçamento</button>
+      <EditorOrcamento aberto={novo} aoFechar={() => setNovo(false)} inicial={novoOrcamento(lead.acoes ?? [])} aoSalvar={salvar} />
+    </>
+  );
+  return (
+    <div className="mt-2">
+      <CartaoOrcamento o={lead.orcamento} cliente={lead.nome} celular={/\d{4}/.test(lead.contato) ? lead.contato : undefined} aoMudar={salvar}
+        aoExcluir={() => alterar("leads", lead.id, { orcamento: undefined })}
+        aoAceitar={() => alterar("leads", lead.id, { orcamento: { ...lead.orcamento!, status: "aceito", aceito_em: hojeISO() }, etapa: "fechado" })} />
+    </div>
   );
 }

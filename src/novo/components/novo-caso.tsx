@@ -1,12 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AREAS, areaDe, secaoVisivel, tipoDoCaso } from "@/novo/lib/areas";
+import { AREAS, areaDe, secaoVisivel, tiposDoCaso } from "@/novo/lib/areas";
+import { BuscaNumero } from "./busca-numero";
+import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { incluir, useDB } from "@/novo/lib/store";
 import type { ParteLida } from "@/lib/prazo-publicacao";
 import { hojeISO, semAcento } from "@/novo/lib/format";
 import { Azulejo } from "./azulejo";
-import { CampoArea, Dialogo, Rotulado } from "./ui";
+import { CampoArea, CampoLista, Dialogo, Rotulado, itensDe } from "./ui";
 
 const INICIAL = { area: "", titulo: "", cliente: "", numero: "", orgao: "", comarca: "", contraria: "", valor: "", responsavel: "" };
 
@@ -16,11 +18,18 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
   const [f, setF] = useState({ ...INICIAL, area: areaInicial ?? "", ...preenchido });
   const [dados, setDados] = useState<Record<string, string | number>>({});
   const [erro, setErro] = useState("");
+  const [extra, setExtra] = useState<{ distribuido_em?: string; uf?: string }>({});
   const ativas = useMemo(() => AREAS.filter((a) => db.config.areasAtivas.includes(a.id)), [db.config.areasAtivas]);
   const area = f.area ? areaDe(f.area) : undefined;
   const campo = (k: keyof typeof INICIAL) => ({ value: f[k], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value }) });
 
-  function fechar() { setF({ ...INICIAL, area: areaInicial ?? "" }); setDados({}); setErro(""); aoFechar(); }
+  function fechar() { setF({ ...INICIAL, area: areaInicial ?? "" }); setDados({}); setExtra({}); setErro(""); aoFechar(); }
+  /** Completa com a capa do processo no CNJ só o que está em branco; assuntos viram tipos do processo. */
+  function completarComCapa(c: CapaProcesso) {
+    setF((x) => ({ ...x, titulo: x.titulo || c.classe || "", orgao: x.orgao || c.orgao || "", comarca: x.comarca || c.comarca || "" }));
+    setExtra({ distribuido_em: c.distribuido_em, uf: c.uf });
+    if (c.assuntos.length) setDados((d) => { const at = itensDe(d.tipo_caso); return { ...d, tipo_caso: [...at, ...c.assuntos.filter((a) => !at.includes(a))].join("\n") }; });
+  }
   function salvar() {
     if (!area) return setErro("Escolha a área de atuação.");
     if (!f.titulo.trim()) return setErro("Informe um título para o caso.");
@@ -30,7 +39,7 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
     const resp = f.responsavel || db.equipe.find((e) => e.areas.includes(area.id))?.id || db.equipe[0]?.id || "";
     const id = incluir("casos", {
       natureza: area.grupo, area: area.id, numero: f.numero.trim(), titulo: f.titulo.trim(), status: "ativo", fase: 0,
-      orgao: f.orgao.trim() || undefined, comarca: f.comarca.trim() || undefined, uf: "RJ", cliente_id: cliId, cliente_nome: cli?.nome ?? f.cliente.trim(),
+      orgao: f.orgao.trim() || undefined, comarca: f.comarca.trim() || undefined, uf: extra.uf || "RJ", distribuido_em: extra.distribuido_em, cliente_id: cliId, cliente_nome: cli?.nome ?? f.cliente.trim(),
       parte_contraria: f.contraria.trim() || undefined, valor: f.valor ? Number(f.valor) : undefined, responsavel_id: resp, dados, criado_em: hojeISO(),
     });
     fechar();
@@ -70,7 +79,7 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
           <datalist id="lista-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
         </Rotulado>
         <Rotulado rotulo="Parte contrária"><input className="inp" {...campo("contraria")} /></Rotulado>
-        {area?.grupo !== "extrajudicial" && <Rotulado rotulo="Número do processo (CNJ)"><input className="inp" {...campo("numero")} placeholder="Deixe em branco se ainda não foi ajuizado" /></Rotulado>}
+        {area?.grupo !== "extrajudicial" && <div><Rotulado rotulo="Número do processo (CNJ)"><input className="inp" {...campo("numero")} placeholder="Deixe em branco se ainda não foi ajuizado" /></Rotulado><BuscaNumero numero={f.numero} aoAchar={completarComCapa} /></div>}
         <Rotulado rotulo={area?.grupo === "extrajudicial" ? "Cartório, câmara ou órgão" : "Vara ou órgão"}><input className="inp" {...campo("orgao")} /></Rotulado>
         <Rotulado rotulo="Comarca ou cidade"><input className="inp" {...campo("comarca")} /></Rotulado>
         <Rotulado rotulo="Valor da causa ou do contrato (R$)"><input className="inp" type="number" step="0.01" {...campo("valor")} /></Rotulado>
@@ -81,15 +90,13 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
           </select>
         </Rotulado>
       </div>
-      {area?.tipos && (
-        <Rotulado rotulo={`Tipo de processo em ${area.nome}`} className="mt-3">
-          <select className="inp" value={String(dados.tipo_caso ?? "")} onChange={(e) => setDados({ ...dados, tipo_caso: e.target.value })}>
-            <option value="">Escolher</option>
-            {area.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </Rotulado>
+      {area && (
+        <div className="mt-3">
+          <span className="rotulo">{area.tipos ? `Tipos de processo ou assuntos em ${area.nome} (pode ser mais de um)` : "Assuntos (pode ser mais de um)"}</span>
+          <CampoLista valor={dados.tipo_caso} aoMudar={(v) => setDados({ ...dados, tipo_caso: v })} rotulo="Tipos de processo" sugestoes={area.tipos} lista={`tipo_caso.${area.id}`} />
+        </div>
       )}
-      {area && area.secoes.filter((s) => secaoVisivel(s, tipoDoCaso(area, dados), dados)).map((s, i) => (
+      {area && area.secoes.filter((s) => secaoVisivel(s, tiposDoCaso(area, dados), dados)).map((s, i) => (
         <details key={s.titulo} open={i === 0} className="mt-4 border-t border-line-2 pt-3">
           <summary className="cursor-pointer text-[13.5px] font-semibold">Ficha de {area.nome}: {s.titulo}</summary>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

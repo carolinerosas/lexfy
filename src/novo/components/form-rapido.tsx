@@ -1,14 +1,66 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { Plus } from "lucide-react";
-import { Dialogo, Rotulado } from "./ui";
+import { guardarNaLista, useDB } from "@/novo/lib/store";
+import { CampoLista, Dialogo, Rotulado } from "./ui";
 
 export type CampoF = {
   k: string; rotulo: string;
-  tipo?: "texto" | "numero" | "data" | "hora" | "longo" | "opcoes" | "check";
+  tipo?: "texto" | "numero" | "data" | "hora" | "longo" | "opcoes" | "check" | "lista";
   opcoes?: readonly (string | readonly [string, string])[];
   obrig?: boolean; largo?: boolean; inicial?: string | number | boolean; dica?: string;
+  /** Chave da lista que a advogada alimenta: soma opções e permite cadastrar outras. */
+  lista?: string;
+  /** Sugestões fixas (campo de texto). */
+  sugestoes?: readonly string[];
 };
+
+const OUTRA = "__outra__";
+
+/** Escolha com as opções do sistema, as da lista própria e "Cadastrar outra". */
+export function SelectLista({ valor, aoMudar, opcoes = [], lista, vazio = "Escolher", className = "inp" }: {
+  valor: string; aoMudar: (v: string) => void; opcoes?: readonly (string | readonly [string, string])[]; lista?: string; vazio?: string; className?: string;
+}) {
+  const db = useDB();
+  const [nova, setNova] = useState<string | null>(null);
+  const base = opcoes.map((o) => (typeof o === "string" ? [o, o] as const : o));
+  const proprias = (lista ? db.config.listas?.[lista] ?? [] : []).filter((x) => !base.some(([v]) => v.toLowerCase() === x.toLowerCase()));
+  const todas = [...base, ...proprias.map((x) => [x, x] as const)];
+  const fora = valor && !todas.some(([v]) => v === valor) ? [[valor, valor] as const] : [];
+  if (nova !== null) {
+    const ok = () => { const t = nova.trim(); if (t) { if (lista) guardarNaLista(lista, t); aoMudar(t); } setNova(null); };
+    return (
+      <span className="flex gap-2">
+        <input className="inp" autoFocus value={nova} placeholder="Nova opção" aria-label="Nova opção" onChange={(e) => setNova(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); ok(); } if (e.key === "Escape") setNova(null); }} />
+        <button type="button" className="btn btn-p shrink-0" onClick={ok}>Incluir</button>
+        <button type="button" className="btn btn-g shrink-0" onClick={() => setNova(null)}>Voltar</button>
+      </span>
+    );
+  }
+  return (
+    <select className={className} value={valor} onChange={(e) => (e.target.value === OUTRA ? setNova("") : aoMudar(e.target.value))}>
+      <option value="">{vazio}</option>
+      {[...todas, ...fora].map(([v, r]) => <option key={v} value={v}>{r}</option>)}
+      {lista && <option value={OUTRA}>+ Cadastrar outra opção…</option>}
+    </select>
+  );
+}
+
+/** Texto livre com sugestões (fixas, já usadas e da lista própria). */
+export function TextoLista({ valor, aoMudar, sugestoes = [], lista, className = "inp", placeholder }: {
+  valor: string; aoMudar: (v: string) => void; sugestoes?: readonly string[]; lista?: string; className?: string; placeholder?: string;
+}) {
+  const db = useDB();
+  const id = useId();
+  const todas = [...new Set([...(lista ? db.config.listas?.[lista] ?? [] : []), ...sugestoes])];
+  return (
+    <>
+      <input className={className} list={todas.length ? id : undefined} value={valor} placeholder={placeholder} onChange={(e) => aoMudar(e.target.value)} />
+      {todas.length > 0 && <datalist id={id}>{todas.slice(0, 300).map((x) => <option key={x} value={x} />)}</datalist>}
+    </>
+  );
+}
 export type Valores = Record<string, string | number | boolean>;
 
 const zerado = (campos: readonly CampoF[]): Valores => Object.fromEntries(campos.map((c) => [c.k, c.inicial ?? (c.tipo === "check" ? false : "")]));
@@ -26,6 +78,8 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
     if (falta) return setErro(`Preencha “${falta.rotulo}”.`);
     const saida: Valores = {};
     campos.forEach((c) => { const x = v[c.k]; if (x !== "" && x !== undefined) saida[c.k] = c.tipo === "numero" ? Number(x) : x; });
+    // texto com lista: o que foi digitado passa a fazer parte da lista
+    campos.forEach((c) => { if (c.lista && (!c.tipo || c.tipo === "texto") && typeof saida[c.k] === "string") guardarNaLista(c.lista, String(saida[c.k])); });
     aoSalvar(saida);
     aoFechar();
   }
@@ -34,15 +88,20 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
     <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={titulo}
       rodape={<>{erro && <p role="alert" className="mr-auto self-center font-semibold text-perigo">{erro}</p>}<button className="btn btn-g" onClick={aoFechar}>Cancelar</button><button className="btn btn-p" onClick={salvar}>{botao}</button></>}>
       <div className="grid gap-3 sm:grid-cols-2">
-        {campos.map((c) => c.tipo === "check" ? (
+        {campos.map((c) => c.tipo === "lista" ? (
+          <div key={c.k} className="sm:col-span-2">
+            <span className="rotulo">{c.rotulo + (c.obrig ? " *" : "")}</span>
+            <CampoLista valor={String(v[c.k] ?? "")} aoMudar={(x) => setV({ ...v, [c.k]: x })} rotulo={c.rotulo} sugestoes={c.sugestoes ? [...c.sugestoes] : undefined} lista={c.lista} />
+            {c.dica && <span className="mt-1 block text-[12px] text-ink-3">{c.dica}</span>}
+          </div>
+        ) : c.tipo === "check" ? (
           <label key={c.k} className={`flex items-center gap-2 ${c.largo ? "sm:col-span-2" : ""}`}><input type="checkbox" className="size-4" checked={!!v[c.k]} onChange={(e) => setV({ ...v, [c.k]: e.target.checked })} />{c.rotulo}</label>
         ) : (
           <Rotulado key={c.k} rotulo={c.rotulo + (c.obrig ? " *" : "")} className={c.largo || c.tipo === "longo" ? "sm:col-span-2" : ""}>
             {c.tipo === "opcoes" ? (
-              <select className="inp" value={String(v[c.k] ?? "")} onChange={(e) => setV({ ...v, [c.k]: e.target.value })}>
-                <option value="">Escolher</option>
-                {(c.opcoes ?? []).map((o) => typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o[0]} value={o[0]}>{o[1]}</option>)}
-              </select>
+              <SelectLista valor={String(v[c.k] ?? "")} aoMudar={(x) => setV({ ...v, [c.k]: x })} opcoes={c.opcoes} lista={c.lista} />
+            ) : (!c.tipo || c.tipo === "texto") && (c.lista || c.sugestoes) ? (
+              <TextoLista valor={String(v[c.k] ?? "")} aoMudar={(x) => setV({ ...v, [c.k]: x })} lista={c.lista} sugestoes={c.sugestoes} />
             ) : c.tipo === "longo" ? (
               <textarea className="inp" value={String(v[c.k] ?? "")} onChange={(e) => setV({ ...v, [c.k]: e.target.value })} />
             ) : (

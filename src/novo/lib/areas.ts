@@ -202,8 +202,10 @@ export const AREAS: Area[] = [
     fases: ["Guia expedida", "Cálculo homologado", "Cumprimento em regime fechado", "Semiaberto", "Aberto ou domiciliar", "Livramento condicional", "Pena extinta"],
     destaque: ["regime", "progressao", "unidade"],
     secoes: [
-      sec("Pena", "pena:Pena total", "natureza:Natureza do crime|o|Comum sem violência;Comum com violência ou grave ameaça;Hediondo ou equiparado;Hediondo com resultado morte", "reincidencia:Condição|o|Primário;Reincidente;Reincidente específico", "data_base:Data-base|d", "termino:Término da pena|d"),
-      sec("Cumprimento", "regime:Regime atual|o|Fechado;Semiaberto;Aberto;Prisão domiciliar;Livramento condicional", "unidade:Unidade prisional", "fracao:Fração para progressão", "remicao:Dias remidos|n", "detracao:Detração (dias)|n", "trabalho:Trabalho ou estudo"),
+      sec("Datas da execução", "inicio_cumprimento:Início do cumprimento (prisão)|d", "data_base:Data-base para progressão|d", "data_base_lc:Data-base para livramento condicional|d", "detracao:Detração (dias)|n", "pena:Pena total (como consta no cálculo)", "termino:Término da pena (como consta no cálculo)|d"),
+      sec("Cumprimento", "regime:Regime atual|o|Fechado;Semiaberto;Aberto;Prisão domiciliar;Livramento condicional", "unidade:Unidade prisional", "trabalho:Trabalho ou estudo"),
+      // Campos da versão anterior (um crime só). Aparecem apenas se já estiverem preenchidos.
+      secSo(["__anterior"], "Dados anteriores (um crime só)", "natureza:Natureza do crime|o|Comum sem violência;Comum com violência ou grave ameaça;Hediondo ou equiparado;Hediondo com resultado morte", "reincidencia:Condição|o|Primário;Reincidente;Reincidente específico", "fracao:Fração para progressão", "remicao:Dias remidos|n"),
       sec("Benefícios", "progressao:Previsão de progressão|d", "livramento:Previsão de livramento|d", "saida:Saída temporária|o|Não cabe;Não requerida;Requerida;Deferida;Indeferida", "faltas:Faltas graves|m", "indulto:Indulto ou comutação (decreto)"),
     ],
     prazos: [
@@ -706,10 +708,16 @@ export const TIPO_JUSTIO_PARA_AREA: Record<string, string> = {
   tributario: "tributario", federal: "administrativo", outro: "civel",
 };
 
-/** Tipo de processo do caso; nos casos antigos, deduzido do que já está preenchido. */
-export function tipoDoCaso(area: Area, dados: Record<string, string | number | undefined>): string {
-  const t = String(dados.tipo_caso ?? "");
-  if (t || !area.tipos) return t;
+/** Tipos de processo (assuntos) do caso, guardados um por linha; nos casos antigos, deduzido do que já está preenchido. */
+export function tiposDoCaso(area: Area, dados: Record<string, string | number | undefined>): string[] {
+  const t = String(dados.tipo_caso ?? "").split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  if (t.length) return t;
+  const d = tipoDeduzido(area, dados);
+  return d ? [d] : [];
+}
+
+function tipoDeduzido(area: Area, dados: Record<string, string | number | undefined>): string {
+  if (!area.tipos) return "";
   if (area.id === "criminal") {
     const pen = String(dados.tipo_penal ?? "");
     if (dados.lmp === "Sim" || /11\.340|maria da penha|24-a/i.test(pen)) return "Violência doméstica (Lei Maria da Penha)";
@@ -722,9 +730,9 @@ export function tipoDoCaso(area: Area, dados: Record<string, string | number | u
 
 const preenchido = (v: unknown) => v !== undefined && v !== null && v !== "";
 /** A seção aparece quando cabe no tipo do caso ou quando já tem algo preenchido. */
-export function secaoVisivel(sec: Secao, tipo: string, dados: Record<string, string | number | undefined>): boolean {
+export function secaoVisivel(sec: Secao, tipos: string[], dados: Record<string, string | number | undefined>): boolean {
   if (!sec.so) return true;
-  if (tipo && sec.so.includes(tipo)) return true;
+  if (tipos.some((t) => sec.so!.includes(t))) return true;
   return sec.campos.some((c) => preenchido(dados[c.k]));
 }
 

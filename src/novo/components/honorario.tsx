@@ -11,29 +11,36 @@ import { FormRapido, type Valores } from "./form-rapido";
 import { Dialogo, Rotulado } from "./ui";
 import type { Honorario } from "@/novo/lib/types";
 
+/** Lança a entrada e as parcelas mensais do restante (a última absorve os centavos). */
+export function lancarParcelas(o: { casoId: string; descricao: string; total: number; entrada?: number; parcelas?: number; vencimento?: string; tipo?: Honorario["tipo"]; entradaPaga?: boolean }) {
+  const total = o.total;
+  const entrada = Math.min(total, o.entrada || 0);
+  const n = Math.max(1, Math.round(o.parcelas || 1));
+  const tipo = o.tipo ?? "contratual";
+  const venc = o.vencimento || hojeISO();
+  const desc = o.descricao;
+  if (entrada > 0) incluir("honorarios", { caso_id: o.casoId, descricao: `${desc}: entrada`, valor: entrada, vencimento: hojeISO(), status: o.entradaPaga ? "recebido" : "pendente", recebido_em: o.entradaPaga ? hojeISO() : undefined, tipo });
+  const resto = total - entrada;
+  if (resto > 0) {
+    const base = new Date(`${venc}T12:00:00`);
+    // inclui de trás para a frente para a lista ficar em ordem
+    for (let i = n - 1; i >= 0; i--) {
+      const valor = i === n - 1 ? Math.round((resto - Math.floor((resto / n) * 100) / 100 * (n - 1)) * 100) / 100 : Math.floor((resto / n) * 100) / 100;
+      incluir("honorarios", { caso_id: o.casoId, descricao: n === 1 ? desc : `${desc}: parcela ${i + 1} de ${n}`, valor, vencimento: format(addMonths(base, i), "yyyy-MM-dd"), status: "pendente", tipo });
+    }
+  }
+}
+
 /** Lança honorários de um caso: à vista ou com entrada e parcelas mensais. */
 export function NovoHonorario({ casoId, classe = "btn btn-p", rotulo = "Lançar honorário" }: { casoId?: string; classe?: string; rotulo?: string }) {
   const db = useDB();
   const [aberto, setAberto] = useState(false);
 
   function salvar(v: Valores) {
-    const caso = String(v.caso_id ?? casoId ?? "");
-    const total = Number(v.valor) || 0;
-    const entrada = Math.min(total, Number(v.entrada) || 0);
-    const n = Math.max(1, Math.round(Number(v.parcelas) || 1));
-    const tipo = (v.tipo as Honorario["tipo"]) ?? "contratual";
-    const venc = String(v.vencimento || hojeISO());
-    const desc = String(v.descricao || "Honorários");
-    if (entrada > 0) incluir("honorarios", { caso_id: caso, descricao: `${desc}: entrada`, valor: entrada, vencimento: hojeISO(), status: v.entrada_paga ? "recebido" : "pendente", recebido_em: v.entrada_paga ? hojeISO() : undefined, tipo });
-    const resto = total - entrada;
-    if (resto > 0) {
-      const base = new Date(`${venc}T12:00:00`);
-      // inclui de trás para a frente para a lista ficar em ordem
-      for (let i = n - 1; i >= 0; i--) {
-        const valor = i === n - 1 ? Math.round((resto - Math.floor((resto / n) * 100) / 100 * (n - 1)) * 100) / 100 : Math.floor((resto / n) * 100) / 100;
-        incluir("honorarios", { caso_id: caso, descricao: n === 1 ? desc : `${desc}: parcela ${i + 1} de ${n}`, valor, vencimento: format(addMonths(base, i), "yyyy-MM-dd"), status: "pendente", tipo });
-      }
-    }
+    lancarParcelas({
+      casoId: String(v.caso_id ?? casoId ?? ""), descricao: String(v.descricao || "Honorários"), total: Number(v.valor) || 0, entrada: Number(v.entrada) || 0,
+      parcelas: Number(v.parcelas) || 1, vencimento: String(v.vencimento || hojeISO()), tipo: (v.tipo as Honorario["tipo"]) ?? "contratual", entradaPaga: !!v.entrada_paga,
+    });
   }
 
   return (

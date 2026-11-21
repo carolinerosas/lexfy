@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, Copy, Plus, X } from "lucide-react";
+import { Check, Copy, ListPlus, Plus, X } from "lucide-react";
+import { guardarNaLista, useDB } from "@/novo/lib/store";
+import { SelectLista } from "./form-rapido";
 import { copiarTexto } from "@/novo/lib/whatsapp";
 import { areaDe, type Campo } from "@/novo/lib/areas";
 import { Azulejo } from "./azulejo";
@@ -120,12 +122,20 @@ export function Copiar({ texto, rotulo = "Copiar", comTexto }: { texto: string; 
 }
 
 /** Lista editável: inclui um item por vez, com sugestões do que já foi usado. */
-export function CampoLista({ valor, aoMudar, sugestoes = [], rotulo }: { valor: string | number | undefined; aoMudar: (v: string) => void; sugestoes?: string[]; rotulo: string }) {
+export function CampoLista({ valor, aoMudar, sugestoes = [], rotulo, lista }: { valor: string | number | undefined; aoMudar: (v: string) => void; sugestoes?: string[]; rotulo: string; lista?: string }) {
+  const db = useDB();
   const itens = itensDe(valor);
   const [novo, setNovo] = useState("");
   const idLista = useId();
-  const livres = sugestoes.filter((x) => !itens.some((i) => i.toLowerCase() === x.toLowerCase()));
-  const incluir = (t: string) => { const x = t.trim(); if (!x || itens.some((i) => i.toLowerCase() === x.toLowerCase())) { setNovo(""); return; } aoMudar([...itens, x].join("\n")); setNovo(""); };
+  const todas = [...new Set([...(lista ? db.config.listas?.[lista] ?? [] : []), ...sugestoes])];
+  const livres = todas.filter((x) => !itens.some((i) => i.toLowerCase() === x.toLowerCase()));
+  const incluir = (t: string) => {
+    const x = t.trim();
+    if (!x || itens.some((i) => i.toLowerCase() === x.toLowerCase())) { setNovo(""); return; }
+    // item novo entra também na lista própria, para aparecer nos próximos casos
+    if (lista && !todas.some((s) => s.toLowerCase() === x.toLowerCase())) guardarNaLista(lista, x);
+    aoMudar([...itens, x].join("\n")); setNovo("");
+  };
   return (
     <div>
       {itens.length > 0 && (
@@ -151,33 +161,51 @@ export function CampoLista({ valor, aoMudar, sugestoes = [], rotulo }: { valor: 
 /** Campo da ficha própria da área (texto, lista, data, valor, opções…). */
 export function CampoArea({ campo, valor, aoMudar, sugestoes }: { campo: Campo; valor: string | number | undefined; aoMudar: (v: string | number) => void; sugestoes?: string[] }) {
   const v = valor ?? "";
-  const idLista = useId();
   const largo = campo.tipo === "l" || campo.tipo === "m";
   if (campo.tipo === "m") {
     return (
       <div className="sm:col-span-2">
         <span className="rotulo">{campo.rotulo}</span>
-        <CampoLista valor={valor} aoMudar={aoMudar} sugestoes={sugestoes} rotulo={campo.rotulo} />
+        <CampoLista valor={valor} aoMudar={aoMudar} sugestoes={sugestoes} rotulo={campo.rotulo} lista={campo.k} />
       </div>
     );
   }
   return (
     <Rotulado rotulo={campo.rotulo} className={largo ? "sm:col-span-2" : ""}>
-      {campo.tipo === "o" || campo.tipo === "s" ? (
+      {campo.tipo === "o" ? (
+        <SelectLista valor={String(v)} aoMudar={aoMudar} opcoes={campo.opcoes} lista={campo.k} vazio="Não informado" />
+      ) : campo.tipo === "s" ? (
         <select className="inp" value={String(v)} onChange={(e) => aoMudar(e.target.value)}>
           <option value="">Não informado</option>
-          {(campo.tipo === "s" ? ["Sim", "Não"] : campo.opcoes ?? []).map((o) => <option key={o}>{o}</option>)}
+          {["Sim", "Não"].map((o) => <option key={o}>{o}</option>)}
         </select>
+      ) : campo.tipo === "t" ? (
+        <TextoComLista valor={String(v)} aoMudar={aoMudar} sugestoes={sugestoes} chave={campo.k} />
       ) : campo.tipo === "l" ? (
         <textarea className="inp" rows={3} value={String(v)} onChange={(e) => aoMudar(e.target.value)} />
       ) : (
         <>
-          <input className="inp" list={campo.tipo === "t" && sugestoes?.length ? idLista : undefined} type={campo.tipo === "d" ? "date" : campo.tipo === "v" || campo.tipo === "n" ? "number" : "text"} step={campo.tipo === "v" ? "0.01" : undefined}
+          <input className="inp" type={campo.tipo === "d" ? "date" : campo.tipo === "v" || campo.tipo === "n" ? "number" : "text"} step={campo.tipo === "v" ? "0.01" : undefined}
             value={String(v)} onChange={(e) => aoMudar(campo.tipo === "v" || campo.tipo === "n" ? (e.target.value === "" ? "" : Number(e.target.value)) : e.target.value)} />
-          {campo.tipo === "t" && sugestoes?.length ? <datalist id={idLista}>{sugestoes.slice(0, 200).map((x) => <option key={x} value={x} />)}</datalist> : null}
         </>
       )}
     </Rotulado>
+  );
+}
+
+/** Texto com sugestões e botão para guardar o valor digitado na lista própria do campo. */
+function TextoComLista({ valor, aoMudar, sugestoes = [], chave }: { valor: string; aoMudar: (v: string) => void; sugestoes?: string[]; chave: string }) {
+  const db = useDB();
+  const id = useId();
+  const propria = db.config.listas?.[chave] ?? [];
+  const todas = [...new Set([...propria, ...sugestoes])];
+  const novo = valor.trim() && !propria.some((x) => x.toLowerCase() === valor.trim().toLowerCase());
+  return (
+    <span className="flex gap-1.5">
+      <input className="inp" list={todas.length ? id : undefined} value={valor} onChange={(e) => aoMudar(e.target.value)} />
+      {todas.length > 0 && <datalist id={id}>{todas.slice(0, 300).map((x) => <option key={x} value={x} />)}</datalist>}
+      {novo && <button type="button" className="btn btn-g btn-icone shrink-0" title="Guardar na lista deste campo" aria-label="Guardar na lista deste campo" onClick={(e) => { e.preventDefault(); guardarNaLista(chave, valor); }}><ListPlus /></button>}
+    </span>
   );
 }
 

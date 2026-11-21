@@ -95,7 +95,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
   casos: {
     antiga: "processos", select: "*", ordem: ["created_at", false],
     campos: { numero: "numero", titulo: "titulo", status: "status", orgao: "vara", comarca: "comarca", uf: "uf", cliente_id: "cliente_id", cliente_nome: "cliente_nome", parte_contraria: "parte_contraria", valor: "valor_causa", distribuido_em: "data_distribuicao" },
-    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id", "docs_pendentes", "vinculados"],
+    extras: ["area", "natureza", "fase", "dados", "risco", "responsavel_id", "docs_pendentes", "vinculados", "execucao", "orcamentos"],
     ler: (p, x) => {
       const area = String(x.area ?? TIPO_PARA_AREA[String(p.tipo ?? "")] ?? "civel");
       const a = areaDe(area);
@@ -103,7 +103,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
       return limpo({
         id: p.id, natureza: a.grupo, area: a.id, numero: p.numero ?? "", titulo: p.titulo ?? "", status: p.status ?? "ativo", fase: Math.min(fase, a.fases.length - 1),
         orgao: p.vara, comarca: p.comarca, uf: p.uf, cliente_id: p.cliente_id ?? "", cliente_nome: p.cliente_nome ?? "", parte_contraria: p.parte_contraria, valor: p.valor_causa ?? undefined,
-        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, vinculados: x.vinculados, criado_em: dia(p.created_at) ?? "",
+        responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, vinculados: x.vinculados, execucao: x.execucao, orcamentos: x.orcamentos, criado_em: dia(p.created_at) ?? "",
       });
     },
     aoInserir: (c) => ({ tipo: areaParaTipoAntigo(String(c.area)), fase: areaDe(String(c.area)).fases[Number(c.fase) || 0], monitorar_datajud: !!c.numero, updated_at: agora() }),
@@ -179,11 +179,11 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
   leads: {
     antiga: "triagem_leads", select: "id,nome,contato,telefone,area,resumo,urgencia,canal,status,created_at", ordem: ["created_at", false], limite: 500,
     campos: { nome: "nome", contato: "contato", resumo: "resumo", canal: "canal", urgencia: "urgencia", area: ["area", (v) => areaDe(String(v)).nome], etapa: ["status", (v) => (v === "descartado" ? "descartado" : v === "fechado" ? "aprovado" : "novo")] },
-    extras: ["etapa", "valor_proposta", "convertido_caso_id", "area"],
+    extras: ["etapa", "valor_proposta", "convertido_caso_id", "area", "acoes", "orcamento"],
     ler: (l, x) => limpo({
       id: l.id, nome: l.nome ?? "Sem nome", contato: l.telefone ?? l.contato ?? "", area: x.area ?? areaPeloNome(l.area), resumo: l.resumo ?? "", canal: l.canal ?? "Triagem",
       etapa: x.etapa ?? (l.status === "descartado" ? "descartado" : l.status === "aprovado" ? "fechado" : "novo"),
-      urgencia: /alta|urgent/i.test(String(l.urgencia ?? "")) ? "alta" : /baixa/i.test(String(l.urgencia ?? "")) ? "baixa" : "media", valor_proposta: x.valor_proposta, convertido_caso_id: x.convertido_caso_id, criado_em: dia(l.created_at) ?? "",
+      urgencia: /alta|urgent/i.test(String(l.urgencia ?? "")) ? "alta" : /baixa/i.test(String(l.urgencia ?? "")) ? "baixa" : "media", valor_proposta: x.valor_proposta, convertido_caso_id: x.convertido_caso_id, acoes: x.acoes, orcamento: x.orcamento, criado_em: dia(l.created_at) ?? "",
     }),
   },
 };
@@ -449,6 +449,18 @@ export function alterarConfig(mudanca: Partial<Config>) {
   publicar({ ...db, config: { ...db.config, ...mudanca } });
   extras.config = { ...extras.config, ...mudanca };
   salvarExtras();
+}
+
+/** Listas alimentadas pela advogada (campo → opções). */
+export function listaDe(chave: string): string[] { return db.config.listas?.[chave] ?? []; }
+export function guardarNaLista(chave: string, ...valores: string[]) {
+  const atual = listaDe(chave);
+  const novos = valores.map((v) => v.trim()).filter((v) => v && !atual.some((a) => a.toLowerCase() === v.toLowerCase()));
+  if (!novos.length) return;
+  alterarConfig({ listas: { ...(db.config.listas ?? {}), [chave]: [...atual, ...novos] } });
+}
+export function tirarDaLista(chave: string, valor: string) {
+  alterarConfig({ listas: { ...(db.config.listas ?? {}), [chave]: listaDe(chave).filter((v) => v !== valor) } });
 }
 
 export function exportarBanco(): string { return JSON.stringify(db, null, 2); }

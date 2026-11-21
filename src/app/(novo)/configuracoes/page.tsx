@@ -5,6 +5,7 @@ import { alterarConfig, exportarBanco, useDB, useSituacao } from "@/novo/lib/sto
 import { AREAS } from "@/novo/lib/areas";
 import { Azulejo } from "@/novo/components/azulejo";
 import { Cabecalho, Rotulado } from "@/novo/components/ui";
+import { GerenciarListas } from "@/novo/components/listas";
 
 export default function Configuracoes() {
   const db = useDB();
@@ -41,6 +42,7 @@ export default function Configuracoes() {
               <p className="text-[12.5px] text-ink-3">O arquivo baixado contém dados de clientes. Guarde em local seguro.</p>
             </div>
           </section>
+          <GerenciarListas />
         </div>
         <section className="painel h-fit">
           <div className="painel-cab"><h2>Áreas em que o escritório atua</h2><span className="text-[12.5px] text-ink-3">{cfg.areasAtivas.length} de {AREAS.length}</span></div>

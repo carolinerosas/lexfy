@@ -6,10 +6,14 @@ import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { alterar, areaParaTipoAntigo, excluir, incluir, useDB } from "@/novo/lib/store";
 import { PecasPanel } from "@/components/ui/pecas-panel";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { areaDe, secaoVisivel, SUGESTOES_FIXAS, tipoDoCaso } from "@/novo/lib/areas";
+import { areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso } from "@/novo/lib/areas";
+import { Execucao } from "@/novo/components/execucao";
+import { Orcamentos } from "@/novo/components/orcamento";
+import { BuscaNumero } from "@/novo/components/busca-numero";
+import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, CampoArea, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
 import { semAcento } from "@/novo/lib/format";
 import type { Caso, Custa } from "@/novo/lib/types";
@@ -44,15 +48,16 @@ export default function PaginaCaso() {
 
       <header className="painel overflow-hidden">
         <div className="flex flex-wrap items-start gap-4 p-5 sm:p-6">
-          <Azulejo area={area} tamanho={56} />
-          <div className="min-w-0 flex-1">
+          <span className="hidden sm:block"><Azulejo area={area} tamanho={56} /></span>
+          <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
             <p className="flex flex-wrap items-center gap-2">
+              <span className="sm:hidden"><Azulejo area={area} tamanho={26} /></span>
               <Link href={`/areas/${area.id}`} className="tag tag-tinta hover:underline">{area.nome}</Link>
               <span className="tag">{caso.natureza === "judicial" ? "Judicial" : "Extrajudicial"}</span>
               {caso.status !== "ativo" && <span className="tag tag-alerta">{caso.status}</span>}
               {typeof caso.dados.situacao === "string" && /pris/i.test(caso.dados.situacao) && <span className="tag tag-perigo">Cliente preso</span>}
             </p>
-            <h1 className="titulo mt-2 break-words text-[24px] sm:text-[28px]">{caso.titulo}</h1>
+            <h1 className="titulo mt-2 text-[22px] [overflow-wrap:break-word] [hyphens:none] sm:text-[28px]">{caso.titulo}</h1>
             <p className="mt-1 text-ink-2">
               <Link href={`/clientes/${caso.cliente_id}`} className="font-semibold text-ink hover:text-cobalto hover:underline">{caso.cliente_nome}</Link>
               {caso.parte_contraria && <> <span className="text-ink-3">×</span> {caso.parte_contraria}</>}
@@ -165,7 +170,7 @@ export default function PaginaCaso() {
             {honorarios.some((h) => h.status === "pendente") && <MensagemCliente caso={caso} modeloInicial="honorarios" rotulo="Lembrar honorários" />}
             <BotaoNovo rotulo="Lançar custa ou repasse" classe="btn btn-g" aoSalvar={(v) => incluir("custas", { caso_id: caso.id, descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hojeISO()), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hojeISO() }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
-          </div><div className="grid gap-4 lg:grid-cols-2">
+          </div>{(caso.orcamentos?.length || caso.fase === 0 || !caso.numero) && <div className="mb-4"><Orcamentos caso={caso} /></div>}<div className="grid gap-4 lg:grid-cols-2">
             <section className="painel overflow-x-auto">
               <div className="painel-cab"><h2>Honorários</h2><span className="text-[12.5px] text-ink-3">Recebido {brl(honorarios.filter((h) => h.status === "recebido").reduce((s, h) => s + h.valor, 0))} de {brl(honorarios.filter((h) => h.tipo !== "êxito").reduce((s, h) => s + h.valor, 0))}</span></div>
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
@@ -244,8 +249,9 @@ function Ficha({ caso }: { caso: Caso }) {
   const geralDe = (c: Caso) => ({ titulo: c.titulo, numero: c.numero, orgao: c.orgao ?? "", comarca: c.comarca ?? "", uf: c.uf ?? "", parte_contraria: c.parte_contraria ?? "", valor: c.valor ?? "", cliente: c.cliente_nome ?? "" });
   const [geral, setGeral] = useState(geralDe(caso));
   const base = edit ? dados : caso.dados;
-  const tipo = tipoDoCaso(area, base);
-  const secoes = area.secoes.filter((s) => secaoVisivel(s, tipo, base));
+  const tipos = tiposDoCaso(area, base);
+  const tipo = tipos.join(", ");
+  const secoes = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
   const campos = secoes.flatMap((s) => s.campos);
   const preenchidos = campos.filter((c) => caso.dados[c.k] !== undefined && caso.dados[c.k] !== "").length;
   const sugestoes = (k: string) => { const c = campos.find((x) => x.k === k)!; return [...new Set([...valoresUsados(db.casos, area.id, c), ...(SUGESTOES_FIXAS[k] ?? [])])].filter((x) => x); };
@@ -267,21 +273,26 @@ function Ficha({ caso }: { caso: Caso }) {
     if (edit) setDados({ ...dados, tipo_caso: t });
     else alterar("casos", caso.id, { dados: { ...caso.dados, tipo_caso: t } });
   };
+  /** Completa com a capa do processo no CNJ só o que ainda está em branco; assuntos entram nos tipos. */
+  function completarComCapa(c: CapaProcesso) {
+    setGeral((g) => ({ ...g, titulo: g.titulo || c.classe || "", orgao: g.orgao || c.orgao || "", comarca: g.comarca || c.comarca || "", uf: g.uf || c.uf || "" }));
+    setDados((d) => {
+      const atuais = itensDe(d.tipo_caso);
+      const novos = c.assuntos.filter((a) => !atuais.some((x) => x.toLowerCase() === a.toLowerCase()));
+      return novos.length ? { ...d, tipo_caso: [...atuais, ...novos].join("\n") } : d;
+    });
+    if (c.distribuido_em && !caso.distribuido_em) alterar("casos", caso.id, { distribuido_em: c.distribuido_em });
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-4">
-        {area.tipos && (
-          <section className="painel p-4">
-            <Rotulado rotulo={`Tipo de processo em ${area.nome}`}>
-              <select className="inp" value={tipo} onChange={(e) => mudarTipo(e.target.value)}>
-                <option value="">Escolher</option>
-                {area.tipos.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Rotulado>
-            <p className="mt-1.5 text-[12.5px] text-ink-3">{tipo ? "A ficha mostra só o que cabe neste tipo. Seções de outros tipos voltam a aparecer se já tiverem algo preenchido." : "Escolha o tipo para a ficha mostrar os campos próprios dele."}</p>
-          </section>
-        )}
+        <section className="painel p-4">
+          <span className="rotulo">{area.tipos ? `Tipos de processo ou assuntos em ${area.nome}` : `Assuntos do processo em ${area.nome}`}</span>
+          <CampoLista valor={(edit ? dados : caso.dados).tipo_caso ?? (tipos.length ? tipos.join("\n") : "")} aoMudar={mudarTipo} rotulo="Tipos de processo"
+            sugestoes={[...(area.tipos ?? []), ...valoresUsados(db.casos, area.id, { k: "tipo_caso", rotulo: "", tipo: "m" })]} lista={`tipo_caso.${area.id}`} />
+          <p className="mt-1.5 text-[12.5px] text-ink-3">Pode incluir mais de um.{area.tipos ? (tipos.length ? " A ficha mostra os campos de todos os tipos escolhidos." : " Escolha ao menos um para a ficha mostrar os campos próprios.") : ""}</p>
+        </section>
         <Vinculados caso={caso} />
         {secoes.map((s) => (
           <section key={s.titulo} className="painel">
@@ -308,6 +319,10 @@ function Ficha({ caso }: { caso: Caso }) {
             )}
           </section>
         ))}
+        {area.id === "execucao_penal" && <Execucao caso={caso} />}
+        {!caso.numero && caso.natureza === "judicial" && !(caso.orcamentos ?? []).length && (
+          <p className="painel px-4 py-3 text-[13px] text-ink-2">Processo ainda não proposto. Faça o orçamento na aba Financeiro.</p>
+        )}
       </div>
       <aside className="min-w-0 space-y-4">
         <section className="painel p-4">
@@ -324,7 +339,8 @@ function Ficha({ caso }: { caso: Caso }) {
               <Rotulado rotulo="Título"><input className="inp" value={geral.titulo} onChange={(e) => setGeral({ ...geral, titulo: e.target.value })} /></Rotulado>
               <Rotulado rotulo="Cliente"><input className="inp" list="ficha-clientes" value={geral.cliente} onChange={(e) => setGeral({ ...geral, cliente: e.target.value })} /></Rotulado>
               <datalist id="ficha-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
-              <Rotulado rotulo="Número"><input className="inp" inputMode="numeric" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
+              <div><Rotulado rotulo="Número"><input className="inp" inputMode="numeric" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
+                <BuscaNumero numero={geral.numero} aoAchar={completarComCapa} auto={geral.numero.replace(/\D/g, "") !== caso.numero.replace(/\D/g, "")} /></div>
               <Rotulado rotulo="Vara ou órgão"><input className="inp" list="ficha-orgaos" value={geral.orgao} onChange={(e) => setGeral({ ...geral, orgao: e.target.value })} /></Rotulado>
               <datalist id="ficha-orgaos">{distintos((c) => c.orgao).map((x) => <option key={x} value={x} />)}</datalist>
               <div className="grid grid-cols-[1fr_80px] gap-2">

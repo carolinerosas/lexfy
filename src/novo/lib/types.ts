@@ -16,7 +16,31 @@ export interface Caso {
   docs_pendentes?: DocPendente[];
   /** Apensos, habeas corpus, recursos, medidas protetivas e outros processos ligados a este. */
   vinculados?: Vinculado[];
+  /** Execução penal: condenações (crime por crime), remições e interrupções da pena. */
+  execucao?: DadosExecucao;
+  /** Orçamentos feitos antes de o caso começar. */
+  orcamentos?: Orcamento[];
   criado_em: string;
+}
+/** Uma condenação dentro da execução, com as frações próprias do crime. */
+export interface CrimeExec {
+  id: string; processo?: string; vara?: string; crime: string;
+  anos: number; meses: number; dias: number;
+  natureza?: string; condicao?: string;
+  /** Fração para progressão e para livramento, como "25%", "2/5" ou "vedado". */
+  fracao_prog?: string; fracao_lc?: string;
+  data_fato?: string; transito?: string; obs?: string;
+}
+export interface Remicao { id: string; data: string; dias: number; motivo: string; homologada: boolean }
+/** Período em que a pena não correu (fuga, suspensão etc.). */
+export interface Interrupcao { id: string; inicio: string; fim?: string; motivo: string; tipo: "interrupção" | "suspensão" }
+export interface DadosExecucao { crimes: CrimeExec[]; remicoes: Remicao[]; interrupcoes: Interrupcao[] }
+export interface ItemOrcamento { id: string; descricao: string; valor: number }
+export interface Orcamento {
+  id: string; criado_em: string; acoes: string[]; itens: ItemOrcamento[];
+  entrada?: number; parcelas?: number; primeiro_vencimento?: string; validade?: string;
+  exito?: string; observacoes?: string;
+  status: "rascunho" | "enviado" | "aceito" | "recusado"; aceito_em?: string;
 }
 export interface Vinculado { id: string; tipo: string; numero: string; tribunal?: string; situacao?: string; obs?: string }
 export interface DocPendente { id: string; nome: string; pedido_em: string; recebido: boolean; recebido_em?: string; obs?: string }
@@ -60,6 +84,9 @@ export interface Lead {
   urgencia: Prioridade; valor_proposta?: number; criado_em: string;
   /** Preenchido quando o contato fechado virou cliente e caso. */
   convertido_caso_id?: string;
+  /** Tipos de ação que a pessoa precisa (pode ser mais de um). */
+  acoes?: string[];
+  orcamento?: Orcamento;
 }
 export interface Colaborador {
   id: string; nome: string; cargo: string;
@@ -115,6 +142,8 @@ export interface Config {
   escritorio: string; responsavel: string; oab: string; cidade: string;
   areasAtivas: string[]; fonte: "demonstracao" | "copia";
   pix_chave?: string; perfil?: Perfil;
+  /** Listas que a própria advogada alimenta, por campo (chave do campo → opções). */
+  listas?: Record<string, string[]>;
 }
 
 export interface DB {
