@@ -49,7 +49,7 @@ function Gerador() {
           <fieldset>
             <legend className="rotulo">Modelo</legend>
             <ul className="space-y-1">{MODELOS.map((m) => { const indicado = caso && m.areas?.includes(caso.area); return (
-              <li key={m.id}><label className={`flex cursor-pointer items-start gap-2.5 rounded-[12px] border p-3 transition-colors ${modeloId === m.id ? "border-ink bg-porcelana" : "border-line hover:border-[#bdbdbd]"}`}>
+              <li key={m.id}><label className={`flex cursor-pointer items-start gap-2.5 rounded-[12px] border p-3 transition-colors ${modeloId === m.id ? "border-ink bg-porcelana" : "border-line hover:border-[#B4BAC4]"}`}>
                 <input type="radio" name="modelo" className="mt-1" checked={modeloId === m.id} onChange={() => setModeloId(m.id)} />
                 <span><span className="block font-semibold">{m.nome}{indicado && <span className="tag tag-info ml-2">Indicado para a área</span>}</span><span className="block text-[12.5px] text-ink-3">{m.para}</span></span>
               </label></li>

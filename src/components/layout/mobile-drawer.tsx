@@ -45,7 +45,7 @@ export function MobileMenuButton() {
         <div className="fixed inset-0 z-[60] md:hidden">
           <div className="absolute inset-0 bg-[#171216]/60 backdrop-blur-sm" onClick={() => setAberto(false)} />
 
-          <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[82%] flex-col bg-[#21181d] shadow-2xl shadow-black/40">
+          <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[82%] flex-col bg-tinta shadow-2xl shadow-black/40">
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-5">
               <Link href="/antigo" aria-label="Ir para o Painel" onClick={() => setAberto(false)}>
                 <JustioLogo size={64} dark layout="row" />
@@ -71,15 +71,15 @@ export function MobileMenuButton() {
                     onClick={() => setAberto(false)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all",
-                      active ? "bg-white text-[#21181d]" : "text-slate-100 hover:bg-white/10 hover:text-white"
+                      active ? "bg-white text-tinta" : "text-slate-100 hover:bg-white/10 hover:text-white"
                     )}
                   >
-                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-[#21181d]" : "text-slate-100")} />
+                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-tinta" : "text-slate-100")} />
                     <span className="flex-1">{label}</span>
                     {count > 0 && (
                       <span className={cn(
                         "min-w-[18px] rounded-full px-1.5 py-0.5 text-center text-[10px] font-bold",
-                        active ? "bg-[#21181d] text-white" : "bg-white/15 text-white"
+                        active ? "bg-tinta text-white" : "bg-white/15 text-white"
                       )}>
                         {count > 99 ? "99+" : count}
                       </span>

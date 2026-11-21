@@ -6,7 +6,7 @@ const NOVO: [string, string, string][] = [
   ["Pessoas (RH)", "Equipe por vínculo, vencimentos, férias e ausências, ponto e banco de horas, remuneração, recrutamento, avaliações e capacitação.", "/pessoas"],
   ["Lançar e cobrar honorários", "Entrada e parcelas em um lançamento; cobrança com Pix copia e cola e mensagem pronta para o WhatsApp.", "/financeiro"],
   ["Captação que vira caso", "O contato que fecha contrato vira cliente, caso e honorário com um clique.", "/captacao"],
-  ["Triagem com IA", "A mesma triagem do Justio antigo, agora no menu novo.", "/importar"],
+  ["Triagem com IA", "A mesma triagem do JUSTIO antigo, agora no menu novo.", "/importar"],
   ["Peças com IA e autos", "Dentro de cada caso, nas abas Peças com IA e Autos.", "/processos"],
   ["Audiência ao vivo", "Botão Ao vivo em cada audiência a realizar.", "/audiencias"],
   ["Documentos por modelo", "Procuração, contrato de honorários, declarações, substabelecimento, recibo e notificação preenchidos com os dados do caso.", "/documentos"],
@@ -19,19 +19,19 @@ const NOVO: [string, string, string][] = [
 ];
 
 const ANTIGO: [string, string][] = [
-  ["Acordos e parcelas de acordo", "Aba do processo no Justio antigo."],
-  ["Orçamentos", "Aba do cliente no Justio antigo."],
-  ["Execução penal: incidentes, cálculo de pena e benefícios", "Aba do processo no Justio antigo."],
-  ["Portal do cliente (convites e acessos)", "Página do cliente no Justio antigo. A tela nova é só pré-visualização."],
-  ["Arquivos enviados ao processo", "Aba Documentos do processo no Justio antigo."],
-  ["Briefing, modelos próprios e recibo no timbrado", "Menu do Justio antigo."],
-  ["Senha, perfil da advogada e integrações", "Configurações do Justio antigo."],
+  ["Acordos e parcelas de acordo", "Aba do processo no JUSTIO antigo."],
+  ["Orçamentos", "Aba do cliente no JUSTIO antigo."],
+  ["Execução penal: incidentes, cálculo de pena e benefícios", "Aba do processo no JUSTIO antigo."],
+  ["Portal do cliente (convites e acessos)", "Página do cliente no JUSTIO antigo. A tela nova é só pré-visualização."],
+  ["Arquivos enviados ao processo", "Aba Documentos do processo no JUSTIO antigo."],
+  ["Briefing, modelos próprios e recibo no timbrado", "Menu do JUSTIO antigo."],
+  ["Senha, perfil da advogada e integrações", "Configurações do JUSTIO antigo."],
 ];
 
 export default function Novidades() {
   return (
     <>
-      <Cabecalho titulo="O que mudou" sub="O novo Justio usa o mesmo banco do antigo. O que está aqui grava nos mesmos processos, prazos e honorários; o que ainda não foi refeito continua disponível no Justio antigo." />
+      <Cabecalho titulo="O que mudou" sub="O novo JUSTIO usa o mesmo banco do antigo. O que está aqui grava nos mesmos processos, prazos e honorários; o que ainda não foi refeito continua disponível no JUSTIO antigo." />
       <section className="mb-10">
         <h2 className="titulo mb-3 text-[20px]">No novo</h2>
         <ul className="grid gap-px overflow-hidden rounded-[16px] border border-line bg-line md:grid-cols-2">
@@ -41,8 +41,8 @@ export default function Novidades() {
         </ul>
       </section>
       <section>
-        <h2 className="titulo mb-1 text-[20px]">Ainda só no Justio antigo</h2>
-        <p className="mb-3 text-ink-2">Acesse pelo item <Link href="/antigo" className="font-semibold text-ink underline">Justio antigo</Link>, no fim do menu.</p>
+        <h2 className="titulo mb-1 text-[20px]">Ainda só no JUSTIO antigo</h2>
+        <p className="mb-3 text-ink-2">Acesse pelo item <Link href="/antigo" className="font-semibold text-ink underline">JUSTIO antigo</Link>, no fim do menu.</p>
         <ul className="painel">
           {ANTIGO.map(([t, d]) => <li key={t} className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-line-2 px-5 py-3 last:border-0"><span className="font-semibold">{t}</span><span className="text-[13.5px] text-ink-2">{d}</span></li>)}
         </ul>

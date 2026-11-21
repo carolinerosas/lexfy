@@ -59,7 +59,7 @@ export default function Andamentos() {
           </section>
           <section className="painel p-4 text-[13px] text-ink-2">
             <p className="font-semibold text-ink">De onde vêm os andamentos</p>
-            <p className="mt-1">Tribunais (consulta automática pelo número do processo), diários, cartórios e registros feitos à mão. A busca automática roda todo dia às 6h30. “Buscar andamentos em lote” consulta na hora os processos que você marcar e deixa escolher o que entra no Justio.</p>
+            <p className="mt-1">Tribunais (consulta automática pelo número do processo), diários, cartórios e registros feitos à mão. A busca automática roda todo dia às 6h30. “Buscar andamentos em lote” consulta na hora os processos que você marcar e deixa escolher o que entra no JUSTIO.</p>
           </section>
         </aside>
       </div>

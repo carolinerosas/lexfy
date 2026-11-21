@@ -154,7 +154,7 @@ type Estado = { st: "fila" | "buscando" | "ok" | "erro"; msg?: string; novos?: n
 
 const paraISO = (d: string) => (/^\d{2}\/\d{2}\/\d{4}/.test(d) ? `${d.slice(6, 10)}-${d.slice(3, 5)}-${d.slice(0, 2)}` : d.slice(0, 10));
 
-/** Busca andamentos de vários processos e deixa escolher o que vai para o Justio. */
+/** Busca andamentos de vários processos e deixa escolher o que vai para o JUSTIO. */
 export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe = "btn btn-p" }: { casos: Caso[]; rotulo?: string; classe?: string }) {
   const db = useDB();
   const [aberto, setAberto] = useState(false);
@@ -218,7 +218,7 @@ export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe =
       <button className={classe} onClick={abrir} disabled={comNumero.length === 0} title={comNumero.length === 0 ? "Nenhum processo com número CNJ completo" : undefined}><RefreshCw />{rotulo}</button>
       <Dialogo aberto={aberto} aoFechar={() => { if (!rodando) setAberto(false); }} titulo="Buscar andamentos nos tribunais" largo
         rodape={<>
-          {salvos > 0 && <p role="status" className="mr-auto self-center font-semibold">{salvos} andamento{salvos > 1 ? "s" : ""} gravado{salvos > 1 ? "s" : ""} no Justio.</p>}
+          {salvos > 0 && <p role="status" className="mr-auto self-center font-semibold">{salvos} andamento{salvos > 1 ? "s" : ""} gravado{salvos > 1 ? "s" : ""} no JUSTIO.</p>}
           {achados.length > 0 ? <button className="btn btn-p" disabled={marcados.size === 0} onClick={salvar}>Gravar {marcados.size} selecionado{marcados.size === 1 ? "" : "s"}</button>
             : <button className="btn btn-p" disabled={rodando || escolhidos.size === 0} onClick={buscar}>{rodando ? <Loader2 className="animate-spin" /> : <RefreshCw />}{rodando ? "Buscando…" : `Buscar em ${escolhidos.size} processo${escolhidos.size === 1 ? "" : "s"}`}</button>}
         </>}>

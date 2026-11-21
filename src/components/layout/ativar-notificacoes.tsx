@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bell, X } from "lucide-react";
 
-// Pede, no primeiro acesso em cada aparelho, autorização para as notificações do Justio
+// Pede, no primeiro acesso em cada aparelho, autorização para as notificações do JUSTIO
 // (resumo das 6h e lembretes de audiência). Se já autorizou, só garante a inscrição.
 
 const DISPENSADO = "justio_notificacoes_dispensado";
@@ -48,7 +48,7 @@ export function AtivarNotificacoes() {
     const instalado = window.matchMedia("(display-mode: standalone)").matches;
     let tarefa: ReturnType<typeof setTimeout> | undefined;
     if (!suporta) {
-      // No iPhone, as notificações só funcionam com o Justio instalado na Tela de Início.
+      // No iPhone, as notificações só funcionam com o JUSTIO instalado na Tela de Início.
       if (iphone && !instalado && !dispensado) tarefa = setTimeout(() => setMostrar("iphone"), 0);
       return () => clearTimeout(tarefa);
     }
@@ -86,11 +86,11 @@ export function AtivarNotificacoes() {
       <div className="min-w-0 flex-1">
         {mostrar === "pedir" ? (
           <>
-            <p className="font-medium">Receber os avisos do Justio neste aparelho?</p>
+            <p className="font-medium">Receber os avisos do JUSTIO neste aparelho?</p>
             <p className="text-xs text-amber-800">Resumo do dia às 6h (prazos, audiências, atendimentos, publicações) e lembrete de audiência 3 dias antes.</p>
             {erro && <p className="mt-1 text-xs text-red-700">{erro}</p>}
             <div className="mt-2 flex gap-2">
-              <button onClick={ativar} className="rounded-lg bg-[#21181d] px-3 py-1.5 text-xs font-semibold text-white">
+              <button onClick={ativar} className="rounded-lg bg-tinta px-3 py-1.5 text-xs font-semibold text-white">
                 Ativar notificações
               </button>
               <button onClick={dispensar} className="rounded-lg px-3 py-1.5 text-xs text-amber-900">
@@ -100,8 +100,8 @@ export function AtivarNotificacoes() {
           </>
         ) : (
           <p className="text-xs">
-            Para receber os avisos do Justio no iPhone, toque em <strong>Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong> e abra o
-            Justio por lá.
+            Para receber os avisos do JUSTIO no iPhone, toque em <strong>Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong> e abra o
+            JUSTIO por lá.
           </p>
         )}
       </div>

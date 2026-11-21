@@ -314,7 +314,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
               title={m.descricao}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 modeloId === m.id
-                  ? "bg-[#21181d] text-white"
+                  ? "bg-tinta text-white"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
               }`}
             >
@@ -375,7 +375,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
                           onClick={() => setValores((v) => ({ ...v, processo: numeroProcesso(p), unidade_prisional: p.unidade_prisional ?? v.unidade_prisional ?? "" }))}
                           className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                             numeroProcesso(p) && valores.processo === numeroProcesso(p)
-                              ? "border-[#21181d] bg-gray-50"
+                              ? "border-tinta bg-gray-50"
                               : "border-gray-200 hover:bg-gray-50"
                           }`}
                         >

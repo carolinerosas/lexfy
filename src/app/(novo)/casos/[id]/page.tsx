@@ -85,7 +85,7 @@ export default function PaginaCaso() {
             <li key={f} className="min-w-[104px] flex-1">
               <button onClick={() => alterar("casos", caso.id, { fase: i })} aria-current={i === caso.fase ? "step" : undefined} title={`Mover para: ${f}`}
                 className={`flex h-full w-full flex-col gap-1 px-2.5 py-2 text-left text-[12px] leading-tight transition-colors ${i === caso.fase ? "bg-ink font-bold text-white" : i < caso.fase ? "bg-surface text-ink-2 hover:bg-porcelana" : "bg-porcelana text-ink-3 hover:bg-surface"}`}>
-                <span className="h-1 w-full rounded-full" style={{ background: i === caso.fase ? "var(--color-ocre-v)" : i < caso.fase ? "#0a0a0a" : "var(--color-line)" }} />
+                <span className="h-1 w-full rounded-full" style={{ background: i === caso.fase ? "var(--justio-ambar)" : i < caso.fase ? "var(--justio-tinta)" : "var(--color-line)" }} />
                 {f}
               </button>
             </li>

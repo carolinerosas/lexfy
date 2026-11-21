@@ -79,7 +79,7 @@ function Publicacoes() {
 
       <section className="painel mb-4 flex items-start gap-3 p-4">
         <Server className="mt-0.5 size-5 shrink-0" />
-        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ, com o computador desligado. Use “Buscar agora” para consultar na hora e escolher o que entra no Justio.</p></div>
+        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ, com o computador desligado. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</p></div>
       </section>
 
       <div className="painel">
@@ -242,7 +242,7 @@ function BuscarPublicacoes() {
             {foraDoJustio.length > 0 && (
               <section className="mb-4 rounded-[12px] border border-line">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-2 px-3 py-2.5">
-                  <h3 className="font-semibold">Processos em seu nome que não estão no Justio ({foraDoJustio.length})</h3>
+                  <h3 className="font-semibold">Processos em seu nome que não estão no JUSTIO ({foraDoJustio.length})</h3>
                   <span className="flex gap-2">
                     <button className="btn btn-g btn-sm" onClick={() => setProcMarcados(new Set(foraDoJustio.map((p) => p.numero)))}>Marcar todos</button>
                     <button className="btn btn-p btn-sm" disabled={procMarcados.size === 0} onClick={cadastrarEmLote}>Cadastrar {procMarcados.size || ""} selecionado{procMarcados.size === 1 ? "" : "s"}</button>
@@ -264,10 +264,10 @@ function BuscarPublicacoes() {
             )}
 
             <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px]">
-              <span className="font-semibold">{novas.length} nova{novas.length === 1 ? "" : "s"}</span>{jaSalvas > 0 && <span className="text-ink-3">· {jaSalvas} já estava{jaSalvas === 1 ? "" : "m"} no Justio</span>}
+              <span className="font-semibold">{novas.length} nova{novas.length === 1 ? "" : "s"}</span>{jaSalvas > 0 && <span className="text-ink-3">· {jaSalvas} já estava{jaSalvas === 1 ? "" : "m"} no JUSTIO</span>}
               {novas.length > 0 && <><button className="btn btn-g btn-sm" onClick={() => setMarcadas(new Set(novas.map((a) => a.hash)))}>Marcar todas</button><button className="btn btn-g btn-sm" onClick={() => setMarcadas(new Set())}>Desmarcar</button></>}
             </div>
-            {novas.length === 0 ? <p className="py-4 text-ink-2">Nada novo nos últimos 45 dias além do que já está no Justio.</p> : (
+            {novas.length === 0 ? <p className="py-4 text-ink-2">Nada novo nos últimos 45 dias além do que já está no JUSTIO.</p> : (
               <ul className="divide-y divide-line-2 rounded-[12px] border border-line">{novas.map((a) => {
                 const c = casoPeloNumero(a.numero_processo) ?? db.casos.find((x) => x.id === a.processo_id);
                 const lido = detectarPrazo(`${a.titulo}\n${a.conteudo ?? ""}`);

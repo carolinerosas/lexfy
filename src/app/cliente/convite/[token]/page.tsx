@@ -84,7 +84,7 @@ export default function ClienteConvitePage() {
           Li e aceito os termos de uso e privacidade.
         </label>
         {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-        <button disabled={enviando} className="w-full rounded-lg bg-[#21181d] py-3 text-sm font-semibold text-white disabled:opacity-50">
+        <button disabled={enviando} className="w-full rounded-lg bg-tinta py-3 text-sm font-semibold text-white disabled:opacity-50">
           {enviando ? "Salvando…" : "Criar senha e entrar"}
         </button>
       </form>

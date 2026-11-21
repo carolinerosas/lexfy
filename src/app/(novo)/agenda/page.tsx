@@ -8,7 +8,7 @@ import { data, hojeISO, hora, iso, mesAno } from "@/novo/lib/format";
 import { Cabecalho, Vazio, useMapas } from "@/novo/components/ui";
 
 type Ev = { id: string; dia: string; hora?: string; tipo: "prazo" | "audiência" | "atendimento" | "ausência"; titulo: string; href?: string };
-const COR = { prazo: "#c4281c", "audiência": "#0a0a0a", atendimento: "#9a9a9a", "ausência": "#d9a400" } as const;
+const COR = { prazo: "var(--color-perigo)", "audiência": "var(--justio-tinta)", atendimento: "var(--justio-ardosia)", "ausência": "var(--justio-ambar)" } as const;
 
 export default function Agenda() {
   const db = useDB();

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Lock } from "lucide-react";
-import { JustioHexIcon } from "@/components/ui/justio-logo";
+import { Eye, EyeOff } from "lucide-react";
+import { CascaAcesso, classeBotao, classeCampo, classeErro, classeLink } from "./casca";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -34,112 +34,72 @@ export default function LoginPage() {
         router.refresh();
       } else {
         const corpo = (await res.json().catch(() => null)) as { error?: string } | null;
-        setError(res.status === 429 && corpo?.error ? corpo.error : "Usuário ou senha incorretos. Tente novamente.");
+        setError(res.status === 429 && corpo?.error ? corpo.error : "Usuário ou senha não conferem. Confira e tente de novo.");
         setPassword("");
       }
     } catch {
-      setError("Erro de conexão. Tente novamente.");
+      setError("Sem conexão com o servidor. Tente de novo em instantes.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#21181d] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] rounded-full blur-3xl" />
-        <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-white/[0.015] rounded-full blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-sm relative z-10">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-10">
-          <div className="mb-5">
-            <JustioHexIcon size={72} dark={true} />
-          </div>
-          <h1 className="text-white text-2xl font-black tracking-[0.28em] uppercase">
-            JUSTIO
-          </h1>
-          <div className="flex items-center gap-2 mt-1.5 text-gray-600">
-            <span className="flex-1 h-px bg-current opacity-40 w-12" />
-            <span className="text-[11px] font-bold tracking-[0.2em] uppercase">
-              LEGAL TECH
-            </span>
-            <span className="flex-1 h-px bg-current opacity-40 w-12" />
-          </div>
+    <CascaAcesso titulo="Acesse o escritório" subtitulo="Entre com seu usuário e senha.">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="usuario" className="mb-1.5 block text-[13px] font-semibold text-grafite">Usuário</label>
+          <input
+            id="usuario"
+            type="text"
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setError(""); }}
+            autoFocus
+            autoComplete="username"
+            className={classeCampo}
+          />
         </div>
-
-        {/* Card */}
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-              <Lock className="w-4 h-4 text-gray-400" />
-            </div>
-            <div>
-              <p className="text-white text-sm font-semibold leading-tight">Acesso restrito</p>
-              <p className="text-gray-500 text-xs">Digite sua senha para continuar</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="senha" className="mb-1.5 block text-[13px] font-semibold text-grafite">Senha</label>
+          <div className="relative">
             <input
-              type="text"
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); setError(""); }}
-              placeholder="Usuário"
-              autoFocus
-              autoComplete="username"
-              className="w-full bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-600 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all"
+              id="senha"
+              type={show ? "text" : "password"}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              autoComplete="current-password"
+              className={`${classeCampo} pr-11`}
             />
-            <div className="relative">
-              <input
-                type={show ? "text" : "password"}
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(""); }}
-                placeholder="Senha"
-                autoComplete="current-password"
-                className="w-full bg-white/[0.06] border border-white/[0.1] text-white placeholder-gray-600 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:border-white/30 focus:bg-white/[0.08] transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShow((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors"
-              >
-                {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-
-            <label className="flex items-center gap-2 px-1 text-xs text-gray-400 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={lembrar}
-                onChange={(e) => setLembrar(e.target.checked)}
-                className="w-4 h-4 rounded accent-white"
-              />
-              Permanecer conectado
-            </label>
-
-            {error && (
-              <p className="text-red-400 text-xs font-medium px-1">{error}</p>
-            )}
-
             <button
-              type="submit"
-              disabled={loading || !username.trim() || !password.trim()}
-              className="w-full bg-white text-gray-900 font-semibold rounded-xl py-3 text-sm transition-all hover:bg-gray-100 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+              type="button"
+              onClick={() => setShow((s) => !s)}
+              aria-label={show ? "Esconder senha" : "Mostrar senha"}
+              className="absolute right-1.5 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full text-ardosia transition-colors hover:bg-nevoa hover:text-tinta"
             >
-              {loading ? "Entrando..." : "Entrar"}
+              {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
-
-            <div className="text-center pt-1">
-              <Link href="/login/esqueci" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-                Esqueceu sua senha?
-              </Link>
-            </div>
-          </form>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="flex items-center justify-between gap-3 pt-0.5">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-[13.5px] text-grafite">
+            <input
+              type="checkbox"
+              checked={lembrar}
+              onChange={(e) => setLembrar(e.target.checked)}
+              className="size-4 rounded accent-[#0E1013]"
+            />
+            Permanecer conectado
+          </label>
+          <Link href="/login/esqueci" className={classeLink}>Esqueci minha senha</Link>
+        </div>
+
+        {error && <p role="alert" className={classeErro}>{error}</p>}
+
+        <button type="submit" disabled={loading || !username.trim() || !password.trim()} className={`${classeBotao} mt-2`}>
+          {loading ? "Entrando..." : "Acessar o escritório"}
+        </button>
+      </form>
+    </CascaAcesso>
   );
 }

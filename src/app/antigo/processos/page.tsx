@@ -388,7 +388,7 @@ export default function ProcessosPage() {
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
                 statusFilter === s
-                  ? "bg-[#21181d] text-white"
+                  ? "bg-tinta text-white"
                   : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
               }`}
             >
@@ -448,7 +448,7 @@ export default function ProcessosPage() {
                   type="checkbox"
                   checked={todosSelecionados}
                   onChange={toggleTodos}
-                  className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+                  className="h-4 w-4 rounded border-gray-300 accent-tinta"
                 />
                 Selecionar todos
               </label>
@@ -494,14 +494,14 @@ export default function ProcessosPage() {
         <>
           <div className="space-y-3 md:hidden">
             {filtered.map((p) => (
-              <Card key={p.id} className={`p-4 ${selectionMode && selecionados.has(p.id) ? "ring-2 ring-[#21181d]" : ""}`}>
+              <Card key={p.id} className={`p-4 ${selectionMode && selecionados.has(p.id) ? "ring-2 ring-tinta" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   {selectionMode && (
                     <input
                       type="checkbox"
                       checked={selecionados.has(p.id)}
                       onChange={() => toggleSelecionado(p.id)}
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-tinta"
                     />
                   )}
                   <div className="min-w-0 flex-1">
@@ -571,7 +571,7 @@ export default function ProcessosPage() {
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <Link
                     href={`/antigo/processos/${p.id}`}
-                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#21181d] px-2 text-xs font-semibold text-white transition-colors hover:bg-[#2b2027]"
+                    className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-tinta px-2 text-xs font-semibold text-white transition-colors hover:bg-[#2b2027]"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     Detalhes
@@ -609,7 +609,7 @@ export default function ProcessosPage() {
                       type="checkbox"
                       checked={todosSelecionados}
                       onChange={toggleTodos}
-                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                      className="h-4 w-4 rounded border-gray-300 accent-tinta align-middle"
                     />
                   </th>
                 )}
@@ -624,14 +624,14 @@ export default function ProcessosPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map((p) => (
-                <tr key={p.id} className={`transition-colors group ${selectionMode && selecionados.has(p.id) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                <tr key={p.id} className={`transition-colors group ${selectionMode && selecionados.has(p.id) ? "bg-tinta/[0.04]" : "hover:bg-gray-50/60"}`}>
                   {selectionMode && (
                     <td className="px-3 py-4">
                       <input
                         type="checkbox"
                         checked={selecionados.has(p.id)}
                         onChange={() => toggleSelecionado(p.id)}
-                        className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                        className="h-4 w-4 rounded border-gray-300 accent-tinta align-middle"
                       />
                     </td>
                   )}

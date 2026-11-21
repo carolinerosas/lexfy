@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function ClienteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full bg-[#f7f5f3]">
-      <header className="bg-[#21181d] text-white">
+      <header className="bg-tinta text-white">
         <div className="mx-auto max-w-3xl px-4 py-4">
           <p className="text-base font-semibold tracking-wide">Caroline Fraga</p>
           <p className="text-xs text-white/60">Advocacia · OAB/RJ 165.955</p>

@@ -112,7 +112,7 @@ export default function Gestao() {
             <table className="tb min-w-[680px]"><thead><tr><th>Correspondente</th><th>Praça</th><th>Serviços</th><th className="num">Diligência</th><th>Avaliação</th></tr></thead>
               <tbody>{db.correspondentes.map((c) => (
                 <tr key={c.id}><td><span className="font-semibold">{c.nome}</span><span className="block text-[12.5px] text-ink-3">{c.contato}</span></td><td>{c.cidade}/{c.uf}</td><td className="max-w-[300px] text-[13px] text-ink-2">{c.servicos}</td><td className="num">{brl(c.valor_diligencia)}</td>
-                  <td><span className="flex gap-0.5" aria-label={`${c.avaliacao} de 5`}>{[1, 2, 3, 4, 5].map((i) => <Star key={i} className="size-3.5" fill={i <= c.avaliacao ? "#0a0a0a" : "none"} stroke={i <= c.avaliacao ? "#0a0a0a" : "#bdbdbd"} />)}</span></td></tr>
+                  <td><span className="flex gap-0.5" aria-label={`${c.avaliacao} de 5`}>{[1, 2, 3, 4, 5].map((i) => <Star key={i} className="size-3.5" fill={i <= c.avaliacao ? "var(--justio-ambar)" : "none"} stroke={i <= c.avaliacao ? "var(--justio-ambar)" : "#B4BAC4"} />)}</span></td></tr>
               ))}</tbody></table>
           </div></>
         )}

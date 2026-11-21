@@ -1,22 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Onest } from "next/font/google";
+import { Inter, Montserrat, Newsreader } from "next/font/google";
 import "./globals.css";
 
-const corpo = Onest({ subsets: ["latin"], variable: "--font-corpo", display: "swap" });
-const titulo = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-titulo", display: "swap" });
+// Identidade JUSTIO: Inter na interface, Newsreader nos títulos, Montserrat 600 na marca.
+const corpo = Inter({ subsets: ["latin"], variable: "--font-corpo", display: "swap" });
+const titulo = Newsreader({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-titulo", display: "swap" });
+const marca = Montserrat({ subsets: ["latin"], weight: ["600"], variable: "--font-montserrat", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Justio",
+  title: { default: "JUSTIO", template: "%s · JUSTIO" },
   description: "Sistema de gestão jurídica para escritórios de advocacia",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Justio",
+    title: "JUSTIO",
   },
   icons: {
-    apple: "/icon.svg",
-    icon: "/icon.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand/JustioFavicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -25,12 +30,12 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#ffffff",
+  themeColor: "#0E1013",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`h-full ${corpo.variable} ${titulo.variable}`}>
+    <html lang="pt-BR" className={`h-full ${corpo.variable} ${titulo.variable} ${marca.variable}`}>
       <body className="h-full">{children}</body>
     </html>
   );

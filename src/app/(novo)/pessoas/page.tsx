@@ -149,7 +149,7 @@ export default function Pessoas() {
               <section key={a.id} className="painel p-5">
                 <p className="flex items-center gap-3"><Avatar pessoa={p} tamanho={36} /><span className="flex-1"><span className="titulo block text-[16px]">{p?.nome}</span><span className="text-[12.5px] text-ink-3">{p?.cargo} · ciclo {a.ciclo}</span></span><span className="titulo text-[26px]">{(notas.reduce((s, [, n]) => s + n, 0) / 4).toFixed(1)}</span></p>
                 <dl className="mt-4 grid grid-cols-4 gap-3">{notas.map(([k, n]) => (
-                  <div key={k}><dt className="text-[12px] text-ink-3">{k}</dt><dd className="mt-1 flex gap-0.5" aria-label={`${n} de 5`}>{[1, 2, 3, 4, 5].map((i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= n ? "#0a0a0a" : "#e4e4e4" }} />)}</dd></div>
+                  <div key={k}><dt className="text-[12px] text-ink-3">{k}</dt><dd className="mt-1 flex gap-0.5" aria-label={`${n} de 5`}>{[1, 2, 3, 4, 5].map((i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= n ? "var(--justio-tinta)" : "var(--justio-nevoa)" }} />)}</dd></div>
                 ))}</dl>
                 <p className="mt-4 text-[13.5px]">{a.comentario}</p>
                 <p className="mt-2 text-[13px] text-ink-2"><span className="font-semibold text-ink">Meta do próximo ciclo:</span> {a.metas}</p>

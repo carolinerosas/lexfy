@@ -11,7 +11,7 @@ export async function enviarEmail(para: string, assunto: string, texto: string, 
   if (!chave) throw new Error("RESEND_API_KEY não configurada");
   const html = `<div style="font-family:system-ui,sans-serif;font-size:15px;color:#27272a;line-height:1.5">
     ${texto.split("\n").map((l) => `<p style="margin:0 0 12px">${l.replace(/[<>&]/g, "")}</p>`).join("")}
-    <p style="margin:24px 0"><a href="${link}" style="background:#21181d;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600">Criar senha nova</a></p>
+    <p style="margin:24px 0"><a href="${link}" style="background:#0E1013;color:#fff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600">Criar senha nova</a></p>
     <p style="font-size:12px;color:#a1a1aa">Se o botão não funcionar, copie este endereço: ${link}</p>
   </div>`;
 

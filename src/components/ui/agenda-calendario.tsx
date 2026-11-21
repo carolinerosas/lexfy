@@ -168,7 +168,7 @@ export function AgendaCalendario() {
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               const eventos = eventosPorDia.get(dateKey(day)) ?? [];
               return (
-                <div key={dateKey(day)} className={`flex min-w-0 flex-col p-3 sm:min-h-[180px] ${isToday ? "bg-[#21181d]" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}>
+                <div key={dateKey(day)} className={`flex min-w-0 flex-col p-3 sm:min-h-[180px] ${isToday ? "bg-tinta" : isWeekend ? "bg-gray-50/60" : "bg-white"}`}>
                   <div className="mb-2.5">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{day.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}</p>
                     <p className={`text-lg font-black leading-tight ${isToday ? "text-white" : isWeekend ? "text-gray-400" : "text-gray-900"}`}>{day.getDate()}</p>
@@ -196,7 +196,7 @@ export function AgendaCalendario() {
                 const eventos = eventosPorDia.get(dateKey(day)) ?? [];
                 return (
                   <div key={dateKey(day)} className={`flex min-h-[92px] flex-col border-b border-r border-gray-100 p-1.5 ${foraDoMes ? "bg-gray-50/40" : "bg-white"}`}>
-                    <span className={`mb-1 inline-flex h-5 w-5 items-center justify-center self-start rounded-full text-[11px] font-bold ${isToday ? "bg-[#21181d] text-white" : foraDoMes ? "text-gray-300" : "text-gray-700"}`}>{day.getDate()}</span>
+                    <span className={`mb-1 inline-flex h-5 w-5 items-center justify-center self-start rounded-full text-[11px] font-bold ${isToday ? "bg-tinta text-white" : foraDoMes ? "text-gray-300" : "text-gray-700"}`}>{day.getDate()}</span>
                     <div className="flex flex-col gap-0.5">
                       {eventos.slice(0, 3).map((ev, i) => <EventoChip key={i} evento={ev} isOnDark={false} compact />)}
                       {eventos.length > 3 && <span className="text-[9px] font-semibold text-gray-400">+{eventos.length - 3}</span>}

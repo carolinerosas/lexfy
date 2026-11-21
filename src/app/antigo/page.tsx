@@ -110,7 +110,7 @@ export default function DashboardPage() {
       </div>
 
       <Link href="/antigo/briefing" className="mb-6 block">
-        <div className="group flex min-w-0 flex-col gap-4 rounded-2xl border border-[#21181d]/10 bg-gradient-to-br from-[#21181d] to-[#3a2a35] p-5 text-white shadow-lg shadow-[#21181d]/10 transition-all hover:-translate-y-0.5 hover:shadow-xl sm:flex-row sm:items-center sm:justify-between">
+        <div className="group flex min-w-0 flex-col gap-4 rounded-2xl border border-tinta/10 bg-gradient-to-br from-tinta to-[#3a2a35] p-5 text-white shadow-lg shadow-[#0E1013]/10 transition-all hover:-translate-y-0.5 hover:shadow-xl sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/12">
               <Sparkles className="h-5 w-5" />
@@ -123,7 +123,7 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#21181d] transition-transform group-hover:translate-x-0.5">
+          <div className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-tinta transition-transform group-hover:translate-x-0.5">
             Abrir briefing <ArrowRight className="h-4 w-4" />
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
           )}
           {stats.movimentacoesNaoLidas > 0 && (
             <Link href="/antigo/processos" className="min-w-0 w-full sm:w-auto">
-              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-tinta px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
                 <Activity className="h-4 w-4 shrink-0" />
                 {stats.movimentacoesNaoLidas} movimentaç{stats.movimentacoesNaoLidas > 1 ? "ões" : "ão"} nova{stats.movimentacoesNaoLidas > 1 ? "s" : ""}
               </div>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           )}
           {stats.publicacoesNaoLidas > 0 && (
             <Link href="/antigo/publicacoes" className="min-w-0 w-full sm:w-auto">
-              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-[#21181d] px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
+              <div className="flex min-w-0 cursor-pointer items-center gap-2.5 rounded-xl bg-tinta px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2b2027]">
                 <Bell className="h-4 w-4 shrink-0" />
                 {stats.publicacoesNaoLidas} publicaç{stats.publicacoesNaoLidas > 1 ? "ões" : "ão"} não {stats.publicacoesNaoLidas > 1 ? "lidas" : "lida"}
               </div>

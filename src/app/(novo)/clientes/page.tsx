@@ -37,10 +37,10 @@ export default function Clientes() {
         <span className="ml-auto text-[12.5px] text-ink-3">{linhas.length} clientes</span>
       </div>
       <nav aria-label="Clientes por letra inicial" className="mb-3 flex flex-wrap gap-1">
-        <button aria-pressed={letra === ""} onClick={() => setLetra("")} className={`h-8 rounded-full px-3 text-[13px] font-semibold transition-colors ${letra === "" ? "bg-ink text-white" : "bg-cobalto-f hover:bg-[#e2e2e2]"}`}>Todos</button>
+        <button aria-pressed={letra === ""} onClick={() => setLetra("")} className={`h-8 rounded-full px-3 text-[13px] font-semibold transition-colors ${letra === "" ? "bg-ink text-white" : "bg-cobalto-f hover:bg-[#E3E6EA]"}`}>Todos</button>
         {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => (
           <button key={l} aria-pressed={letra === l} disabled={!comCliente.has(l)} onClick={() => setLetra(letra === l ? "" : l)} aria-label={`Clientes com a letra ${l}`}
-            className={`size-8 rounded-full text-[13px] font-semibold transition-colors ${letra === l ? "bg-ink text-white" : comCliente.has(l) ? "hover:bg-cobalto-f" : "text-[#c4c4c4]"}`}>{l}</button>
+            className={`size-8 rounded-full text-[13px] font-semibold transition-colors ${letra === l ? "bg-ink text-white" : comCliente.has(l) ? "hover:bg-cobalto-f" : "text-[#AEB4BE]"}`}>{l}</button>
         ))}
       </nav>
       <div className="painel overflow-x-auto">

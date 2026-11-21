@@ -563,7 +563,7 @@ export default function TriagemPage() {
             <Icon className="h-4 w-4" />
             {label}
             {count > 0 && (
-              <span className="rounded-full bg-[#21181d] px-2 py-0.5 text-[11px] font-bold text-white">
+              <span className="rounded-full bg-tinta px-2 py-0.5 text-[11px] font-bold text-white">
                 {count}
               </span>
             )}
@@ -608,7 +608,7 @@ export default function TriagemPage() {
             {copiado ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
             {copiado ? "Copiado!" : "Copiar"}
           </button>
-          <a href={linkTriagem} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#21181d] px-3 text-xs font-semibold text-white hover:bg-[#2b2027]">
+          <a href={linkTriagem} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-tinta px-3 text-xs font-semibold text-white hover:bg-[#2b2027]">
             <ExternalLink className="w-4 h-4" /> Abrir
           </a>
         </CardContent>
@@ -1134,7 +1134,7 @@ function ImportacaoAssistida({
                 return (
                   <div
                     key={imp.id}
-                    className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3 ${importacaoAtiva?.id === imp.id ? "border-[#21181d] bg-gray-50" : "border-gray-100"}`}
+                    className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3 py-3 ${importacaoAtiva?.id === imp.id ? "border-tinta bg-gray-50" : "border-gray-100"}`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-gray-900">{titulo}</p>
@@ -1167,7 +1167,7 @@ function ImportacaoAssistida({
       <Card>
         <CardContent className="space-y-4 py-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#21181d] text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tinta text-white">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -1315,7 +1315,7 @@ function ImportacaoAssistida({
                       key={m}
                       type="button"
                       onClick={() => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, modo: m } })}
-                      className={`rounded-lg px-3 py-1.5 text-sm ${draft.honorarios!.modo === m ? "bg-[#21181d] text-white" : "bg-gray-100 text-gray-700"}`}
+                      className={`rounded-lg px-3 py-1.5 text-sm ${draft.honorarios!.modo === m ? "bg-tinta text-white" : "bg-gray-100 text-gray-700"}`}
                     >
                       {m === "orcamento" ? "É orçamento (proposta)" : "Cliente já fechou"}
                     </button>

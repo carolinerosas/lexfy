@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CascaAcesso, classeBotao, classeCampo } from "../casca";
+import { CascaAcesso, classeBotao, classeCampo, classeErro, classeLink } from "../casca";
 
 const SENHA_MIN = 10;
 
@@ -38,7 +38,7 @@ export function FormularioRedefinir({ token }: { token: string }) {
   if (!token) {
     return (
       <CascaAcesso titulo="Link incompleto" subtitulo="Abra o link exatamente como chegou no e-mail.">
-        <Link href="/login/esqueci" className="text-xs text-gray-400 hover:text-gray-200">Pedir um link novo</Link>
+        <Link href="/login/esqueci" className={classeLink}>Pedir um link novo</Link>
       </CascaAcesso>
     );
   }
@@ -46,7 +46,7 @@ export function FormularioRedefinir({ token }: { token: string }) {
   if (pronto) {
     return (
       <CascaAcesso titulo="Senha nova salva" subtitulo="Por segurança, os outros aparelhos foram desconectados.">
-        <Link href="/login" className={`${classeBotao} block text-center`}>Entrar no Justio</Link>
+        <Link href="/login" className={`${classeBotao} block text-center`}>Acessar o escritório</Link>
       </CascaAcesso>
     );
   }
@@ -71,7 +71,7 @@ export function FormularioRedefinir({ token }: { token: string }) {
           autoComplete="new-password"
           className={classeCampo}
         />
-        {erro && <p className="text-red-400 text-xs font-medium px-1">{erro}</p>}
+        {erro && <p role="alert" className={classeErro}>{erro}</p>}
         <button type="submit" disabled={enviando || !senha || !confirmacao} className={classeBotao}>
           {enviando ? "Salvando..." : "Salvar senha nova"}
         </button>

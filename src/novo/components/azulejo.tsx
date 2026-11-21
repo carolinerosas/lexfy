@@ -17,7 +17,7 @@ export function Azulejo({ area, tamanho = 36, className = "" }: { area: Pick<Are
       className={`inline-flex shrink-0 select-none items-center justify-center font-bold ${className}`}
       style={{
         width: tamanho, height: tamanho, borderRadius: Math.max(5, tamanho * 0.3), fontSize: Math.max(8, tamanho * 0.36), letterSpacing: "0.01em",
-        background: judicial ? "#0a0a0a" : "#fff", color: judicial ? "#fff" : "#0a0a0a", boxShadow: judicial ? undefined : "inset 0 0 0 1.5px #0a0a0a",
+        background: judicial ? "var(--justio-tinta)" : "#fff", color: judicial ? "#fff" : "var(--justio-tinta)", boxShadow: judicial ? undefined : "inset 0 0 0 1.5px var(--justio-tinta)",
       }}>
       {SIGLAS[area.id] ?? area.nome.slice(0, 2).toUpperCase()}
     </span>
@@ -30,5 +30,5 @@ export function FaixaAzulejos(_: { padrao: number; tinta?: Tinta; cor?: string; 
 }
 
 export function estiloTinta(_: Tinta): React.CSSProperties {
-  return { ["--tinta" as string]: "#0a0a0a", ["--tinta-f" as string]: "#f0f0f0" };
+  return { ["--tinta" as string]: "var(--justio-tinta)", ["--tinta-f" as string]: "var(--justio-nevoa)" };
 }

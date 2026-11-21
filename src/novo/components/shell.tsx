@@ -11,6 +11,7 @@ import { AtivarNotificacoes } from "@/components/layout/ativar-notificacoes";
 import type { Perfil } from "@/novo/lib/types";
 import { diasAte, semAcento } from "@/novo/lib/format";
 import { NovoCaso } from "./novo-caso";
+import { JustioMarca } from "@/components/ui/justio-logo";
 
 type Item = { href: string; rotulo: string; icone: LucideIcon; selo?: "prazos" | "publicacoes" | "andamentos" | "captacao" };
 const GRUPOS: { nome: string; itens: Item[] }[] = [
@@ -44,7 +45,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
 ];
 const RODAPE: Item[] = [
   { href: "/novidades", rotulo: "O que mudou", icone: Sparkles },
-  { href: "/antigo", rotulo: "Justio antigo", icone: Archive },
+  { href: "/antigo", rotulo: "JUSTIO antigo", icone: Archive },
   { href: "/configuracoes", rotulo: "Configurações", icone: Settings },
 ];
 
@@ -80,7 +81,7 @@ function Avisos() {
         </div>
       )}
       {s.semExtras && (
-        <div role="status" className="rounded-[12px] bg-ocre-f px-4 py-3 text-[#6f4b00]">
+        <div role="status" className="rounded-[12px] bg-ocre-f px-4 py-3 text-[#6B4C14]">
           <p className="font-semibold">Falta criar a tabela justio_novo no banco.</p>
           <p className="text-[13.5px]">Processos, prazos, audiências, clientes e honorários já gravam normalmente. Equipe, ponto, etapas da captação, ficha por área e documentos só ficam guardados depois de rodar, no Supabase, o comando do arquivo supabase/justio-novo.sql.</p>
         </div>
@@ -124,8 +125,7 @@ function Trilho({ aoNavegar }: { aoNavegar?: () => void }) {
   return (
     <div className="flex h-full flex-col border-r border-line bg-rail text-rail-ink">
       <Link href="/" onClick={aoNavegar} className="flex h-16 shrink-0 items-center gap-1 px-5">
-        <span className="titulo text-[25px] text-ink">justio</span>
-        <span aria-hidden className="mt-2.5 size-2 rounded-full bg-ocre-v" />
+        <JustioMarca tom="tinta" largura={124} />
       </Link>
       <nav aria-label="Navegação principal" className="flex-1 overflow-y-auto px-2.5 pb-3">
         {GRUPOS.map((g) => ({ ...g, itens: g.itens.filter((i) => !oculto.includes(i.href)) })).filter((g) => g.itens.length > 0).map((g) => (
@@ -251,7 +251,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       <div className="sticky top-0 z-20 flex h-16 items-center gap-2 bg-white/90 px-3 backdrop-blur-md sm:px-8">
         <button className="btn btn-g btn-icone lg:hidden" onClick={() => setGaveta(true)} aria-label="Abrir menu"><Menu /></button>
-        <button onClick={() => setBusca(true)} className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-cobalto-f px-4 text-left text-ink-3 transition-colors hover:bg-[#e6e6e6] sm:max-w-[420px]">
+        <button onClick={() => setBusca(true)} className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-cobalto-f px-4 text-left text-ink-3 transition-colors hover:bg-[#E3E6EA] sm:max-w-[420px]">
           <Search className="size-4 shrink-0" />
           <span className="flex-1 truncate">Buscar caso, número ou cliente</span>
           <span className="tag hidden bg-white sm:inline-flex">Ctrl K</span>

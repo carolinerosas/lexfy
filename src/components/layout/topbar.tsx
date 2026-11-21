@@ -93,7 +93,7 @@ export function TopBar() {
           </a>
 
           <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 shadow-sm">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21181d] text-xs font-bold text-white">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-tinta text-xs font-bold text-white">
               CR
             </div>
             <div className="hidden min-w-0 leading-tight lg:block">
@@ -106,7 +106,7 @@ export function TopBar() {
             type="button"
             onClick={handleLogout}
             title="Sair"
-            aria-label="Sair do Justio"
+            aria-label="Sair do JUSTIO"
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 shadow-sm transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
           >
             <LogOut className="h-4 w-4" />

@@ -77,7 +77,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
                   : "Envie o PDF do processo ou os volumes. O Justio guarda só o texto (o PDF fica no seu computador): dá para pesquisar aqui e a audiência ao vivo consulta os autos."}
               </p>
             </div>
-            <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#21181d] px-4 py-2 text-sm font-medium text-white hover:bg-[#2b2027] ${progresso ? "pointer-events-none opacity-50" : ""}`}>
+            <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tinta px-4 py-2 text-sm font-medium text-white hover:bg-[#2b2027] ${progresso ? "pointer-events-none opacity-50" : ""}`}>
               <Upload className="w-4 h-4" /> Enviar PDF
               <input type="file" accept=".pdf" multiple className="hidden" onChange={(e) => { enviar(e.target.files); e.target.value = ""; }} />
             </label>
@@ -91,7 +91,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
                   : `Lendo ${progresso.nome}… ${progresso.total ? `página ${progresso.feitas} de ${progresso.total}` : ""}`}
               </p>
               <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full bg-[#21181d] transition-all" style={{ width: `${progresso.total ? (progresso.feitas / progresso.total) * 100 : 3}%` }} />
+                <div className="h-full bg-tinta transition-all" style={{ width: `${progresso.total ? (progresso.feitas / progresso.total) * 100 : 3}%` }} />
               </div>
             </div>
           )}

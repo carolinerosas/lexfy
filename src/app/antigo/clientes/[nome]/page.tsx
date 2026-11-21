@@ -137,7 +137,7 @@ export default function ClienteDetailPage() {
         </Link>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-[#21181d] text-white text-xl font-bold flex items-center justify-center shrink-0">
+            <div className="w-14 h-14 rounded-full bg-tinta text-white text-xl font-bold flex items-center justify-center shrink-0">
               {cliente.nome.charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -632,7 +632,7 @@ function VincularProcessoModal({ open, cliente, processosVinculados, onClose, on
                   name="processo"
                   checked={processoId === p.id}
                   onChange={() => setProcessoId(p.id)}
-                  className="mt-1 h-4 w-4 accent-[#21181d]"
+                  className="mt-1 h-4 w-4 accent-tinta"
                 />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{p.titulo}</p>

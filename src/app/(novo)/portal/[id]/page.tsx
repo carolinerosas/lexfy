@@ -48,7 +48,7 @@ export default function Portal() {
                 <p className="text-[12.5px] font-semibold text-ink-3">{a.nome}{x.numero ? ` · processo nº ${x.numero}` : ""}</p>
                 <h2 className="titulo mt-1 text-[19px]">{x.titulo}</h2>
                 <p className="mt-3 text-[13px] text-ink-2">Fase atual: <strong className="text-ink">{a.fases[x.fase]}</strong> ({x.fase + 1} de {a.fases.length})</p>
-                <div className="mt-2 flex gap-0.5" aria-hidden>{a.fases.map((_, i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= x.fase ? "#0a0a0a" : "#e4e4e4" }} />)}</div>
+                <div className="mt-2 flex gap-0.5" aria-hidden>{a.fases.map((_, i) => <span key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= x.fase ? "var(--justio-tinta)" : "var(--justio-nevoa)" }} />)}</div>
               </div>
               <ol className="border-t border-line-2">
                 {movs.length === 0 && <li className="px-5 py-4 text-ink-2">Ainda não há andamentos registrados.</li>}

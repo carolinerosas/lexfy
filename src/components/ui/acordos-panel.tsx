@@ -625,7 +625,7 @@ function EditarParcelaModal({
         <Input label="Valor" type="number" step="0.01" min="0" value={valor} onChange={(e) => setValor(e.target.value)} />
         <Input label="Vencimento" type="date" value={venc} onChange={(e) => setVenc(e.target.value)} />
         <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" checked={pago} onChange={(e) => setPago(e.target.checked)} className="h-4 w-4 rounded border-gray-300 accent-[#21181d]" />
+          <input type="checkbox" checked={pago} onChange={(e) => setPago(e.target.checked)} className="h-4 w-4 rounded border-gray-300 accent-tinta" />
           Pago
         </label>
         {pago && (

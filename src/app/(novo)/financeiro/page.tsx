@@ -68,7 +68,7 @@ export default function Financeiro() {
             </dl>
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <section className="painel">
-                <div className="painel-cab"><h2>Entradas e saídas por mês</h2><p className="flex gap-3 text-[12px] text-ink-2"><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-ink" />Recebido</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border border-ink bg-ocre-v" />Previsto</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#c9c9c9]" />Saídas</span></p></div>
+                <div className="painel-cab"><h2>Entradas e saídas por mês</h2><p className="flex gap-3 text-[12px] text-ink-2"><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-ink" />Recebido</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border border-ink bg-ocre-v" />Previsto</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#C3C8D0]" />Saídas</span></p></div>
                 <div className="flex h-[240px] items-end gap-3 px-5 pb-4 pt-6 sm:gap-6">
                   {fluxo.map((f) => (
                     <div key={f.m} className="flex h-full min-w-0 flex-1 flex-col justify-end">
@@ -77,7 +77,7 @@ export default function Financeiro() {
                           {f.previsto > 0 && <div className="rounded-t-[6px] border border-b-0 border-ink bg-ocre-v" style={{ flex: f.previsto }} />}
                           {f.entrou > 0 && <div className={`bg-ink ${f.previsto > 0 ? "" : "rounded-t-[6px]"}`} style={{ flex: f.entrou }} />}
                         </div>
-                        <div className="w-1/2 max-w-9 rounded-t-[6px] bg-[#c9c9c9]" style={{ height: `${(f.saiu / teto) * 100}%` }} />
+                        <div className="w-1/2 max-w-9 rounded-t-[6px] bg-[#C3C8D0]" style={{ height: `${(f.saiu / teto) * 100}%` }} />
                       </div>
                       <p className={`mt-2 text-center text-[12px] ${f.atual ? "font-bold" : "text-ink-3"}`}>{f.rotulo}</p>
                       <p className="truncate text-center text-[11.5px] text-ink-3">{brlCurto(f.entrou + f.previsto)}</p>
@@ -155,7 +155,7 @@ export default function Financeiro() {
               <ul>{horasPessoa.map(({ e, total, fat }) => (
                 <li key={e.id} className="border-b border-line-2 px-5 py-3 last:border-0">
                   <p className="flex items-center gap-2.5"><Avatar pessoa={e} /><span className="flex-1 font-semibold">{e.nome}</span><span className="text-[13px] text-ink-2">{horas(total)} de {e.meta_horas}h</span></p>
-                  <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-cobalto-f"><span className="bg-ink" style={{ width: `${Math.min(100, (fat / 60 / (e.meta_horas ?? 1)) * 100)}%` }} /><span className="bg-[#b5b5b5]" style={{ width: `${Math.min(100, ((total - fat) / 60 / (e.meta_horas ?? 1)) * 100)}%` }} /></div>
+                  <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-cobalto-f"><span className="bg-ink" style={{ width: `${Math.min(100, (fat / 60 / (e.meta_horas ?? 1)) * 100)}%` }} /><span className="bg-[#AEB4BE]" style={{ width: `${Math.min(100, ((total - fat) / 60 / (e.meta_horas ?? 1)) * 100)}%` }} /></div>
                   <p className="mt-1 text-[12px] text-ink-3">{horas(fat)} faturáveis · {horas(total - fat)} internas</p>
                 </li>
               ))}</ul>

@@ -69,7 +69,7 @@ export default function ClienteEntrarPage() {
         </label>
         {erro && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
         {aviso && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{aviso}</p>}
-        <button disabled={enviando} className="w-full rounded-lg bg-[#21181d] py-3 text-sm font-semibold text-white disabled:opacity-50">
+        <button disabled={enviando} className="w-full rounded-lg bg-tinta py-3 text-sm font-semibold text-white disabled:opacity-50">
           {enviando ? "Entrando…" : "Entrar"}
         </button>
         <button type="button" onClick={recuperar} disabled={recuperando} className="w-full text-center text-sm text-gray-700 underline underline-offset-2 disabled:opacity-50">

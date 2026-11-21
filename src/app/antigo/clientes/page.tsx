@@ -333,7 +333,7 @@ export default function ClientesPage() {
                   type="checkbox"
                   checked={todosSelecionados}
                   onChange={toggleTodos}
-                  className="h-4 w-4 rounded border-gray-300 accent-[#21181d]"
+                  className="h-4 w-4 rounded border-gray-300 accent-tinta"
                 />
                 Selecionar todos
               </label>
@@ -370,17 +370,17 @@ export default function ClientesPage() {
             return (
             <Fragment key={c.id ?? c.nome}>
               {ancora && <span id={`cli-m-${ancora}`} aria-hidden className="block scroll-mt-24" />}
-            <Card className={`p-4 ${selectionMode && selecionados.has(keyOf(c)) ? "ring-2 ring-[#21181d]" : ""}`}>
+            <Card className={`p-4 ${selectionMode && selecionados.has(keyOf(c)) ? "ring-2 ring-tinta" : ""}`}>
               <div className="flex items-start gap-3">
                 {selectionMode && (
                   <input
                     type="checkbox"
                     checked={selecionados.has(keyOf(c))}
                     onChange={() => toggleSelecionado(keyOf(c))}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-tinta"
                   />
                 )}
-                <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>
+                <div className={`w-9 h-9 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-tinta" : "bg-gray-300"}`}>
                   {c.nome.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -466,7 +466,7 @@ export default function ClientesPage() {
                       type="checkbox"
                       checked={todosSelecionados}
                       onChange={toggleTodos}
-                      className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                      className="h-4 w-4 rounded border-gray-300 accent-tinta align-middle"
                     />
                   </th>
                 )}
@@ -479,20 +479,20 @@ export default function ClientesPage() {
               {filtered.map((c) => {
                 const ancora = letraDaAncora(c);
                 return (
-                  <tr key={c.id ?? c.nome} id={ancora ? `cli-d-${ancora}` : undefined} className={`scroll-mt-24 transition-colors ${selectionMode && selecionados.has(keyOf(c)) ? "bg-[#21181d]/[0.04]" : "hover:bg-gray-50/60"}`}>
+                  <tr key={c.id ?? c.nome} id={ancora ? `cli-d-${ancora}` : undefined} className={`scroll-mt-24 transition-colors ${selectionMode && selecionados.has(keyOf(c)) ? "bg-tinta/[0.04]" : "hover:bg-gray-50/60"}`}>
                     {selectionMode && (
                       <td className="px-4 py-4">
                         <input
                           type="checkbox"
                           checked={selecionados.has(keyOf(c))}
                           onChange={() => toggleSelecionado(keyOf(c))}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#21181d] align-middle"
+                          className="h-4 w-4 rounded border-gray-300 accent-tinta align-middle"
                         />
                       </td>
                     )}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-[#21181d]" : "bg-gray-300"}`}>
+                        <div className={`w-8 h-8 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0 ${c.cadastrado ? "bg-tinta" : "bg-gray-300"}`}>
                           {c.nome.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -625,13 +625,13 @@ export default function ClientesPage() {
           ) : (
             <>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${deleteOptions.atendimentos ? "border-[#21181d] bg-[#21181d]/5" : "border-gray-200 bg-white"} ${deleteVinculos.atendimentos.length === 0 ? "cursor-not-allowed opacity-60" : ""}`}>
+                <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors ${deleteOptions.atendimentos ? "border-tinta bg-tinta/5" : "border-gray-200 bg-white"} ${deleteVinculos.atendimentos.length === 0 ? "cursor-not-allowed opacity-60" : ""}`}>
                   <input
                     type="checkbox"
                     checked={deleteOptions.atendimentos && deleteVinculos.atendimentos.length > 0}
                     disabled={deleteVinculos.atendimentos.length === 0 || deleteActionBusy}
                     onChange={(e) => setDeleteOptions((prev) => ({ ...prev, atendimentos: e.target.checked }))}
-                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-[#21181d]"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 accent-tinta"
                   />
                   <span>
                     <span className="block text-sm font-semibold text-gray-900">

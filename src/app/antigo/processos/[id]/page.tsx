@@ -414,7 +414,7 @@ export default function ProcessoDetailPage() {
             <button
               onClick={toggleMonitorar}
               title={processo.monitorar_datajud ? "Monitoramento ativo — clique para desativar" : "Ativar monitoramento automático"}
-              className={`flex items-center justify-center px-2.5 transition-colors border-r border-gray-200 ${processo.monitorar_datajud ? "bg-[#21181d] text-white hover:bg-[#2b2027]" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"}`}
+              className={`flex items-center justify-center px-2.5 transition-colors border-r border-gray-200 ${processo.monitorar_datajud ? "bg-tinta text-white hover:bg-[#2b2027]" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"}`}
             >
               {processo.monitorar_datajud ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
@@ -986,7 +986,7 @@ function MovimentacoesTab({ movimentacoes, onAdd, onEdit, onDelete, onMarcarLida
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      {!m.lida && <span className="w-1.5 h-1.5 rounded-full bg-[#21181d] shrink-0" />}
+                      {!m.lida && <span className="w-1.5 h-1.5 rounded-full bg-tinta shrink-0" />}
                       <p className="text-sm text-gray-900">{m.descricao}</p>
                     </div>
                     <p className="text-xs text-gray-400 mt-1 ml-3.5">
@@ -1130,10 +1130,10 @@ function mesmoCliente(a: Processo, b: Processo): boolean {
 
 function InqueritoInfoPanel({ processo, acaoPenal }: { processo: Processo; acaoPenal?: Processo }) {
   return (
-    <Card className="mb-6 border-[#21181d]/20">
+    <Card className="mb-6 border-tinta/20">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-[#21181d]" />
+          <Shield className="w-4 h-4 text-tinta" />
           <CardTitle>Dados do inquérito policial</CardTitle>
         </div>
         {acaoPenal && (
@@ -1575,7 +1575,7 @@ function AtendimentosTab({
                       </button>
                     )}
                     {a.status === "realizado" && (
-                      <span className="w-6 h-6 rounded-full bg-[#21181d] flex items-center justify-center">
+                      <span className="w-6 h-6 rounded-full bg-tinta flex items-center justify-center">
                         <CheckCircle className="w-3.5 h-3.5 text-white" />
                       </span>
                     )}
@@ -2377,7 +2377,7 @@ function EditarProcessoModal({ open, onClose, processo, onSaved }: { open: boole
         {isInqueritoForm && (
           <div className="space-y-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-[#21181d]" />
+              <Shield className="w-4 h-4 text-tinta" />
               <p className="text-sm font-semibold text-gray-900">Informações do inquérito policial</p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -2496,7 +2496,7 @@ function GerarDocumentoDoProcesso({ processo }: { processo: Processo }) {
               key={pt.cliente_id}
               type="button"
               onClick={() => setClienteId(pt.cliente_id!)}
-              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${clienteId === pt.cliente_id ? "border-[#21181d] bg-gray-50 font-medium text-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+              className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${clienteId === pt.cliente_id ? "border-tinta bg-gray-50 font-medium text-gray-900" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
             >
               {pt.nome}
             </button>

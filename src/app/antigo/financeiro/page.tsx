@@ -401,7 +401,7 @@ export default function FinanceiroPage() {
                         className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-gray-50/60"
                       >
                         <ChevronRight className={`w-4 h-4 shrink-0 text-gray-400 transition-transform ${aberto ? "rotate-90" : ""}`} />
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#21181d] text-[11px] font-bold text-white">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tinta text-[11px] font-bold text-white">
                           {g.clienteNome.charAt(0).toUpperCase()}
                         </div>
                         <span className="min-w-0 flex-1 truncate text-sm font-bold text-gray-900">{g.clienteNome}</span>
@@ -553,7 +553,7 @@ export default function FinanceiroPage() {
                   key={ano}
                   type="button"
                   onClick={() => { setAnoTimeline(ano); setMesAberto(null); }}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${ano === anoAtivo ? "bg-[#21181d] text-white" : "text-gray-500 hover:bg-gray-100"}`}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${ano === anoAtivo ? "bg-tinta text-white" : "text-gray-500 hover:bg-gray-100"}`}
                 >
                   {ano}
                 </button>
@@ -702,9 +702,9 @@ export default function FinanceiroPage() {
 }
 
 function SummaryCard({ icon, dark, highlight, label, value, onClick, active }: { icon: React.ReactNode; dark?: boolean; highlight?: boolean; label: string; value: string; onClick?: () => void; active?: boolean }) {
-  const base = dark ? "bg-[#21181d] border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : "";
+  const base = dark ? "bg-tinta border-[#2b2027]" : highlight ? "border-blue-200 bg-blue-50/40" : "";
   const interativo = onClick ? "cursor-pointer transition-all hover:shadow-md" : "";
-  const selecionado = active ? (dark ? "ring-2 ring-white/40" : "ring-2 ring-[#21181d]") : "";
+  const selecionado = active ? (dark ? "ring-2 ring-white/40" : "ring-2 ring-tinta") : "";
   return (
     <Card className={`${base} ${interativo} ${selecionado}`} onClick={onClick}>
       <CardContent className="p-4">

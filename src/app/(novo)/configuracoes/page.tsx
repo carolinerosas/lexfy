@@ -36,8 +36,8 @@ export default function Configuracoes() {
           <section className="painel">
             <div className="painel-cab"><h2>Dados</h2><span className={`tag ${situacao.semExtras ? "tag-alerta" : "tag-ok"}`}>{situacao.semExtras ? "Falta a tabela nova" : "Gravando no banco"}</span></div>
             <div className="space-y-3 p-5 text-[13.5px] text-ink-2">
-              <p>O novo Justio usa o mesmo banco do antigo: processos, prazos, audiências, clientes, andamentos, publicações, honorários, contas, atendimentos e tarefas são os mesmos nas duas versões.</p>
-              <p>Senha de acesso, perfil da advogada, integrações (DataJud, sincronizador local), modelos, acordos, orçamentos e portal do cliente continuam nas telas do <Link href="/antigo/configuracoes" className="font-semibold text-ink underline">Justio antigo</Link>.</p>
+              <p>O novo JUSTIO usa o mesmo banco do antigo: processos, prazos, audiências, clientes, andamentos, publicações, honorários, contas, atendimentos e tarefas são os mesmos nas duas versões.</p>
+              <p>Senha de acesso, perfil da advogada, integrações (DataJud, sincronizador local), modelos, acordos, orçamentos e portal do cliente continuam nas telas do <Link href="/antigo/configuracoes" className="font-semibold text-ink underline">JUSTIO antigo</Link>.</p>
               <button className="btn btn-g" onClick={baixar}><Download />Baixar cópia dos dados</button>
               <p className="text-[12.5px] text-ink-3">O arquivo baixado contém dados de clientes. Guarde em local seguro.</p>
             </div>

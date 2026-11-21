@@ -162,7 +162,7 @@ export function SelectComOutro({
                   onClick={() => selecionar(linha.value)}
                   className="flex flex-1 items-center gap-2 text-left text-gray-900"
                 >
-                  {linha.value === value && <Check className="h-3.5 w-3.5 text-[#21181d]" />}
+                  {linha.value === value && <Check className="h-3.5 w-3.5 text-tinta" />}
                   <span className={linha.value === value ? "" : "pl-[1.375rem]"}>{linha.label}</span>
                 </button>
                 <button
@@ -201,7 +201,7 @@ export function SelectComOutro({
                 <button
                   type="button"
                   onClick={confirmAdd}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#21181d] text-white hover:bg-[#2b2027]"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-tinta text-white hover:bg-[#2b2027]"
                   title="Salvar opção"
                 >
                   <Check className="h-4 w-4" />
@@ -222,7 +222,7 @@ export function SelectComOutro({
                   setAdding(true);
                   setNovo("");
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-[#21181d] hover:bg-gray-50"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-tinta hover:bg-gray-50"
               >
                 <Plus className="h-4 w-4" /> Cadastrar nova opção
               </button>
