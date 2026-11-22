@@ -759,3 +759,66 @@ export const SUGESTOES_FIXAS: Record<string, string[]> = {
     "Recolhimento domiciliar noturno e nos dias de folga", "Suspensão do exercício de função pública", "Fiança", "Monitoração eletrônica", "Entrega do passaporte",
   ],
 };
+
+// ───────────────────────────── ACORDO ─────────────────────────────
+// Aba "Acordo" do caso: uma seção comum a todas as áreas e outra com o que costuma
+// constar no acordo daquela área. Os valores ficam em caso.dados, com chaves "acordo_*".
+// As parcelas ficam na tabela acordo_parcelas (a mesma do Justio antigo).
+
+const QUITACAO = "acordo_quitacao:Quitação|o|Geral e irrestrita;Só do objeto da ação;Parcial";
+
+const ACORDO_GERAL = sec("Acordo",
+  "acordo_situacao:Situação|o|Em negociação;Proposta enviada;Proposta recebida;Aceito;Homologado;Em cumprimento;Cumprido;Descumprido;Recusado",
+  "acordo_forma:Forma|o|Judicial;Extrajudicial;Audiência de conciliação;Mediação;Câmara privada",
+  "acordo_data:Data do acordo|d", "acordo_homologacao:Homologado em|d",
+  "acordo_valor:Valor total|v", "acordo_multa:Multa por descumprimento|t",
+  "acordo_honorarios:Honorários (quem paga e quanto)|t",
+  "acordo_custas:Custas e despesas|o|Cada parte arca com as suas;Pagas pelo cliente;Pagas pela outra parte;Divididas;Isento (gratuidade)",
+  "acordo_obs:Observações|l",
+);
+
+const ACORDO_POR_AREA: Record<string, Secao> = {
+  patrimonial: sec("Termos do acordo", "acordo_objeto:Objeto do acordo|l", "acordo_obrigacoes:Obrigações de cada parte|m", QUITACAO, "acordo_garantia:Garantia|t", "acordo_vencimento_antecipado:Vencimento antecipado se atrasar|s"),
+  consumidor: sec("Termos do acordo", "acordo_indenizacao:Indenização|v", "acordo_obrigacao_fazer:Obrigação de fazer (troca, reparo, cancelamento)|l", "acordo_negativacao:Baixa de negativação|o|Não se aplica;Em até 5 dias;Em até 10 dias;Já baixada", "acordo_prazo_cumprimento:Prazo para cumprir|t", QUITACAO),
+  bancario: sec("Termos do acordo", "acordo_saldo_original:Saldo devedor original|v", "acordo_desconto:Desconto obtido|t", "acordo_juros:Juros e correção do acordo|t", "acordo_contratos:Contratos abrangidos|m", "acordo_restricoes:Baixa de restrições (SPC, Serasa, protesto)|s", "acordo_quitacao:Quitação|o|Geral e irrestrita;Só dos contratos listados;Parcial"),
+  imobiliario: sec("Termos do acordo", "acordo_imovel:Imóvel|t", "acordo_desocupacao:Desocupação até|d", "acordo_chaves:Entrega das chaves|t", "acordo_debitos:Débitos (aluguel, condomínio, IPTU)|m", "acordo_vistoria:Vistoria e reparos|l", QUITACAO),
+  familia: sec("Termos do acordo",
+    "acordo_guarda:Guarda|o|Compartilhada;Unilateral materna;Unilateral paterna;Outra", "acordo_residencia:Residência da criança|t", "acordo_convivencia:Convivência (dias, feriados, férias)|l",
+    "acordo_alimentos:Alimentos|t", "acordo_alimentos_base:Base dos alimentos|o|Valor fixo;% do salário mínimo;% dos rendimentos líquidos", "acordo_alimentos_dia:Dia do pagamento|n", "acordo_alimentos_conta:Conta ou PIX para depósito|t",
+    "acordo_extras:Despesas extras (escola, saúde, plano)|l", "acordo_partilha:Partilha de bens|l", "acordo_nome:Sobrenome após o divórcio|o|Mantém;Volta ao de solteira;Não se aplica"),
+  sucessoes: sec("Termos do acordo", "acordo_herdeiros:Herdeiros que assinam|m", "acordo_partilha:Partilha (quem fica com o quê)|l", "acordo_torna:Torna ou reposição|v", "acordo_itcmd:ITCMD (quem paga)|t", "acordo_inventariante:Inventariante|t", "acordo_dividas:Dívidas do espólio|m"),
+  penal: sec("Benefício negociado",
+    "acordo_instituto:Instituto|o|ANPP (art. 28-A, CPP);Transação penal (art. 76, Lei 9.099/95);Suspensão condicional do processo (art. 89, Lei 9.099/95);Composição civil dos danos (art. 74, Lei 9.099/95);Colaboração premiada (Lei 12.850/13)",
+    "acordo_condicoes:Condições|m", "acordo_servicos:Prestação de serviços (horas e entidade)|t", "acordo_pecuniaria:Prestação pecuniária|t", "acordo_reparacao:Reparação do dano à vítima|t",
+    "acordo_periodo:Período de prova ou de cumprimento|t", "acordo_comparecimento:Comparecimento periódico|o|Não;Mensal;Bimestral;Trimestral", "acordo_confissao:Confissão formal|s", "acordo_audiencia:Audiência de homologação|d"),
+  execucao_penal: sec("Termos do acordo", "acordo_multa_penal:Pena de multa (valor)|v", "acordo_parcelamento:Parcelamento da multa|t", "acordo_reparacao:Reparação do dano|t", "acordo_condicoes:Condições assumidas|m"),
+  trabalhista: sec("Termos do acordo",
+    "acordo_bruto:Valor bruto|v", "acordo_liquido:Valor líquido ao cliente|v", "acordo_verbas:Verbas discriminadas e natureza|m", "acordo_encargos:INSS e IR (quem recolhe)|t",
+    "acordo_fgts:FGTS e multa de 40%|t", "acordo_ctps:Anotação ou baixa na CTPS|t", "acordo_multa_atraso:Multa por atraso|o|50% sobre a parcela;100% sobre a parcela;50% sobre o saldo;Outra",
+    "acordo_quitacao:Quitação|o|Do objeto da ação;Do extinto contrato de trabalho"),
+  previdenciario: sec("Termos do acordo (proposta do INSS)", "acordo_beneficio:Benefício|t", "acordo_dib:DIB|d", "acordo_dip:DIP|d", "acordo_rmi:RMI|v", "acordo_atrasados:Atrasados (% e valor)|t", "acordo_rpv:RPV ou precatório|o|RPV;Precatório;Renúncia ao excedente", "acordo_implantacao:Prazo de implantação|t"),
+  tributario: sec("Termos da transação ou parcelamento", "acordo_programa:Programa|o|Transação tributária;Parcelamento ordinário;Parcelamento especial;Transação do contencioso", "acordo_debitos:Débitos ou CDAs incluídos|m", "acordo_consolidado:Débito consolidado|v", "acordo_desconto:Desconto em multa e juros|t", "acordo_entrada:Entrada|v", "acordo_garantia:Garantia ou penhora liberada|t"),
+  publico: sec("Termos do acordo ou TAC", "acordo_orgao:Órgão que celebra|t", "acordo_obrigacoes:Obrigações assumidas|m", "acordo_prazo_cumprimento:Prazos de cumprimento|l", "acordo_multa_diaria:Multa diária|t", "acordo_fiscalizacao:Quem fiscaliza|t"),
+  saude: sec("Termos do acordo", "acordo_cobertura:Tratamento ou cobertura garantida|l", "acordo_prazo_cumprimento:Prazo para autorizar|t", "acordo_reembolso:Reembolso|v", "acordo_indenizacao:Indenização|v"),
+  digital: sec("Termos do acordo", "acordo_conteudo:Conteúdo a remover ou corrigir|m", "acordo_prazo_cumprimento:Prazo para cumprir|t", "acordo_retratacao:Retratação|t", "acordo_indenizacao:Indenização|v", "acordo_dados:Tratamento ou exclusão de dados|l"),
+  societario: sec("Termos do acordo", "acordo_socios:Sócios envolvidos|m", "acordo_quotas:Cessão de quotas|l", "acordo_haveres:Apuração e pagamento de haveres|l", "acordo_nao_concorrencia:Não concorrência|t", "acordo_quitacao:Quitação|o|Geral e irrestrita;Parcial"),
+  imoveis_cartorio: sec("Termos do acordo", "acordo_confrontantes:Confrontantes que anuem|m", "acordo_area:Área e limites acertados|l", "acordo_custos:Divisão dos custos de cartório|t"),
+  marcas: sec("Termos do acordo", "acordo_modalidade:Modalidade|o|Coexistência;Licença de uso;Cessão;Abstenção de uso", "acordo_marcas:Marcas e classes|m", "acordo_royalties:Royalties|t", "acordo_territorio:Território e prazo|t", "acordo_abstencao:Obrigação de abstenção|l"),
+};
+
+const PERFIL_ACORDO: Record<string, string> = {
+  civel: "patrimonial", empresarial: "patrimonial", contratos: "patrimonial", notificacoes: "patrimonial", consultivo: "patrimonial", mediacao: "patrimonial",
+  consumidor: "consumidor", bancario: "bancario", imobiliario: "imobiliario",
+  familia: "familia", divorcio_cartorio: "familia",
+  sucessoes: "sucessoes", inventario_cartorio: "sucessoes", planejamento: "sucessoes",
+  criminal: "penal", juri: "penal", inquerito: "penal", execucao_penal: "execucao_penal",
+  trabalhista: "trabalhista", previdenciario: "previdenciario", tributario: "tributario",
+  administrativo: "publico", ambiental: "publico", compliance: "publico", eleitoral: "publico",
+  saude: "saude", digital: "digital", societario: "societario",
+  usucapiao_cartorio: "imoveis_cartorio", regularizacao: "imoveis_cartorio", marcas: "marcas",
+};
+
+/** Seções da aba Acordo para a área: a comum a todas e a própria da área. */
+export function secoesAcordo(area: Area): Secao[] {
+  return [ACORDO_GERAL, ACORDO_POR_AREA[PERFIL_ACORDO[area.id] ?? "patrimonial"]];
+}

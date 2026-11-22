@@ -412,6 +412,12 @@ export async function updateAcordoPagamento(grupoId: string, dados: AcordoPagame
   if (error) throw new Error(error.message);
 }
 
+// Liga ao processo um acordo que foi lançado sem processo (todas as parcelas do grupo).
+export async function vincularAcordoAoProcesso(grupoId: string, processoId: string): Promise<void> {
+  const { error } = await supabase.from("acordo_parcelas").update({ processo_id: processoId, updated_at: now() }).eq("grupo_id", grupoId);
+  if (error) throw new Error(error.message);
+}
+
 export async function updateAcordoParcela(id: string, input: Partial<AcordoParcela>): Promise<void> {
   const { error } = await supabase.from("acordo_parcelas").update({ ...input, updated_at: now() }).eq("id", id);
   if (error) throw new Error(error.message);

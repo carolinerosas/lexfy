@@ -15,13 +15,13 @@ const NOVO: [string, string, string][] = [
   ["Prazo lançado a partir da publicação", "O sistema lê o prazo no texto da intimação, conta os dias e lança no caso.", "/publicacoes"],
   ["Conflito de interesses, procurações e correspondentes", "Checagem de nomes antes de aceitar a causa; validade de procurações; cadastro de correspondentes.", "/gestao"],
   ["Calculadoras", "Prazo processual, progressão de regime, prescrição penal e verbas rescisórias.", "/ferramentas"],
+  ["Acordo em cada caso", "Aba Acordo com os termos próprios de cada área (alimentos e convivência, ANPP, verbas trabalhistas, transação tributária...) e as parcelas, as mesmas do JUSTIO antigo.", "/processos"],
   ["Clientes de A a Z", "Índice por letra inicial na lista de clientes.", "/clientes"],
 ];
 
 const ANTIGO: [string, string][] = [
-  ["Acordos e parcelas de acordo", "Aba do processo no JUSTIO antigo."],
   ["Orçamentos", "Aba do cliente no JUSTIO antigo."],
-  ["Execução penal: incidentes, cálculo de pena e benefícios", "Aba do processo no JUSTIO antigo."],
+  ["Execução penal: registro de incidentes, comutação e indulto", "Aba do processo no JUSTIO antigo."],
   ["Portal do cliente (convites e acessos)", "Página do cliente no JUSTIO antigo. A tela nova é só pré-visualização."],
   ["Arquivos enviados ao processo", "Aba Documentos do processo no JUSTIO antigo."],
   ["Briefing, modelos próprios e recibo no timbrado", "Menu do JUSTIO antigo."],

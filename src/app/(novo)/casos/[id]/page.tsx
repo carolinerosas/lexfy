@@ -20,8 +20,9 @@ import type { Caso, Custa } from "@/novo/lib/types";
 import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Acoes, DocsPendentes } from "@/novo/components/acoes";
+import { AbaAcordo } from "@/novo/components/acordo";
 
-type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
+type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
 
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
@@ -94,7 +95,7 @@ export default function PaginaCaso() {
       </header>
 
       <div className="mt-4">
-        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["referencia", "Prazos da área"]] as const} />
+        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["acordo", "Acordo"], ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["referencia", "Prazos da área"]] as const} />
       </div>
 
       <div className="mt-4">
@@ -225,7 +226,8 @@ export default function PaginaCaso() {
 
         {aba === "docs" && <><div className="mb-3 flex justify-end">{(caso.docs_pendentes ?? []).some((d) => !d.recebido) && <MensagemCliente caso={caso} modeloInicial="documentos" rotulo="Pedir documentos ao cliente" />}</div><DocsPendentes caso={caso} /></>}
 
-        {aba === "pecas" && <div className="painel p-4"><PecasPanel processoId={caso.id} tipoProcesso={areaParaTipoAntigo(caso.area)} /></div>}
+        {aba === "acordo" && <AbaAcordo caso={caso} />}
+        {aba === "pecas" &&<div className="painel p-4"><PecasPanel processoId={caso.id} tipoProcesso={areaParaTipoAntigo(caso.area)} /></div>}
         {aba === "autos" && <div className="painel p-4"><AutosPanel processoId={caso.id} /></div>}
 
         {aba === "referencia" && (
