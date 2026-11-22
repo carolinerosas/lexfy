@@ -26,7 +26,7 @@
   --color-ambar-texto: #8A6420;
   --color-ambar-claro: #D9B66B;
   --font-marca: var(--font-montserrat), "Segoe UI", sans-serif;
-  --font-serifa: var(--font-newsreader), Georgia, serif;
+  --font-serifa: var(--font-titulo), Georgia, serif;
 }
 
 html {
