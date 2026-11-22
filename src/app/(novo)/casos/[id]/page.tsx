@@ -21,8 +21,11 @@ import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Acoes, DocsPendentes } from "@/novo/components/acoes";
 import { AbaAcordo } from "@/novo/components/acordo";
+import { OrcamentosDaTelaDoCliente } from "@/novo/components/orcamentos-cliente";
+import { ExecucaoPenalPanel } from "@/components/ui/execucao-penal-panel";
+import { DocumentosPanel } from "@/components/ui/documentos-panel";
 
-type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
+type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "incidentes" | "beneficios" | "arquivos" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
 
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
@@ -95,7 +98,7 @@ export default function PaginaCaso() {
       </header>
 
       <div className="mt-4">
-        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["acordo", "Acordo"], ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["referencia", "Prazos da área"]] as const} />
+        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["acordo", "Acordo"], ...(area.id === "execucao_penal" ? [["incidentes", "Incidentes"], ["beneficios", "Comutação e indulto"]] as const : []), ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["arquivos", "Arquivos"], ["referencia", "Prazos da área"]] as const} />
       </div>
 
       <div className="mt-4">
@@ -166,7 +169,7 @@ export default function PaginaCaso() {
         )}
 
         {aba === "financeiro" && (
-          <><div className="mb-3 flex flex-wrap gap-2">
+          <><OrcamentosDaTelaDoCliente clienteId={caso.cliente_id} casoId={caso.id} /><div className="mb-3 flex flex-wrap gap-2">
             <NovoHonorario casoId={caso.id} />
             {honorarios.some((h) => h.status === "pendente") && <MensagemCliente caso={caso} modeloInicial="honorarios" rotulo="Lembrar honorários" />}
             <BotaoNovo rotulo="Lançar custa ou repasse" classe="btn btn-g" aoSalvar={(v) => incluir("custas", { caso_id: caso.id, descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hojeISO()), reembolsavel: !!v.reembolsavel, reembolsado: false })}
@@ -227,6 +230,9 @@ export default function PaginaCaso() {
         {aba === "docs" && <><div className="mb-3 flex justify-end">{(caso.docs_pendentes ?? []).some((d) => !d.recebido) && <MensagemCliente caso={caso} modeloInicial="documentos" rotulo="Pedir documentos ao cliente" />}</div><DocsPendentes caso={caso} /></>}
 
         {aba === "acordo" && <AbaAcordo caso={caso} />}
+        {aba === "incidentes" && <div className="painel p-4"><ExecucaoPenalPanel processoId={caso.id} parte="incidentes" /></div>}
+        {aba === "beneficios" && <div className="painel p-4"><ExecucaoPenalPanel processoId={caso.id} parte="beneficios" /></div>}
+        {aba === "arquivos" && <DocumentosPanel contexto="processos" registroId={caso.id} titulo="Arquivos do processo" />}
         {aba === "pecas" &&<div className="painel p-4"><PecasPanel processoId={caso.id} tipoProcesso={areaParaTipoAntigo(caso.area)} /></div>}
         {aba === "autos" && <div className="painel p-4"><AutosPanel processoId={caso.id} /></div>}
 

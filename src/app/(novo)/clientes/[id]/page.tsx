@@ -10,6 +10,7 @@ import { Vazio } from "@/novo/components/ui";
 import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Pencil } from "lucide-react";
+import { OrcamentosDoCliente } from "@/novo/components/orcamentos-cliente";
 
 export default function PaginaCliente() {
   const { id } = useParams<{ id: string }>();
@@ -78,6 +79,7 @@ export default function PaginaCliente() {
                 ))}</tbody></table>
             )}
           </section>
+          <OrcamentosDoCliente clienteId={c.id} />
           <section className="painel">
             <div className="painel-cab"><h2>Atendimentos</h2></div>
             {atend.length === 0 ? <Vazio titulo="Nenhum atendimento registrado" /> : (
