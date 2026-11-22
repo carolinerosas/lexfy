@@ -62,7 +62,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
           <label>
             <span className={rotulo}>Relação</span>
             <select className={campo} value={valor.relacao ?? ""} onChange={(e) => set("relacao", (e.target.value || undefined) as DadosFamilia["relacao"])}>
-              <option value="">—</option>
+              <option value="">-</option>
               <option value="casamento">Casamento</option>
               <option value="uniao_estavel">União estável</option>
             </select>
@@ -113,7 +113,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
 
       {(
         [
-          ["bens", "Partilha — bens", totalBens],
+          ["bens", "Partilha - bens", totalBens],
           ["dividas", "Dívidas", totalDividas],
         ] as const
       ).map(([k, titulo, total]) => (

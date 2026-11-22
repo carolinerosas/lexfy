@@ -219,8 +219,8 @@ export default function ModelosPage() {
           <div className="rounded-lg bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
             <p className="font-semibold">E os campos que mudam por caso?</p>
             <p className="mt-1 text-blue-800">
-              Qualquer marcador <strong>fora desta lista</strong> — como <code className="rounded bg-white/70 px-1 text-xs">{`{{processo}}`}</code> ou{" "}
-              <code className="rounded bg-white/70 px-1 text-xs">{`{{acao}}`}</code> — o Justio <strong>pergunta na hora de gerar</strong>.
+              Qualquer marcador <strong>fora desta lista</strong> - como <code className="rounded bg-white/70 px-1 text-xs">{`{{processo}}`}</code> ou{" "}
+              <code className="rounded bg-white/70 px-1 text-xs">{`{{acao}}`}</code> - o Justio <strong>pergunta na hora de gerar</strong>.
               No caso do <code className="rounded bg-white/70 px-1 text-xs">{`{{processo}}`}</code>, ele ainda mostra os processos já cadastrados do cliente pra você só clicar.
             </p>
           </div>

@@ -35,7 +35,7 @@ export default function Relatorio() {
         </header>
 
         <dl className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {([["Casos acompanhados", String(casos.length)], ["Em andamento", String(casos.filter((x) => x.status === "ativo").length)], ["Valor em discussão", emCausa ? brl(emCausa) : "—"], ["Honorários em aberto", brl(soma(hon.filter((h) => h.status === "pendente" && h.tipo !== "êxito")))]] as const).map(([k, v]) => (
+          {([["Casos acompanhados", String(casos.length)], ["Em andamento", String(casos.filter((x) => x.status === "ativo").length)], ["Valor em discussão", emCausa ? brl(emCausa) : "-"], ["Honorários em aberto", brl(soma(hon.filter((h) => h.status === "pendente" && h.tipo !== "êxito")))]] as const).map(([k, v]) => (
             <div key={k}><dt className="text-[12px] font-semibold text-ink-3">{k}</dt><dd className="titulo mt-0.5 text-[20px]">{v}</dd></div>
           ))}
         </dl>
@@ -52,7 +52,7 @@ export default function Relatorio() {
               <dl className="mt-3 grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-3">
                 <div><dt className="text-[12px] font-semibold text-ink-3">Fase</dt><dd>{a.fases[x.fase]}</dd></div>
                 <div><dt className="text-[12px] font-semibold text-ink-3">Chance de êxito</dt><dd>{x.risco ? RISCO[x.risco] : "Não avaliada"}</dd></div>
-                <div><dt className="text-[12px] font-semibold text-ink-3">Valor</dt><dd>{x.valor ? brl(x.valor) : "—"}</dd></div>
+                <div><dt className="text-[12px] font-semibold text-ink-3">Valor</dt><dd>{x.valor ? brl(x.valor) : "-"}</dd></div>
               </dl>
               <h3 className="mt-4 text-[12px] font-semibold text-ink-3">Últimos andamentos</h3>
               {movs.length === 0 ? <p className="text-[13.5px] text-ink-2">Sem andamentos no período.</p> : <ul className="mt-1 text-[13.5px]">{movs.map((m) => <li key={m.id} className="grid grid-cols-[84px_minmax(0,1fr)] gap-2 py-0.5"><span className="text-ink-3">{data(m.data)}</span><span>{m.texto_cliente ?? m.descricao}</span></li>)}</ul>}

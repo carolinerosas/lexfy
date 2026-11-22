@@ -118,7 +118,7 @@ export async function inspecionarModelo(caminho: string): Promise<string[]> {
     // Remove as tags XML para juntar marcadores que o Word possa ter quebrado entre runs.
     texto = zip.file("word/document.xml")!.asText().replace(/<[^>]+>/g, "");
   } catch {
-    throw new Error("Arquivo de modelo inválido — verifique se é um .docx do Word.");
+    throw new Error("Arquivo de modelo inválido - verifique se é um .docx do Word.");
   }
 
   const conhecidos = new Set(TOKENS_AUTO);
@@ -151,7 +151,7 @@ export async function preencherModeloHtml(
   try {
     zip = new PizZip(buffer);
   } catch {
-    throw new Error("Arquivo de modelo inválido — verifique se é um .docx do Word.");
+    throw new Error("Arquivo de modelo inválido - verifique se é um .docx do Word.");
   }
 
   const doc = new Docxtemplater(zip, {
@@ -203,7 +203,7 @@ export async function preencherModelo(
   try {
     zip = new PizZip(buffer);
   } catch {
-    throw new Error("Arquivo de modelo inválido — verifique se é um .docx do Word.");
+    throw new Error("Arquivo de modelo inválido - verifique se é um .docx do Word.");
   }
 
   const doc = new Docxtemplater(zip, {

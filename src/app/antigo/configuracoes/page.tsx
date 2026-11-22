@@ -359,7 +359,7 @@ export default function ConfiguracoesPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-gray-500" />
-            <CardTitle>DataJud — CNJ</CardTitle>
+            <CardTitle>DataJud - CNJ</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="space-y-5">

@@ -18,24 +18,24 @@ const LABELS_TOKEN: Record<string, string> = {
   acao: "Nome da ação",
   valor: "Valor",
   objeto: "Objeto",
-  declarante_nome: "Declarante — nome completo",
-  declarante_nacionalidade: "Declarante — nacionalidade",
-  declarante_estado_civil: "Declarante — estado civil",
-  declarante_profissao: "Declarante — profissão",
-  declarante_rg: "Declarante — RG",
-  declarante_cpf: "Declarante — CPF",
-  declarante_endereco: "Declarante — endereço completo",
+  declarante_nome: "Declarante - nome completo",
+  declarante_nacionalidade: "Declarante - nacionalidade",
+  declarante_estado_civil: "Declarante - estado civil",
+  declarante_profissao: "Declarante - profissão",
+  declarante_rg: "Declarante - RG",
+  declarante_cpf: "Declarante - CPF",
+  declarante_endereco: "Declarante - endereço completo",
   vinculo_parentesco: "Vínculo/parentesco com o apenado",
   municipio_assinatura: "Município da assinatura",
-  empregador_nome: "Empregador — nome / razão social",
-  empregador_qualificacao: "Empregador — qualificação",
-  empregador_doc: "Empregador — CPF/CNPJ",
-  empregador_endereco: "Empregador — endereço",
-  empregador_telefone: "Empregador — telefone",
-  empregador_representante: "Empregador — representante",
-  representante_cargo: "Representante — cargo",
-  representante_rg: "Representante — RG",
-  representante_cpf: "Representante — CPF",
+  empregador_nome: "Empregador - nome / razão social",
+  empregador_qualificacao: "Empregador - qualificação",
+  empregador_doc: "Empregador - CPF/CNPJ",
+  empregador_endereco: "Empregador - endereço",
+  empregador_telefone: "Empregador - telefone",
+  empregador_representante: "Empregador - representante",
+  representante_cargo: "Representante - cargo",
+  representante_rg: "Representante - RG",
+  representante_cpf: "Representante - CPF",
   funcao: "Função oferecida",
   local_trabalho: "Local de trabalho",
   jornada: "Jornada de trabalho",
@@ -353,7 +353,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
 
       <p className="px-1 text-xs text-gray-400">
         <Loader2 className="mr-1 inline h-3 w-3 align-[-2px]" />
-        Dica: o botão <strong>PDF</strong> abre a janela de impressão — escolha “Salvar como PDF”. O <strong>Word</strong> baixa um arquivo que abre no Word/Google Docs para ajustes finais.
+        Dica: o botão <strong>PDF</strong> abre a janela de impressão - escolha “Salvar como PDF”. O <strong>Word</strong> baixa um arquivo que abre no Word/Google Docs para ajustes finais.
       </p>
 
       {modalGerar && (

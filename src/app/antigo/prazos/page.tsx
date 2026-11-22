@@ -100,7 +100,7 @@ export default function PrazosPage() {
                     <div className="flex-1 min-w-0">
                       <p className={`break-words text-sm font-semibold ${p.concluido ? "line-through text-gray-400" : "text-gray-900"}`}>{p.titulo}</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {p.processo?.cliente_nome ?? "—"} · <span className="font-mono">{p.processo?.numero ?? "—"}</span>
+                        {p.processo?.cliente_nome ?? "-"} · <span className="font-mono">{p.processo?.numero ?? "-"}</span>
                         {p.tipo ? ` · ${p.tipo}` : ""}
                       </p>
                     </div>
@@ -153,7 +153,7 @@ function NovoPrazoModal({ open, onClose, onCreated }: { open: boolean; onClose: 
       <form onSubmit={submit} className="space-y-4">
         <ComboBox
           label="Processo *"
-          options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
+          options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))}
           placeholder="Selecione o processo..."
           value={processoId}
           onChange={setProcessoId}

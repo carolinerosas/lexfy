@@ -290,7 +290,7 @@ function TarefaRow({ tarefa, onToggle, onEdit, onDelete }: {
               <span>Processo não encontrado</span>
             )}
             <span>·</span>
-            <span>{tarefa.processo?.cliente_nome ?? "—"}</span>
+            <span>{tarefa.processo?.cliente_nome ?? "-"}</span>
           </div>
         </div>
       </div>

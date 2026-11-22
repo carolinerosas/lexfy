@@ -405,9 +405,9 @@ export default function AudienciaAoVivoPage() {
           <h1 className="text-2xl font-bold text-gray-900">Audiência ao vivo</h1>
           <p className="text-sm text-gray-500 mt-1 break-words">
             {livre
-              ? "Audiência livre — sem processo vinculado"
+              ? "Audiência livre - sem processo vinculado"
               : audiencia
-                ? `${audiencia.titulo} · ${audiencia.processo?.cliente_nome ?? "—"} · ${audiencia.processo?.numero ?? "—"}`
+                ? `${audiencia.titulo} · ${audiencia.processo?.cliente_nome ?? "-"} · ${audiencia.processo?.numero ?? "-"}`
                 : "Carregando…"}
           </p>
         </div>
@@ -480,7 +480,7 @@ export default function AudienciaAoVivoPage() {
             </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
-              <Button size="sm" variant="outline" disabled={!trechos.length} onClick={() => salvar(`Transcrição — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, textoTranscricao())}>
+              <Button size="sm" variant="outline" disabled={!trechos.length} onClick={() => salvar(`Transcrição - ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, textoTranscricao())}>
                 <Save className="w-4 h-4" /> {livre ? "Baixar transcrição (.txt)" : "Salvar transcrição no processo"}
               </Button>
               <Button size="sm" variant="ghost" disabled={!trechos.length || estado === "gravando"} onClick={novaAudiencia}>
@@ -528,7 +528,7 @@ export default function AudienciaAoVivoPage() {
                   size="sm"
                   variant="ghost"
                   disabled={!notas.trim()}
-                  onClick={() => salvar(`Anotações da audiência — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, notas)}
+                  onClick={() => salvar(`Anotações da audiência - ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, notas)}
                   title={livre ? "Baixar .txt" : "Salvar no processo"}
                 >
                   <Save className="w-4 h-4" />
@@ -562,7 +562,7 @@ export default function AudienciaAoVivoPage() {
                     <Button size="sm" variant="ghost" disabled={!peca.texto} onClick={() => navigator.clipboard.writeText(peca.texto)} title="Copiar">
                       <Copy className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="ghost" disabled={!peca.texto || !!analisando} onClick={() => salvar(`${tituloPeca} — ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, peca.texto)} title={livre ? "Baixar .txt" : "Salvar no processo"}>
+                    <Button size="sm" variant="ghost" disabled={!peca.texto || !!analisando} onClick={() => salvar(`${tituloPeca} - ${audiencia?.titulo ?? "audiência livre"} (${dataAudiencia})`, peca.texto)} title={livre ? "Baixar .txt" : "Salvar no processo"}>
                       <Save className="w-4 h-4" />
                     </Button>
                   </div>

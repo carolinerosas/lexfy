@@ -54,8 +54,8 @@ export default function Pessoas() {
                     <td><span className="flex items-center gap-3"><Avatar pessoa={e} tamanho={34} /><span><button className="font-semibold hover:underline" onClick={() => setFicha(e)}>{e.nome}</button><span className="block text-[12.5px] text-ink-3">{e.cargo}</span></span></span></td>
                     <td><span className="tag">{e.vinculo}</span>{e.oab && <span className="block pt-1 text-[12px] text-ink-3">{e.oab}</span>}</td>
                     <td><span className="flex max-w-[190px] flex-wrap gap-1">{e.areas.slice(0, 6).map((a) => <TagArea key={a} id={a} curto />)}{e.areas.length > 6 && <span className="text-[12px] text-ink-3">+{e.areas.length - 6}</span>}{e.areas.length === 0 && <span className="text-ink-3">Apoio</span>}</span></td>
-                    <td className="num">{l.casos || "—"}</td><td className="num">{l.prazos || "—"}</td>
-                    <td>{e.meta_horas ? <><span className="text-[13px]">{horas(l.hs)} <span className="text-ink-3">de {e.meta_horas}h</span></span><span className="mt-1 block h-1.5 w-28 overflow-hidden rounded-full bg-cobalto-f"><span className="block h-1.5 bg-ink" style={{ width: `${Math.min(100, (l.hs / 60 / e.meta_horas) * 100)}%` }} /></span></> : <span className="text-ink-3">—</span>}</td>
+                    <td className="num">{l.casos || "-"}</td><td className="num">{l.prazos || "-"}</td>
+                    <td>{e.meta_horas ? <><span className="text-[13px]">{horas(l.hs)} <span className="text-ink-3">de {e.meta_horas}h</span></span><span className="mt-1 block h-1.5 w-28 overflow-hidden rounded-full bg-cobalto-f"><span className="block h-1.5 bg-ink" style={{ width: `${Math.min(100, (l.hs / 60 / e.meta_horas) * 100)}%` }} /></span></> : <span className="text-ink-3">-</span>}</td>
                   </tr>
                 ); })}</tbody></table>
             </div>

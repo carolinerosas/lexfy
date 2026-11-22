@@ -128,8 +128,8 @@ async function preencherClienteExistente(cliente: Cliente, dados: Partial<Client
 function processoLabel(processo: Processo): string {
   const numero = processo.numero || (processo.tipo === "inquerito_policial" ? processo.numero_inquerito || "Inquérito sem número" : "Sem número");
   const classe = processo.tipo ? processoTipoLabels[processo.tipo] ?? processo.tipo : "Sem classificação";
-  const penal = isPenalTipo(processo.tipo) && processo.tipo_penal ? ` — ${processo.tipo_penal}` : "";
-  return `${numero} — ${classe}${penal} — ${processo.titulo || "Processo sem título"} — ${processo.cliente_nome || "sem cliente"}`;
+  const penal = isPenalTipo(processo.tipo) && processo.tipo_penal ? ` - ${processo.tipo_penal}` : "";
+  return `${numero} - ${classe}${penal} - ${processo.titulo || "Processo sem título"} - ${processo.cliente_nome || "sem cliente"}`;
 }
 
 function isPenalTipo(tipo?: string): boolean {
@@ -470,7 +470,7 @@ export default function TriagemPage() {
       // 4) O texto importado vira anotação: na pasta de cada processo ou, sem processo, na do cliente.
       const textoOriginal = textoImportacao.trim();
       if (textoOriginal) {
-        const titulo = `Importação da triagem — ${new Date().toLocaleDateString("pt-BR")}`;
+        const titulo = `Importação da triagem - ${new Date().toLocaleDateString("pt-BR")}`;
         const alvosProcesso = [...new Set(processosDraft
           .map((proc) => processosPorNumero.get(digits(proc.numero))?.id)
           .filter((id): id is string => Boolean(id)))];
@@ -1022,7 +1022,7 @@ function ImportacaoAssistida({
             : p
         )),
       });
-      setDataJud((s) => ({ ...s, [index]: { status: "ok", msg: "Dados do DataJud preenchidos — confira e ajuste." } }));
+      setDataJud((s) => ({ ...s, [index]: { status: "ok", msg: "Dados do DataJud preenchidos - confira e ajuste." } }));
     } catch (err) {
       const msg = err instanceof DataJudError ? err.message : "Não consegui consultar o DataJud agora.";
       setDataJud((s) => ({ ...s, [index]: { status: "erro", msg } }));
@@ -1214,8 +1214,8 @@ function ImportacaoAssistida({
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
                   {draft.sem_processo || draft.processos.length === 0
-                    ? "Só cadastro de cliente (sem processo) — o texto vai como anotação na pasta do cliente"
-                    : `${processosNovos} processo(s) novo(s), ${processosExistentes} já existente(s) — o texto vai como anotação no processo`}
+                    ? "Só cadastro de cliente (sem processo) - o texto vai como anotação na pasta do cliente"
+                    : `${processosNovos} processo(s) novo(s), ${processosExistentes} já existente(s) - o texto vai como anotação no processo`}
                 </p>
                 <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                   <input

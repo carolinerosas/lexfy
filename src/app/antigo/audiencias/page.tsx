@@ -114,7 +114,7 @@ export default function AudienciasPage() {
                         {a.tipo && <Badge variant="neutral">{tipoLabel[a.tipo] ?? a.tipo}</Badge>}
                         {isToday && !a.realizada && <Badge variant="default">Hoje</Badge>}
                       </div>
-                      <p className="text-xs text-gray-500 truncate">{a.processo?.cliente_nome ?? "—"} · {a.processo?.numero ?? "—"}</p>
+                      <p className="text-xs text-gray-500 truncate">{a.processo?.cliente_nome ?? "-"} · {a.processo?.numero ?? "-"}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-1.5">
                         <span className="flex items-center gap-1 text-xs text-gray-400"><Clock className="w-3 h-3" />{formatDateTime(a.data_hora).split(" ")[1]}h</span>
                         {a.local && <span className="flex items-center gap-1 text-xs text-gray-400"><MapPin className="w-3 h-3" />{a.local}</span>}
@@ -196,7 +196,7 @@ function NovaAudienciaModal({ open, onClose, onCreated }: { open: boolean; onClo
   return (
     <Modal open={open} onClose={onClose} title="Nova Audiência" size="sm">
       <form onSubmit={submit} className="space-y-4">
-        <ComboBox label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={setProcessoId} />
+        <ComboBox label="Processo *" options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))} placeholder="Selecione o processo..." value={processoId} onChange={setProcessoId} />
         <Input label="Título *" placeholder="Ex: Audiência de Instrução" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
         <SelectComOutro label="Tipo" category="audiencia_tipo" baseOptions={audienciaTipoOptions} placeholder="Tipo..." value={tipo} onChange={(v) => setTipo(v)} />
         <Input label="Data e Hora *" type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} required />

@@ -1001,7 +1001,7 @@ function HonorarioModal({
         />
         <ComboBox
           label="Processo *"
-          options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
+          options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))}
           placeholder="Selecione o processo..."
           value={processoId}
           onChange={setProcessoId}

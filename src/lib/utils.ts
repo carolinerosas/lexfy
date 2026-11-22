@@ -27,13 +27,13 @@ function toValidDate(date: string | Date | null | undefined): Date | null {
 
 export function formatDate(date: string | Date | null | undefined): string {
   const d = toValidDate(date);
-  if (!d) return "—";
+  if (!d) return "-";
   return new Intl.DateTimeFormat("pt-BR").format(d);
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
   const d = toValidDate(date);
-  if (!d) return "—";
+  if (!d) return "-";
   return new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",

@@ -159,7 +159,7 @@ export function calcular(caso: Caso, ref = hoje()): Calculo {
 }
 
 export const pct = (f: number) => `${(f * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-const dataBR = (s?: string) => (s ? format(dt(s), "dd/MM/yyyy") : "—");
+const dataBR = (s?: string) => (s ? format(dt(s), "dd/MM/yyyy") : "-");
 
 /** Linhas de texto da execução, para o resumo do caso. */
 export function resumoExecucao(caso: Caso): string[] {

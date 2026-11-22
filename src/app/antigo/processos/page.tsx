@@ -60,7 +60,7 @@ const tipoLabel: Record<string, string> = {
 
 // Mostra o rótulo conhecido ou o próprio valor customizado
 function tipoDisplay(tipo?: string): string {
-  if (!tipo) return "—";
+  if (!tipo) return "-";
   return tipoLabel[tipo] ?? tipo;
 }
 
@@ -543,7 +543,7 @@ export default function ProcessosPage() {
                     </p>
                   )}
                   <p>
-                    <span className="font-medium text-gray-700">Tribunal:</span> {p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}
+                    <span className="font-medium text-gray-700">Tribunal:</span> {p.tribunal ?? "-"}{p.uf ? `/${p.uf}` : ""}
                   </p>
                   {p.comarca && (
                     <p>
@@ -677,7 +677,7 @@ export default function ProcessosPage() {
                     )}
                   </td>
                   <td className="px-3 py-4 hidden md:table-cell text-gray-600">
-                    <p>{p.tribunal ?? "—"}{p.uf ? `/${p.uf}` : ""}</p>
+                    <p>{p.tribunal ?? "-"}{p.uf ? `/${p.uf}` : ""}</p>
                     {p.comarca && <p className="mt-0.5 max-w-36 truncate text-xs text-gray-400">{p.comarca}</p>}
                   </td>
                   <td className="px-3 py-4 hidden lg:table-cell text-gray-600">
@@ -692,7 +692,7 @@ export default function ProcessosPage() {
                     <Badge variant={statusVariant[p.status]}>{statusLabel[p.status]}</Badge>
                   </td>
                   <td className="px-3 py-4 hidden xl:table-cell text-gray-500">
-                    {p.data_distribuicao ? formatDate(p.data_distribuicao) : "—"}
+                    {p.data_distribuicao ? formatDate(p.data_distribuicao) : "-"}
                   </td>
                   <td className="px-3 py-4">
                     <div className="flex items-center justify-center gap-1 whitespace-nowrap">

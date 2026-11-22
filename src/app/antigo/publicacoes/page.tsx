@@ -136,9 +136,9 @@ const HASHES_KEY = "justio_pub_hashes";
 const diarioOptions = [
   { value: "DOU", label: "Diário Oficial da União (DOU)" },
   { value: "Diario de Justica Eletronico Nacional", label: "DJEN/CNJ" },
-  { value: "DJE/TJERJ", label: "DJE/TJERJ — Rio de Janeiro" },
-  { value: "TJSP", label: "DJE/TJSP — São Paulo" },
-  { value: "TJMG", label: "DJE/TJMG — Minas Gerais" },
+  { value: "DJE/TJERJ", label: "DJE/TJERJ - Rio de Janeiro" },
+  { value: "TJSP", label: "DJE/TJSP - São Paulo" },
+  { value: "TJMG", label: "DJE/TJMG - Minas Gerais" },
   { value: "TRF1", label: "TRF 1ª Região" },
   { value: "TRF2", label: "TRF 2ª Região" },
   { value: "TRF3", label: "TRF 3ª Região" },
@@ -882,7 +882,7 @@ function DetalheModal({
             {publicacao.data_publicacao && <span>{formatDate(publicacao.data_publicacao)}</span>}
             {proc ? (
               <span className="inline-flex items-center gap-1 text-blue-600 font-medium">
-                <FileText className="w-3 h-3" /> {proc.numero} — {proc.cliente_nome}
+                <FileText className="w-3 h-3" /> {proc.numero} - {proc.cliente_nome}
               </span>
             ) : cnj ? (
               <span className="text-amber-600">Processo não cadastrado</span>
@@ -992,7 +992,7 @@ function PrazoModal({
       <form onSubmit={submit} className="space-y-4">
         <ComboBox
           label="Processo *"
-          options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
+          options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))}
           placeholder="Selecione o processo..."
           value={processoId}
           onChange={setProcessoId}
@@ -1088,7 +1088,7 @@ function AdicionarProcessoModal({
         setParteContraria(dados.polosP.join(", "));
         if (dados.polosA.length || dados.polosP.length) {
           setPartesInfo(
-            `Polo ativo: ${dados.polosA.join("; ") || "—"} · Polo passivo: ${dados.polosP.join("; ") || "—"}`
+            `Polo ativo: ${dados.polosA.join("; ") || "-"} · Polo passivo: ${dados.polosP.join("; ") || "-"}`
           );
         }
       })
@@ -1142,7 +1142,7 @@ function AdicionarProcessoModal({
         <Input label="Cliente (parte que você representa) *" value={clienteNome} onChange={(e) => setClienteNome(e.target.value)} placeholder="Confirme qual parte é seu cliente" />
         <Input label="Parte contrária" value={parteContraria} onChange={(e) => setParteContraria(e.target.value)} />
         <p className="text-xs text-gray-400">
-          Os dados foram preenchidos automaticamente pelo DJEN/CNJ. Confira o cliente e a parte contrária — em processos em segredo de justiça os nomes podem não aparecer.
+          Os dados foram preenchidos automaticamente pelo DJEN/CNJ. Confira o cliente e a parte contrária - em processos em segredo de justiça os nomes podem não aparecer.
         </p>
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -1185,8 +1185,8 @@ function RegistrarModal({ open, onClose, onCreated }: { open: boolean; onClose: 
   return (
     <Modal open={open} onClose={onClose} title="Registrar Publicação" size="md">
       <form onSubmit={submit} className="space-y-4">
-        <ComboBox label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={setProcessoId} />
-        <Input label="Título / Resumo" placeholder="Ex: Despacho — intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+        <ComboBox label="Processo (opcional)" options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))} placeholder="Selecione se aplicável..." value={processoId} onChange={setProcessoId} />
+        <Input label="Título / Resumo" placeholder="Ex: Despacho - intimação para audiência" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectComOutro label="Diário / Fonte" category="publicacao_diario" baseOptions={diarioOptions} placeholder="Selecione..." value={diario} onChange={(v) => setDiario(v)} />
           <Input label="Data de Publicação" type="date" value={dataPub} onChange={(e) => setDataPub(e.target.value)} />

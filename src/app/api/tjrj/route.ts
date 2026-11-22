@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
   if (ehPje) {
     return NextResponse.json(
       {
-        error: "Este processo está no PJe-RJ — a consulta pública do TJRJ não disponibiliza movimentações. É necessário acessar o PJe com login (certificado digital ou senha OAB).",
+        error: "Este processo está no PJe-RJ - a consulta pública do TJRJ não disponibiliza movimentações. É necessário acessar o PJe com login (certificado digital ou senha OAB).",
         debug,
         ehPje: true,
         urlExterna: meta.urlProcessoExterno,

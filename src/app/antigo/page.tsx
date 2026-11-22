@@ -250,7 +250,7 @@ function TarefaItem({ tarefa }: { tarefa: TarefaComProcesso }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{tarefa.titulo}</p>
           <p className="mt-0.5 truncate text-xs text-gray-400">
-            {tarefa.processo?.cliente_nome ?? "—"} · <span className="font-mono">{tarefa.processo?.numero ?? "—"}</span>
+            {tarefa.processo?.cliente_nome ?? "-"} · <span className="font-mono">{tarefa.processo?.numero ?? "-"}</span>
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -272,7 +272,7 @@ function PrazoItem({ prazo }: { prazo: PrazoComProcesso }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{prazo.titulo}</p>
           <p className="mt-0.5 truncate text-xs text-gray-400">
-            {prazo.processo?.cliente_nome ?? "—"} · <span className="font-mono">{prazo.processo?.numero ?? "—"}</span>
+            {prazo.processo?.cliente_nome ?? "-"} · <span className="font-mono">{prazo.processo?.numero ?? "-"}</span>
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -293,7 +293,7 @@ function AudienciaItem({ audiencia }: { audiencia: AudienciaComProcesso }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-gray-900">{audiencia.titulo}</p>
           <p className="mt-0.5 truncate text-xs text-gray-400">
-            {audiencia.processo?.cliente_nome ?? "—"} · {audiencia.local ?? "Local não informado"}
+            {audiencia.processo?.cliente_nome ?? "-"} · {audiencia.local ?? "Local não informado"}
           </p>
         </div>
         <div className="shrink-0 text-right">

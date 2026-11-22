@@ -174,7 +174,7 @@ export default function NovoAtendimentoPage() {
               />
               <ComboBox
                 label="Processo (opcional)"
-                options={processos.map((p) => ({ value: p.id, label: `${p.numero} — ${p.cliente_nome}` }))}
+                options={processos.map((p) => ({ value: p.id, label: `${p.numero} - ${p.cliente_nome}` }))}
                 placeholder="Selecione se vinculado a processo..."
                 value={form.processo_id}
                 onChange={handleProcessoChange}

@@ -389,7 +389,7 @@ export function NovoProcessoModal({ open, onClose, onCreated, clienteInicial }: 
         : /unidade_prisional|schema cache|column/i.test(detalhe)
           ? "supabase-processos-unidade-prisional.sql"
           : "";
-      setSaveError(precisaSql ? `${detalhe} — rode o SQL ${precisaSql} no Supabase.` : detalhe);
+      setSaveError(precisaSql ? `${detalhe} - rode o SQL ${precisaSql} no Supabase.` : detalhe);
     } finally {
       setSaving(false);
     }

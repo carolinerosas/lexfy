@@ -124,7 +124,7 @@ export function PecasPanel({ processoId, tipoProcesso }: { processoId: string; t
     try {
       await createAnotacao({
         processo_id: processoId,
-        titulo: `${tipoPeca(tipo).label} — rascunho (${new Date().toLocaleDateString("pt-BR")})`,
+        titulo: `${tipoPeca(tipo).label} - rascunho (${new Date().toLocaleDateString("pt-BR")})`,
         conteudo: texto,
       });
       setGravacao("salvo");

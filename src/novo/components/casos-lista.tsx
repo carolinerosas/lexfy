@@ -81,10 +81,10 @@ export function CasosLista({ natureza }: { natureza: "judicial" | "extrajudicial
                       <span className="block max-w-[170px] truncate">{a.fases[c.fase]}</span>
                       <span className="mt-1.5 flex gap-0.5" aria-hidden>{a.fases.map((_, i) => <span key={i} className="h-1 flex-1 rounded-full" style={{ background: i <= c.fase ? "var(--color-cobalto)" : "var(--color-line)" }} />)}</span>
                     </td>
-                    <td className="max-w-[180px]"><span className="block truncate">{c.orgao ?? "—"}</span><span className="block truncate text-[12.5px] text-ink-3">{c.comarca}</span></td>
-                    <td className="max-w-[200px]">{campoDestaque ? <><span className="block truncate text-[12px] text-ink-3">{campoDestaque.rotulo}</span><span className="block truncate">{valorCampo(campoDestaque, c.dados[campoDestaque.k])}</span></> : "—"}</td>
-                    <td className="num">{c.valor ? brlCurto(c.valor) : "—"}</td>
-                    <td className="whitespace-nowrap">{ultimo.get(c.id) ? dataCurta(ultimo.get(c.id)) : "—"}{naoLidos.has(c.id) && <span className="tag tag-alerta ml-2">novo</span>}</td>
+                    <td className="max-w-[180px]"><span className="block truncate">{c.orgao ?? "-"}</span><span className="block truncate text-[12.5px] text-ink-3">{c.comarca}</span></td>
+                    <td className="max-w-[200px]">{campoDestaque ? <><span className="block truncate text-[12px] text-ink-3">{campoDestaque.rotulo}</span><span className="block truncate">{valorCampo(campoDestaque, c.dados[campoDestaque.k])}</span></> : "-"}</td>
+                    <td className="num">{c.valor ? brlCurto(c.valor) : "-"}</td>
+                    <td className="whitespace-nowrap">{ultimo.get(c.id) ? dataCurta(ultimo.get(c.id)) : "-"}{naoLidos.has(c.id) && <span className="tag tag-alerta ml-2">novo</span>}</td>
                     <td><Avatar pessoa={pessoa(c.responsavel_id)} /></td>
                   </tr>
                 );

@@ -398,8 +398,8 @@ export default function ClienteDetailPage() {
                       <p className="text-sm font-medium text-gray-900 truncate">{h.descricao}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         {h.categoria === "pagamento"
-                          ? h.data_recebimento ? formatDate(h.data_recebimento) : "—"
-                          : h.data_lancamento ? formatDate(h.data_lancamento) : "—"}
+                          ? h.data_recebimento ? formatDate(h.data_recebimento) : "-"
+                          : h.data_lancamento ? formatDate(h.data_lancamento) : "-"}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -469,7 +469,7 @@ export default function ClienteDetailPage() {
                     <li key={p.id} className="px-5 py-3 flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-900 truncate">{p.titulo}</p>
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">{p.processo?.numero ?? "—"}</p>
+                        <p className="text-xs text-gray-400 font-mono mt-0.5">{p.processo?.numero ?? "-"}</p>
                       </div>
                       <span className={`ml-auto text-xs font-bold px-2 py-1 rounded-lg shrink-0 ${prazoColor(days)}`}>
                         {days < 0 ? `${Math.abs(days)}d atraso` : days === 0 ? "Hoje" : `${days}d`}
@@ -490,7 +490,7 @@ export default function ClienteDetailPage() {
                 {audienciasProximas.slice(0, 5).map((a) => {
                   const raw = a.data_hora ?? "";
                   const dt = raw ? new Date(raw.includes("T") ? raw : raw + "T00:00") : null;
-                  const dia = dt ? dt.getDate().toString().padStart(2, "0") : "—";
+                  const dia = dt ? dt.getDate().toString().padStart(2, "0") : "-";
                   const mes = dt
                     ? dt.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "").toUpperCase()
                     : "";
@@ -507,7 +507,7 @@ export default function ClienteDetailPage() {
                         <p className="text-xs text-gray-400 mt-0.5 truncate">
                           {temHora ? `${hora}h` : ""}
                           {temHora && a.local ? " · " : ""}
-                          {a.local ?? (!temHora ? "—" : "")}
+                          {a.local ?? (!temHora ? "-" : "")}
                         </p>
                       </div>
                     </li>
@@ -747,7 +747,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf ?? ""} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg ?? ""} onChange={(e) => set("rg", formatRG(e.target.value))} />
-              <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo ?? ""} onChange={(e) => set("sexo", e.target.value)} />
+              <Select label="Sexo" placeholder="-" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo ?? ""} onChange={(e) => set("sexo", e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <SelectComOutro label="Nacionalidade" category={`cliente_nacionalidade_${form.sexo || "geral"}`} baseOptions={nacionalidadeBase} placeholder="Selecione..." value={form.nacionalidade ?? ""} onChange={(v) => set("nacionalidade", v)} />
@@ -770,7 +770,7 @@ function EditClienteModal({ open, cliente, onClose, onSaved }: {
               <div>
                 <Input label="CEP" placeholder="00000-000" inputMode="numeric" value={form.cep ?? ""} onChange={(e) => handleCepChange(e.target.value)} />
                 {cepStatus === "loading" && <p className="mt-1 text-xs text-gray-400">Buscando endereço…</p>}
-                {cepStatus === "ok" && <p className="mt-1 text-xs text-green-600">Endereço preenchido — confira e ajuste se precisar.</p>}
+                {cepStatus === "ok" && <p className="mt-1 text-xs text-green-600">Endereço preenchido - confira e ajuste se precisar.</p>}
                 {cepStatus === "erro" && <p className="mt-1 text-xs text-amber-600">CEP não encontrado. Preencha manualmente.</p>}
               </div>
             </div>

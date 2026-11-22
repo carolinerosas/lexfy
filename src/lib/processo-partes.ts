@@ -35,7 +35,7 @@ export function partesDoProcesso(
 
 export function nomesPartesProcesso(processo: Pick<Processo, "cliente_id" | "cliente_nome" | "cliente_cpf_cnpj" | "clientes_partes">): string {
   const nomes = partesDoProcesso(processo).map((parte) => parte.nome);
-  return nomes.length ? nomes.join(", ") : processo.cliente_nome || "—";
+  return nomes.length ? nomes.join(", ") : processo.cliente_nome || "-";
 }
 
 export function processoTemCliente(processo: Pick<Processo, "cliente_id" | "cliente_nome" | "cliente_cpf_cnpj" | "clientes_partes">, cliente: Pick<Cliente, "id" | "nome"> | string): boolean {

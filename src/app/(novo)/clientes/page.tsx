@@ -50,11 +50,11 @@ export default function Clientes() {
             <tbody>{linhas.map(({ c, casos, aberto, atraso }) => (
               <tr key={c.id}>
                 <td><Link href={`/clientes/${c.id}`} className="font-semibold hover:text-cobalto hover:underline">{c.nome}</Link><span className="block text-[12.5px] text-ink-3">{c.tipo === "pj" ? "Empresa" : "Pessoa física"} · {c.documento ?? "sem documento"}</span></td>
-                <td><span className="block">{c.celular ?? "—"}</span><span className="block max-w-[200px] truncate text-[12.5px] text-ink-3">{c.email}</span></td>
-                <td>{c.cidade ? `${c.cidade}/${c.uf ?? ""}` : "—"}</td>
+                <td><span className="block">{c.celular ?? "-"}</span><span className="block max-w-[200px] truncate text-[12.5px] text-ink-3">{c.email}</span></td>
+                <td>{c.cidade ? `${c.cidade}/${c.uf ?? ""}` : "-"}</td>
                 <td><span className="flex flex-wrap items-center gap-1.5">{casos.slice(0, 4).map((x) => <Link key={x.id} href={`/casos/${x.id}`} title={x.titulo}><TagArea id={x.area} curto /></Link>)}<span className="text-[12.5px] text-ink-3">{casos.length}</span></span></td>
-                <td>{c.origem ?? "—"}</td>
-                <td className="num">{aberto ? <span className={atraso ? "font-semibold text-perigo" : ""}>{brl(aberto)}</span> : "—"}{atraso && <span className="block text-[12px] text-perigo">com atraso</span>}</td>
+                <td>{c.origem ?? "-"}</td>
+                <td className="num">{aberto ? <span className={atraso ? "font-semibold text-perigo" : ""}>{brl(aberto)}</span> : "-"}{atraso && <span className="block text-[12px] text-perigo">com atraso</span>}</td>
               </tr>
             ))}</tbody>
           </table>

@@ -99,7 +99,7 @@ async function search(query: string): Promise<ResultItem[]> {
         kind: "prazo",
         id: p.id,
         title: p.titulo,
-        sub: `${p.processo?.cliente_nome ?? "—"} · ${formatDate(p.data_prazo)}`,
+        sub: `${p.processo?.cliente_nome ?? "-"} · ${formatDate(p.data_prazo)}`,
         href: "/antigo/prazos",
       });
     }
@@ -111,7 +111,7 @@ async function search(query: string): Promise<ResultItem[]> {
         kind: "tarefa",
         id: t.id,
         title: t.titulo,
-        sub: `${t.processo?.cliente_nome ?? "—"} · ${t.data_limite ? formatDate(t.data_limite) : "sem data"}`,
+        sub: `${t.processo?.cliente_nome ?? "-"} · ${t.data_limite ? formatDate(t.data_limite) : "sem data"}`,
         href: "/antigo/tarefas",
       });
     }
@@ -123,7 +123,7 @@ async function search(query: string): Promise<ResultItem[]> {
         kind: "audiencia",
         id: a.id,
         title: a.titulo,
-        sub: `${a.processo?.cliente_nome ?? "—"} · ${formatDate(a.data_hora)}${a.local ? ` · ${a.local}` : ""}`,
+        sub: `${a.processo?.cliente_nome ?? "-"} · ${formatDate(a.data_hora)}${a.local ? ` · ${a.local}` : ""}`,
         href: "/antigo/audiencias",
       });
     }
@@ -147,7 +147,7 @@ async function search(query: string): Promise<ResultItem[]> {
         kind: "honorario",
         id: h.id,
         title: h.descricao,
-        sub: `${h.processo?.cliente_nome ?? "—"} · ${formatCurrency(h.valor)}`,
+        sub: `${h.processo?.cliente_nome ?? "-"} · ${formatCurrency(h.valor)}`,
         href: "/antigo/financeiro",
       });
     }

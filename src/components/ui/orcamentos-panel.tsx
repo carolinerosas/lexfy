@@ -157,7 +157,7 @@ export function OrcamentosPanel({ cliente, processos }: { cliente: Cliente; proc
                   <div className="flex flex-wrap gap-2">
                     <select className={`${campo} max-w-md`} value={fechando.processoId} onChange={(e) => setFechando({ ...fechando, processoId: e.target.value })}>
                       <option value="">Escolha o processo…</option>
-                      {processos.map((p) => <option key={p.id} value={p.id}>{p.titulo}{p.numero ? ` — ${p.numero}` : " (a ajuizar)"}</option>)}
+                      {processos.map((p) => <option key={p.id} value={p.id}>{p.titulo}{p.numero ? ` - ${p.numero}` : " (a ajuizar)"}</option>)}
                     </select>
                     <Button size="sm" onClick={confirmarFechamento}>Lançar honorários</Button>
                     <Button size="sm" variant="ghost" onClick={() => setFechando(null)}>Cancelar</Button>

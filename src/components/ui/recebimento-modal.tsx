@@ -78,7 +78,7 @@ export function RecebimentoModal({
         )}
         {sobra && (
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-            Recebeu <strong>{formatCurrency(excedente)}</strong> a mais — vou quitar esta parcela e abater o excedente das últimas parcelas em aberto (da última para cima).
+            Recebeu <strong>{formatCurrency(excedente)}</strong> a mais - vou quitar esta parcela e abater o excedente das últimas parcelas em aberto (da última para cima).
           </div>
         )}
         <div className="flex justify-end gap-3">

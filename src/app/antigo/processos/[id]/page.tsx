@@ -413,7 +413,7 @@ export default function ProcessoDetailPage() {
           <div className="inline-flex min-w-0 max-w-full items-stretch overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
             <button
               onClick={toggleMonitorar}
-              title={processo.monitorar_datajud ? "Monitoramento ativo — clique para desativar" : "Ativar monitoramento automático"}
+              title={processo.monitorar_datajud ? "Monitoramento ativo - clique para desativar" : "Ativar monitoramento automático"}
               className={`flex items-center justify-center px-2.5 transition-colors border-r border-gray-200 ${processo.monitorar_datajud ? "bg-tinta text-white hover:bg-[#2b2027]" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"}`}
             >
               {processo.monitorar_datajud ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
@@ -473,7 +473,7 @@ export default function ProcessoDetailPage() {
                   </p>
                 )
               )) : (
-                <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "—"}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{processo.cliente_nome || "-"}</p>
               )}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
@@ -492,9 +492,9 @@ export default function ProcessoDetailPage() {
             </div>
           </CardContent>
         </Card>
-        <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "—"} />
-        <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "—"} />
-        <InfoCard icon={<MapPin className="w-4 h-4 text-rose-500" />} label="Comarca" value={processo.comarca ?? "—"} />
+        <InfoCard icon={<Scale className="w-4 h-4 text-purple-500" />} label="Parte Contrária" value={processo.parte_contraria ?? "-"} />
+        <InfoCard icon={<MapPin className="w-4 h-4 text-green-500" />} label="Tribunal / UF" value={[processo.tribunal, processo.uf].filter(Boolean).join(" / ") || "-"} />
+        <InfoCard icon={<MapPin className="w-4 h-4 text-rose-500" />} label="Comarca" value={processo.comarca ?? "-"} />
         {processo.unidade_prisional && (
           <InfoCard icon={<Shield className="w-4 h-4 text-amber-600" />} label="Unidade prisional" value={processo.unidade_prisional} />
         )}
@@ -1102,7 +1102,7 @@ function EmptyTab({ text }: { text: string }) {
 }
 
 function optionLabel<T extends string>(options: { value: T; label: string }[], value?: T): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
@@ -1145,9 +1145,9 @@ function InqueritoInfoPanel({ processo, acaoPenal }: { processo: Processo; acaoP
       <CardContent>
         <div className="grid gap-4 text-sm md:grid-cols-3">
           <InfoBlock label="Nº do inquérito" value={processo.numero_inquerito || processo.numero} />
-          <InfoBlock label="Delegacia" value={processo.delegacia || "—"} />
-          <InfoBlock label="Autoridade policial" value={processo.autoridade_policial || "—"} />
-          <InfoBlock label="Data de instauração" value={processo.data_instauracao ? formatDate(processo.data_instauracao) : "—"} />
+          <InfoBlock label="Delegacia" value={processo.delegacia || "-"} />
+          <InfoBlock label="Autoridade policial" value={processo.autoridade_policial || "-"} />
+          <InfoBlock label="Data de instauração" value={processo.data_instauracao ? formatDate(processo.data_instauracao) : "-"} />
           <InfoBlock label="Situação" value={optionLabel(inqueritoSituacaoOptions, processo.situacao_inquerito)} />
           <InfoBlock label="Ação penal" value={acaoPenal ? `${acaoPenal.numero} · ${acaoPenal.titulo}` : "Ainda não vinculada"} />
         </div>
@@ -1199,9 +1199,9 @@ function InqueritosTab({
                     </div>
                     <p className="text-sm font-medium text-gray-700">{inquerito.titulo}</p>
                     <div className="mt-2 grid gap-2 text-xs text-gray-500 md:grid-cols-3">
-                      <span>Delegacia: {inquerito.delegacia || "—"}</span>
-                      <span>Autoridade: {inquerito.autoridade_policial || "—"}</span>
-                      <span>Instaurado: {inquerito.data_instauracao ? formatDate(inquerito.data_instauracao) : "—"}</span>
+                      <span>Delegacia: {inquerito.delegacia || "-"}</span>
+                      <span>Autoridade: {inquerito.autoridade_policial || "-"}</span>
+                      <span>Instaurado: {inquerito.data_instauracao ? formatDate(inquerito.data_instauracao) : "-"}</span>
                     </div>
                     {inquerito.relatorio_final && <p className="mt-3 text-sm text-gray-600 line-clamp-3">{inquerito.relatorio_final}</p>}
                   </div>
@@ -1446,10 +1446,10 @@ function CalculosPenaTab({
                       {calculo.regime_atual && <Badge variant="neutral">{calculo.regime_atual}</Badge>}
                     </div>
                     <div className="grid gap-2 text-xs text-gray-500 md:grid-cols-4">
-                      <span>Início: {calculo.data_inicio ? formatDate(calculo.data_inicio) : "—"}</span>
+                      <span>Início: {calculo.data_inicio ? formatDate(calculo.data_inicio) : "-"}</span>
                       <span>Detração: {calculo.dias_detracao ?? 0} dia(s)</span>
                       <span>Remição: {calculo.dias_remicao ?? 0} dia(s)</span>
-                      <span>Marco: {calculo.marco_base || "—"}</span>
+                      <span>Marco: {calculo.marco_base || "-"}</span>
                     </div>
                     {calculo.resumo && <p className="mt-3 text-sm text-gray-600 whitespace-pre-wrap">{calculo.resumo}</p>}
                     {calculo.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{calculo.observacoes}</p>}

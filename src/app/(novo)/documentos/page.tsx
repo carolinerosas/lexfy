@@ -75,7 +75,7 @@ function Gerador() {
         {db.documentos.length === 0 ? <Vazio titulo="Nenhum documento guardado">Gere um documento acima e clique em “Guardar” para acompanhar a assinatura.</Vazio> : (
           <div className="overflow-x-auto"><table className="tb min-w-[720px]"><thead><tr><th>Documento</th><th>Caso</th><th>Criado em</th><th>Assinatura</th><th /></tr></thead>
             <tbody>{db.documentos.map((d) => (
-              <tr key={d.id}><td className="font-semibold">{d.titulo}</td><td className="max-w-[260px]">{d.caso_id ? <LinkCaso caso={casoDe(d.caso_id)} /> : <span className="text-ink-3">—</span>}</td><td>{data(d.criado_em)}</td>
+              <tr key={d.id}><td className="font-semibold">{d.titulo}</td><td className="max-w-[260px]">{d.caso_id ? <LinkCaso caso={casoDe(d.caso_id)} /> : <span className="text-ink-3">-</span>}</td><td>{data(d.criado_em)}</td>
                 <td><span className={`tag ${d.assinatura === "assinado" ? "tag-ok" : d.assinatura === "rascunho" ? "" : "tag-alerta"}`}>{d.assinatura}</span>{d.assinado_em && <span className="ml-2 text-[12.5px] text-ink-3">{data(d.assinado_em)}</span>}</td>
                 <td className="num whitespace-nowrap">
                   {PROX[d.assinatura] && <button className="btn btn-g btn-sm" onClick={() => alterar("documentos", d.id, { assinatura: PROX[d.assinatura]!, assinado_em: PROX[d.assinatura] === "assinado" ? hojeISO() : undefined })}><Check />{d.assinatura === "rascunho" ? "Marcar como enviado" : "Marcar como assinado"}</button>}

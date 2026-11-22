@@ -313,7 +313,7 @@ function PagamentoParcelaModal({
   }
 
   return (
-    <Modal open onClose={onClose} title={`Pagamento — parcela ${parcela.numero}/${parcela.total_parcelas}`} size="sm">
+    <Modal open onClose={onClose} title={`Pagamento - parcela ${parcela.numero}/${parcela.total_parcelas}`} size="sm">
       <div className="space-y-4">
         <div className="rounded-lg bg-gray-50 px-3 py-2.5">
           <p className="text-sm font-bold text-gray-900">{formatCurrency(parcela.valor)}</p>
@@ -429,13 +429,13 @@ function NovoAcordoModal({
               options={processosDisponiveis.map((p) => ({ value: p.id, label: `${p.numero || "Sem número"} · ${p.cliente_nome}` }))}
               value={procId}
               onChange={setProcId}
-              placeholder={clienteNome ? "Sem processo — fica só na ficha do cliente" : "Selecione o processo do acordo"}
+              placeholder={clienteNome ? "Sem processo - fica só na ficha do cliente" : "Selecione o processo do acordo"}
             />
             {clienteNome && <p className="mt-1 text-xs text-gray-400">Sem processo, o acordo fica só na ficha de {clienteNome}.</p>}
           </div>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Título do acordo" placeholder="Ex.: Acordo — ação de cobrança" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          <Input label="Título do acordo" placeholder="Ex.: Acordo - ação de cobrança" value={titulo} onChange={(e) => setTitulo(e.target.value)} />
           <Select
             label="Direção"
             options={[{ value: "receber", label: "A receber (entra)" }, { value: "pagar", label: "A pagar (sai)" }]}
@@ -456,7 +456,7 @@ function NovoAcordoModal({
 
         {parcelas.length > 0 && (
           <div className="space-y-2 rounded-xl border border-gray-100 p-3">
-            <p className="text-xs font-semibold text-gray-500">Parcelas — ajuste valor e vencimento se precisar</p>
+            <p className="text-xs font-semibold text-gray-500">Parcelas - ajuste valor e vencimento se precisar</p>
             {parcelas.map((p, i) => (
               <div key={i} className="grid grid-cols-[auto_1fr_1fr] items-center gap-2">
                 <span className="text-xs font-semibold text-gray-400">{i + 1}/{parcelas.length}</span>
@@ -473,7 +473,7 @@ function NovoAcordoModal({
             <SelectComOutro
               label="Forma de pagamento"
               category="forma_pagamento"
-              placeholder="—"
+              placeholder="-"
               baseOptions={[
                 { value: "PIX", label: "PIX" },
                 { value: "Transferência/TED", label: "Transferência / TED" },
@@ -560,7 +560,7 @@ function EditarAcordoModal({
           <SelectComOutro
             label="Forma de pagamento"
             category="forma_pagamento"
-            placeholder="—"
+            placeholder="-"
             baseOptions={[
               { value: "PIX", label: "PIX" },
               { value: "Transferência/TED", label: "Transferência / TED" },

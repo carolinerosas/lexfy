@@ -205,7 +205,7 @@ function ReciboForm({
             </Button>
           </div>
           <p className="text-xs text-gray-400">
-            O PDF abre a janela de impressão — escolha “Salvar como PDF”. Sai no seu timbrado, em folha A4.
+            O PDF abre a janela de impressão - escolha “Salvar como PDF”. Sai no seu timbrado, em folha A4.
           </p>
         </div>
 

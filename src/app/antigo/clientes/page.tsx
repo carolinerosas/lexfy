@@ -239,7 +239,7 @@ export default function ClientesPage() {
     if (alvos.length === 0) return;
     const comProcessos = alvos.filter((c) => !c.cadastrado);
     const aviso = comProcessos.length > 0
-      ? `\n\nAtenção: ${comProcessos.length} não cadastrado${comProcessos.length !== 1 ? "s" : ""} — isso também apaga os processos e atendimentos vinculados a esses nomes.`
+      ? `\n\nAtenção: ${comProcessos.length} não cadastrado${comProcessos.length !== 1 ? "s" : ""} - isso também apaga os processos e atendimentos vinculados a esses nomes.`
       : "";
     if (!window.confirm(`Excluir ${alvos.length} cliente${alvos.length !== 1 ? "s" : ""} selecionado${alvos.length !== 1 ? "s" : ""}?${aviso}\n\nEsta ação não pode ser desfeita.`)) return;
     setBulkBusy(true);
@@ -725,7 +725,7 @@ export default function ClientesPage() {
 
 function processoLabel(p: Processo): string {
   const numero = p.numero || (p.tipo === "inquerito_policial" ? p.numero_inquerito || "Inquérito sem número" : "Sem número");
-  return `${numero} — ${p.titulo || "Processo sem título"} — ${p.cliente_nome || "sem cliente"}`;
+  return `${numero} - ${p.titulo || "Processo sem título"} - ${p.cliente_nome || "sem cliente"}`;
 }
 
 function VincularClienteNaoCadastradoModal({
@@ -937,7 +937,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={form.cpf} onChange={(e) => set("cpf", formatCPF(e.target.value))} />
               <Input label="RG" placeholder="00.000.000-0" inputMode="numeric" value={form.rg} onChange={(e) => set("rg", formatRG(e.target.value))} />
-              <Select label="Sexo" placeholder="—" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo} onChange={(e) => set("sexo", e.target.value)} />
+              <Select label="Sexo" placeholder="-" options={[{ value: "F", label: "Feminino" }, { value: "M", label: "Masculino" }]} value={form.sexo} onChange={(e) => set("sexo", e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <SelectComOutro label="Nacionalidade" category={`cliente_nacionalidade_${form.sexo || "geral"}`} baseOptions={nacionalidadeBase} placeholder="Selecione..." value={form.nacionalidade} onChange={(v) => set("nacionalidade", v)} />
@@ -968,7 +968,7 @@ function NovoClienteModal({ open, preNome, onClose, onCreated }: { open: boolean
                   onChange={(e) => handleCepChange(e.target.value)}
                 />
                 {cepStatus === "loading" && <p className="mt-1 text-xs text-gray-400">Buscando endereço…</p>}
-                {cepStatus === "ok" && <p className="mt-1 text-xs text-green-600">Endereço preenchido — confira e ajuste se precisar.</p>}
+                {cepStatus === "ok" && <p className="mt-1 text-xs text-green-600">Endereço preenchido - confira e ajuste se precisar.</p>}
                 {cepStatus === "erro" && <p className="mt-1 text-xs text-amber-600">CEP não encontrado. Preencha manualmente.</p>}
               </div>
             </div>
