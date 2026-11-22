@@ -21,7 +21,7 @@ import { comarcaBaseOptions, mergeOptions, tipoPenalBaseOptions, unidadePrisiona
 import { partesDoProcesso } from "@/lib/processo-partes";
 import { formatCEP, buscarCep } from "@/lib/format";
 import { buscarNoDataJud, DataJudError, formatarCNJ, parseCNJ, ufFromTribunalDataJud } from "@/lib/datajud";
-import { inferirTipoDataJud, descricaoDataJud } from "@/app/antigo/processos/novo-processo-modal";
+import { inferirTipoDataJud, descricaoDataJud } from "@/telas/novo-processo-modal";
 import { formatDateTime } from "@/lib/utils";
 import type { Cliente, Processo, ProcessoClienteParte, TriagemImportacao, TriagemImportDraft, TriagemLead } from "@/types";
 

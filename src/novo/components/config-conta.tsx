@@ -3,7 +3,7 @@
 // perfil da advogada, backup, sincronizador do certificado e DataJud (mesma tela do antigo).
 import { useEffect, useState } from "react";
 import { Copy, Check } from "lucide-react";
-import ConfiguracoesAntigo from "@/app/antigo/configuracoes/page";
+import ConfiguracoesAntigo from "@/telas/configuracoes";
 import { Rotulado } from "@/novo/components/ui";
 
 function TrocarSenha() {

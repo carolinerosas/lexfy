@@ -24,7 +24,6 @@ export const config = {
   // /api/supabase: acesso do navegador ao banco (a rota confere o login de novo).
   // Demais /api daqui: usadas só pelas telas do dashboard.
   matcher: [
-    "/antigo/:path*",
     // telas do novo Justio
     "/",
     "/agenda",
@@ -46,7 +45,6 @@ export const config = {
     "/gestao",
     "/ferramentas",
     "/documentos",
-    "/novidades",
     "/configuracoes",
     "/modelos",
     "/briefing",

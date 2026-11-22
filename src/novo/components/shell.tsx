@@ -46,8 +46,6 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
   ] },
 ];
 const RODAPE: Item[] = [
-  { href: "/novidades", rotulo: "O que mudou", icone: Sparkles },
-  { href: "/antigo", rotulo: "JUSTIO antigo", icone: Archive },
   { href: "/configuracoes", rotulo: "Configurações", icone: Settings },
 ];
 
