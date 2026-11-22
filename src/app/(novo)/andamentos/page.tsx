@@ -37,11 +37,11 @@ export default function Andamentos() {
             <ul>{lista.map((a) => {
               const c = caso(a.caso_id);
               return (
-                <li key={a.id} className={`grid grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 border-b border-line-2 px-4 py-3 last:border-0 md:grid-cols-[84px_minmax(0,1fr)_minmax(0,300px)_auto] ${a.lido ? "" : "nao-lido"}`}>
+                <li key={a.id} className={`grid grid-cols-[84px_minmax(0,1fr)] items-start gap-x-3 gap-y-1.5 border-b border-line-2 px-4 py-3 last:border-0 2xl:grid-cols-[84px_minmax(0,1fr)_minmax(0,300px)_auto] ${a.lido ? "" : "nao-lido"}`}>
                   <span className="text-[12.5px] text-ink-3"><span className="block font-semibold text-ink">{data(a.data)}</span>{quando(a.data)}</span>
                   <div className="min-w-0"><p>{a.descricao}</p><p className="text-[12px] text-ink-3">Fonte: {a.fonte}</p></div>
-                  <div className="col-start-2 min-w-0 md:col-start-auto"><LinkCaso caso={c} />{c && <TagArea id={c.area} />}</div>
-                  <div className="col-start-2 md:col-start-auto">{!a.lido && <button className="btn btn-g btn-sm" onClick={() => alterar("andamentos", a.id, { lido: true })}>Marcar lido</button>}</div>
+                  <div className="col-start-2 min-w-0 2xl:col-start-auto"><LinkCaso caso={c} />{c && <TagArea id={c.area} />}</div>
+                  <div className="col-start-2 2xl:col-start-auto">{!a.lido && <button className="btn btn-g btn-sm" onClick={() => alterar("andamentos", a.id, { lido: true })}>Marcar lido</button>}</div>
                 </li>
               );
             })}</ul>
