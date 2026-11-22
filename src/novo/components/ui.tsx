@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
 import { Check, Copy, ListPlus, Plus, X } from "lucide-react";
 import { guardarNaLista, useDB } from "@/novo/lib/store";
@@ -182,7 +183,7 @@ export function CampoArea({ campo, valor, aoMudar, sugestoes }: { campo: Campo; 
       ) : campo.tipo === "t" ? (
         <TextoComLista valor={String(v)} aoMudar={aoMudar} sugestoes={sugestoes} chave={campo.k} />
       ) : campo.tipo === "l" ? (
-        <textarea className="inp" rows={3} value={String(v)} onChange={(e) => aoMudar(e.target.value)} />
+        <CaixaTexto rows={3} value={String(v)} aoMudar={aoMudar} />
       ) : (
         <>
           <input className="inp" type={campo.tipo === "d" ? "date" : campo.tipo === "v" || campo.tipo === "n" ? "number" : "text"} step={campo.tipo === "v" ? "0.01" : undefined}

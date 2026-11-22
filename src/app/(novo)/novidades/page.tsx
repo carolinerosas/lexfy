@@ -16,16 +16,19 @@ const NOVO: [string, string, string][] = [
   ["Conflito de interesses, procurações e correspondentes", "Checagem de nomes antes de aceitar a causa; validade de procurações; cadastro de correspondentes.", "/gestao"],
   ["Calculadoras", "Prazo processual, progressão de regime, prescrição penal e verbas rescisórias.", "/ferramentas"],
   ["Acordo em cada caso", "Aba Acordo com os termos próprios de cada área (alimentos e convivência, ANPP, verbas trabalhistas, transação tributária...) e as parcelas, as mesmas do JUSTIO antigo.", "/processos"],
+  ["Execução penal completa", "Abas Incidentes e Comutação e indulto no caso de execução penal.", "/processos"],
+  ["Orçamentos pelo cliente ou pelo caso", "Na tela do cliente aparecem os orçamentos dos casos e da captação, e dá para fazer um ali mesmo; o caso mostra os feitos pela tela do cliente.", "/clientes"],
+  ["Arquivos do processo", "Aba Arquivos no caso: enviar, baixar e marcar o que o cliente pode ver.", "/processos"],
+  ["Meus modelos", "Recibo, procuração e seus modelos em Word, preenchidos pelo formulário, no caso e na tela do cliente.", "/modelos"],
+  ["Briefing do dia", "No menu, logo abaixo de Hoje.", "/briefing"],
+  ["Roteiro de audiência", "Botão Roteiro em cada audiência.", "/audiencias"],
+  ["Ditado por voz", "Microfone nos campos de texto (Chrome e Edge).", "/"],
+  ["Senha, agenda no Google e integrações", "Em Configurações: trocar senha, link da agenda, perfil da advogada, DataJud, sincronizador e backup.", "/configuracoes"],
   ["Clientes de A a Z", "Índice por letra inicial na lista de clientes.", "/clientes"],
 ];
 
 const ANTIGO: [string, string][] = [
-  ["Orçamentos", "Aba do cliente no JUSTIO antigo."],
-  ["Execução penal: registro de incidentes, comutação e indulto", "Aba do processo no JUSTIO antigo."],
   ["Portal do cliente (convites e acessos)", "Página do cliente no JUSTIO antigo. A tela nova é só pré-visualização."],
-  ["Arquivos enviados ao processo", "Aba Documentos do processo no JUSTIO antigo."],
-  ["Briefing, modelos próprios e recibo no timbrado", "Menu do JUSTIO antigo."],
-  ["Senha, perfil da advogada e integrações", "Configurações do JUSTIO antigo."],
 ];
 
 export default function Novidades() {

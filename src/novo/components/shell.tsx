@@ -17,6 +17,7 @@ type Item = { href: string; rotulo: string; icone: LucideIcon; selo?: "prazos" |
 const GRUPOS: { nome: string; itens: Item[] }[] = [
   { nome: "Dia a dia", itens: [
     { href: "/", rotulo: "Hoje", icone: Sun },
+    { href: "/briefing", rotulo: "Briefing", icone: Newspaper },
     { href: "/agenda", rotulo: "Agenda", icone: CalendarDays },
     { href: "/prazos", rotulo: "Prazos", icone: Clock, selo: "prazos" },
     { href: "/audiencias", rotulo: "Audiências", icone: Gavel },
@@ -37,6 +38,7 @@ const GRUPOS: { nome: string; itens: Item[] }[] = [
   ] },
   { nome: "Escritório", itens: [
     { href: "/documentos", rotulo: "Documentos", icone: FileText },
+    { href: "/modelos", rotulo: "Meus modelos", icone: FileSignature },
     { href: "/financeiro", rotulo: "Financeiro", icone: Wallet },
     { href: "/pessoas", rotulo: "Pessoas", icone: Users },
     { href: "/gestao", rotulo: "Gestão", icone: BarChart3 },

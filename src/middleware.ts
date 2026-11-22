@@ -48,6 +48,8 @@ export const config = {
     "/documentos",
     "/novidades",
     "/configuracoes",
+    "/modelos",
+    "/briefing",
     "/portal/:path*",
     "/relatorio/:path*",
     "/triagem",
@@ -64,5 +66,6 @@ export const config = {
     "/api/pje",
     "/api/pje-rj",
     "/api/tjrj",
+    "/api/calendario-link",
   ],
 };

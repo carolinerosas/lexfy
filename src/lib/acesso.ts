@@ -146,3 +146,15 @@ export async function redefinirSenha(token: string, novaSenha: string): Promise<
   });
   return "ok";
 }
+
+/** Troca a senha com a sessão aberta: confere a atual (conta como tentativa de login) e grava a nova.
+ *  A versão da sessão sobe, então os outros aparelhos saem; quem trocou recebe um cookie novo. */
+export async function trocarSenha(atual: string, nova: string): Promise<{ ok: true; versao: number } | { ok: false; motivo: "senha-curta" | "incorreto" | "bloqueado" }> {
+  if (nova.length < SENHA_MIN) return { ok: false, motivo: "senha-curta" };
+  const conferido = await conferirLogin(envLimpo("JUSTIO_USERNAME") ?? "", atual);
+  if (!conferido.ok) return conferido;
+  const versao = conferido.versao + 1;
+  await gravarAcesso({ senha_hash: await gerarHash(nova), sessao_versao: versao, reset_token_hash: null, reset_expira: null, falhas: 0, bloqueado_ate: null });
+  versaoCache = null;
+  return { ok: true, versao };
+}

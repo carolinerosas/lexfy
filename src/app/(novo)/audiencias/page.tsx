@@ -6,6 +6,7 @@ import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { data, diaSemana, diasAte, hora, quando } from "@/novo/lib/format";
 import { Avatar, Cabecalho, Dialogo, LinkCaso, Rotulado, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
 import type { Audiencia } from "@/novo/lib/types";
+import { BotaoRoteiro } from "@/novo/components/roteiro";
 
 export default function Audiencias() {
   const db = useDB();
@@ -50,6 +51,7 @@ export default function Audiencias() {
                     <div className="col-start-2 min-w-0 md:col-start-auto"><LinkCaso caso={c} />{c && <span className="mt-0.5 block"><TagArea id={c.area} /></span>}</div>
                     <div className="col-start-2 flex items-center gap-2 md:col-start-auto"><Avatar pessoa={pessoa(a.responsavel_id)} />
                       {!a.realizada && <Link href={`/audiencias/${a.id}/ao-vivo`} className="btn btn-p btn-sm">Ao vivo</Link>}
+                      <BotaoRoteiro audienciaId={a.id} />
                       <button className="btn btn-g btn-sm" onClick={() => alterar("audiencias", a.id, { realizada: !a.realizada })}>{a.realizada ? "Reabrir" : "Marcar realizada"}</button></div>
                   </li>
                 );

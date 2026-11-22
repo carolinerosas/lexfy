@@ -5,6 +5,7 @@ import { alterarConfig, exportarBanco, useDB, useSituacao } from "@/novo/lib/sto
 import { AREAS } from "@/novo/lib/areas";
 import { Azulejo } from "@/novo/components/azulejo";
 import { Cabecalho, Rotulado } from "@/novo/components/ui";
+import { ConfigConta } from "@/novo/components/config-conta";
 import { GerenciarListas } from "@/novo/components/listas";
 
 export default function Configuracoes() {
@@ -21,7 +22,7 @@ export default function Configuracoes() {
 
   return (
     <>
-      <Cabecalho titulo="Configurações" sub="Dados do escritório e áreas em que ele atua." />
+      <Cabecalho titulo="Configurações" sub="Escritório, áreas, senha, agenda, perfil da advogada e integrações." />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="space-y-5">
           <section className="painel">
@@ -62,6 +63,7 @@ export default function Configuracoes() {
           ))}
         </section>
       </div>
+      <ConfigConta />
     </>
   );
 }

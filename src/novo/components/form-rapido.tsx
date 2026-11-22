@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useId, useState, type ReactNode } from "react";
+import { CaixaTexto } from "@/novo/components/ditado";
 import { Plus } from "lucide-react";
 import { guardarNaLista, useDB } from "@/novo/lib/store";
 import { CampoLista, Dialogo, Rotulado } from "./ui";
@@ -103,7 +104,7 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
             ) : (!c.tipo || c.tipo === "texto") && (c.lista || c.sugestoes) ? (
               <TextoLista valor={String(v[c.k] ?? "")} aoMudar={(x) => setV({ ...v, [c.k]: x })} lista={c.lista} sugestoes={c.sugestoes} />
             ) : c.tipo === "longo" ? (
-              <textarea className="inp" value={String(v[c.k] ?? "")} onChange={(e) => setV({ ...v, [c.k]: e.target.value })} />
+              <CaixaTexto value={String(v[c.k] ?? "")} aoMudar={(t) => setV({ ...v, [c.k]: t })} />
             ) : (
               <input className="inp" type={c.tipo === "numero" ? "number" : c.tipo === "data" ? "date" : c.tipo === "hora" ? "time" : "text"} step={c.tipo === "numero" ? "0.01" : undefined}
                 value={String(v[c.k] ?? "")} onChange={(e) => setV({ ...v, [c.k]: e.target.value })} />

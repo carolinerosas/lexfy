@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
@@ -21,11 +22,12 @@ import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Acoes, DocsPendentes } from "@/novo/components/acoes";
 import { AbaAcordo } from "@/novo/components/acordo";
+import { MeusModelos } from "@/novo/components/meus-modelos";
 import { OrcamentosDaTelaDoCliente } from "@/novo/components/orcamentos-cliente";
 import { ExecucaoPenalPanel } from "@/components/ui/execucao-penal-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 
-type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "incidentes" | "beneficios" | "arquivos" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
+type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "incidentes" | "beneficios" | "arquivos" | "modelos" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
 
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
@@ -98,7 +100,7 @@ export default function PaginaCaso() {
       </header>
 
       <div className="mt-4">
-        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["acordo", "Acordo"], ...(area.id === "execucao_penal" ? [["incidentes", "Incidentes"], ["beneficios", "Comutação e indulto"]] as const : []), ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["arquivos", "Arquivos"], ["referencia", "Prazos da área"]] as const} />
+        <Abas valor={aba} aoMudar={setAba} abas={[["ficha", `Ficha de ${area.nome}`], ["andamentos", `Andamentos (${andamentos.length})`], ["prazos", `Prazos e audiências (${prazos.filter((p) => !p.concluido).length + audiencias.filter((a) => !a.realizada).length})`], ["financeiro", "Financeiro"], ["acordo", "Acordo"], ...(area.id === "execucao_penal" ? [["incidentes", "Incidentes"], ["beneficios", "Comutação e indulto"]] as const : []), ["trabalho", "Tarefas e anotações"], ["docs", `Documentos pendentes (${(caso.docs_pendentes ?? []).filter((d) => !d.recebido).length})`], ["pecas", "Peças com IA"], ["autos", "Autos"], ["arquivos", "Arquivos"], ["modelos", "Meus modelos"], ["referencia", "Prazos da área"]] as const} />
       </div>
 
       <div className="mt-4">
@@ -230,6 +232,7 @@ export default function PaginaCaso() {
         {aba === "docs" && <><div className="mb-3 flex justify-end">{(caso.docs_pendentes ?? []).some((d) => !d.recebido) && <MensagemCliente caso={caso} modeloInicial="documentos" rotulo="Pedir documentos ao cliente" />}</div><DocsPendentes caso={caso} /></>}
 
         {aba === "acordo" && <AbaAcordo caso={caso} />}
+        {aba === "modelos" && <MeusModelos casoId={caso.id} clienteId={caso.cliente_id} />}
         {aba === "incidentes" && <div className="painel p-4"><ExecucaoPenalPanel processoId={caso.id} parte="incidentes" /></div>}
         {aba === "beneficios" && <div className="painel p-4"><ExecucaoPenalPanel processoId={caso.id} parte="beneficios" /></div>}
         {aba === "arquivos" && <DocumentosPanel contexto="processos" registroId={caso.id} titulo="Arquivos do processo" />}
@@ -391,8 +394,8 @@ function NovoAndamento({ casoId }: { casoId: string }) {
     <form className="painel h-fit space-y-3 p-4" onSubmit={(e) => { e.preventDefault(); if (!f.descricao.trim()) return; incluir("andamentos", { caso_id: casoId, data: f.data, descricao: f.descricao.trim(), texto_cliente: f.texto_cliente.trim() || undefined, fonte: "manual", lido: true }); setF({ data: hojeISO(), descricao: "", texto_cliente: "" }); }}>
       <h2 className="font-semibold">Registrar andamento</h2>
       <Rotulado rotulo="Data"><input type="date" className="inp" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} /></Rotulado>
-      <Rotulado rotulo="O que aconteceu"><textarea className="inp" value={f.descricao} onChange={(e) => setF({ ...f, descricao: e.target.value })} /></Rotulado>
-      <Rotulado rotulo="Versão em linguagem simples para o cliente (opcional)"><textarea className="inp" value={f.texto_cliente} onChange={(e) => setF({ ...f, texto_cliente: e.target.value })} /></Rotulado>
+      <Rotulado rotulo="O que aconteceu"><CaixaTexto value={f.descricao} aoMudar={(t) => setF({ ...f, descricao: t })} /></Rotulado>
+      <Rotulado rotulo="Versão em linguagem simples para o cliente (opcional)"><CaixaTexto value={f.texto_cliente} aoMudar={(t) => setF({ ...f, texto_cliente: t })} /></Rotulado>
       <button className="btn btn-p w-full" disabled={!f.descricao.trim()}>Registrar</button>
     </form>
   );

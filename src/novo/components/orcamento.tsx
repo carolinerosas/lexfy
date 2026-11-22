@@ -1,6 +1,7 @@
 "use client";
 // Orçamento para casos ainda não iniciados (processo não proposto) e para contatos da captação.
 import { useState } from "react";
+import { CaixaTexto } from "@/novo/components/ditado";
 import { addMonths, format } from "date-fns";
 import { Check, FileText, MessageCircle, Pencil, Plus, Printer, Trash2, X } from "lucide-react";
 import { alterar, useDB } from "@/novo/lib/store";
@@ -94,7 +95,7 @@ export function EditorOrcamento({ aberto, aoFechar, inicial, aoSalvar }: { abert
           <Rotulado rotulo="Vencimento da primeira parcela"><input className="inp" type="date" value={o.primeiro_vencimento ?? ""} onChange={(e) => muda({ primeiro_vencimento: e.target.value || undefined })} /></Rotulado>
           <Rotulado rotulo="Proposta válida até"><input className="inp" type="date" value={o.validade ?? ""} onChange={(e) => muda({ validade: e.target.value || undefined })} /></Rotulado>
           <Rotulado rotulo="Honorários de êxito (se houver)" className="sm:col-span-2"><input className="inp" placeholder="Ex.: 20% do proveito econômico" value={o.exito ?? ""} onChange={(e) => muda({ exito: e.target.value || undefined })} /></Rotulado>
-          <Rotulado rotulo="Observações" className="sm:col-span-2"><textarea className="inp" rows={3} value={o.observacoes ?? ""} onChange={(e) => muda({ observacoes: e.target.value || undefined })} /></Rotulado>
+          <Rotulado rotulo="Observações" className="sm:col-span-2"><CaixaTexto rows={3} value={o.observacoes ?? ""} aoMudar={(t) => muda({ observacoes: t || undefined })} /></Rotulado>
         </div>
         {condicoes(o).length > 0 && <p className="rounded-[10px] bg-porcelana px-3 py-2 text-[13px] text-ink-2">{condicoes(o).join(" · ")}</p>}
       </div>
