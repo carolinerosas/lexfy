@@ -49,7 +49,7 @@ export default function PaginaCaso() {
       <header className="painel overflow-hidden">
         <div className="flex flex-wrap items-start gap-4 p-5 sm:p-6">
           <span className="hidden sm:block"><Azulejo area={area} tamanho={56} /></span>
-          <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+          <div className="min-w-0 basis-full sm:basis-0 sm:flex-1 sm:min-w-[360px]">
             <p className="flex flex-wrap items-center gap-2">
               <span className="sm:hidden"><Azulejo area={area} tamanho={26} /></span>
               <Link href={`/areas/${area.id}`} className="tag tag-tinta hover:underline">{area.nome}</Link>
