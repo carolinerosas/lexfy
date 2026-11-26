@@ -12,6 +12,7 @@ import { BotaoNovo } from "@/novo/components/form-rapido";
 import { Pencil } from "lucide-react";
 import { OrcamentosDoCliente } from "@/novo/components/orcamentos-cliente";
 import { MeusModelos } from "@/novo/components/meus-modelos";
+import { NovoAtendimento } from "@/novo/components/atendimento";
 
 export default function PaginaCliente() {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +38,7 @@ export default function PaginaCliente() {
             inicial={{ nome: c.nome, tipo: c.tipo, documento: c.documento ?? "", celular: c.celular ?? "", email: c.email ?? "", cidade: c.cidade ?? "", uf: c.uf ?? "", profissao: c.profissao ?? "", origem: c.origem ?? "", observacoes: c.observacoes ?? "" }}
             aoSalvar={(v) => alterar("clientes", c.id, { nome: String(v.nome), tipo: v.tipo === "pj" ? "pj" : "pf", documento: v.documento ? String(v.documento) : undefined, celular: v.celular ? String(v.celular) : undefined, email: v.email ? String(v.email) : undefined, cidade: v.cidade ? String(v.cidade) : undefined, uf: v.uf ? String(v.uf) : undefined, profissao: v.profissao ? String(v.profissao) : undefined, origem: v.origem ? String(v.origem) : undefined, observacoes: v.observacoes ? String(v.observacoes) : undefined })}
             campos={[{ k: "nome", rotulo: "Nome ou razão social", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", opcoes: [["pf", "Pessoa física"], ["pj", "Empresa"]] }, { k: "documento", rotulo: "CPF ou CNPJ" }, { k: "celular", rotulo: "Celular" }, { k: "email", rotulo: "E-mail" }, { k: "cidade", rotulo: "Cidade" }, { k: "uf", rotulo: "UF" }, { k: "profissao", rotulo: "Profissão" }, { k: "origem", rotulo: "Como chegou ao escritório" }, { k: "observacoes", rotulo: "Observações", tipo: "longo" }]} />
+          <NovoAtendimento modo="agora" clienteId={c.id} classe="btn btn-p btn-sm" />
           <Link href={`/documentos?cliente=${c.id}`} className="btn btn-g btn-sm">Gerar documento</Link>
           <Link href={`/portal/${c.id}`} className="btn btn-g btn-sm">Ver como o cliente vê</Link>
           <Link href={`/relatorio/${c.id}`} className="btn btn-g btn-sm">Relatório do cliente</Link>
@@ -83,7 +85,7 @@ export default function PaginaCliente() {
           <OrcamentosDoCliente clienteId={c.id} />
           <MeusModelos clienteId={c.id} />
           <section className="painel">
-            <div className="painel-cab"><h2>Atendimentos</h2></div>
+            <div className="painel-cab"><h2>Atendimentos</h2><span className="flex gap-2"><NovoAtendimento modo="agora" clienteId={c.id} classe="btn btn-p btn-sm" /><NovoAtendimento modo="agendar" clienteId={c.id} classe="btn btn-g btn-sm" /></span></div>
             {atend.length === 0 ? <Vazio titulo="Nenhum atendimento registrado" /> : (
               <ul>{atend.map((a) => <li key={a.id} className="border-b border-line-2 px-4 py-2.5 last:border-0"><p><span className="font-semibold">{data(a.data_hora)} às {hora(a.data_hora)}</span> · {a.tipo} · <span className="text-ink-3">{a.status}</span></p>{a.notas && <p className="text-[13px] text-ink-2">{a.notas}</p>}</li>)}</ul>
             )}

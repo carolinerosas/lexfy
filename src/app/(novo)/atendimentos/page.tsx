@@ -1,33 +1,22 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Plus } from "lucide-react";
-import { alterar, incluir, useDB } from "@/novo/lib/store";
+import { alterar, useDB } from "@/novo/lib/store";
 import { brl, data, diaSemana, hora } from "@/novo/lib/format";
-import { Avatar, Cabecalho, Dialogo, LinkCaso, Rotulado, Seg, Vazio, useMapas } from "@/novo/components/ui";
+import { Avatar, Cabecalho, LinkCaso, Seg, Vazio, useMapas } from "@/novo/components/ui";
+import { NovoAtendimento } from "@/novo/components/atendimento";
 import type { Atendimento } from "@/novo/lib/types";
-
-const TIPOS: Atendimento["tipo"][] = ["consulta inicial", "retorno", "orientação", "preparação de audiência", "visita à unidade prisional"];
 
 export default function Atendimentos() {
   const db = useDB();
   const { caso, pessoa } = useMapas(db);
   const [ver, setVer] = useState<Atendimento["status"]>("agendado");
-  const [novo, setNovo] = useState(false);
-  const [f, setF] = useState({ cliente: "", data: "", hora: "10:00", tipo: TIPOS[0], duracao: 45, valor: "", resp: "" });
   const lista = useMemo(() => db.atendimentos.filter((a) => a.status === ver).sort((a, b) => (ver === "agendado" ? a.data_hora.localeCompare(b.data_hora) : b.data_hora.localeCompare(a.data_hora))), [db.atendimentos, ver]);
-
-  function salvar() {
-    if (!f.cliente.trim() || !f.data) return;
-    const cli = db.clientes.find((c) => c.nome === f.cliente.trim());
-    incluir("atendimentos", { cliente_id: cli?.id, cliente_nome: f.cliente.trim(), data_hora: `${f.data}T${f.hora}:00`, duracao_min: Number(f.duracao), tipo: f.tipo, status: "agendado", responsavel_id: f.resp || db.equipe[0].id, valor: f.valor ? Number(f.valor) : undefined });
-    setNovo(false);
-  }
 
   return (
     <>
       <Cabecalho titulo="Atendimentos" sub="Consultas, retornos, preparação de audiência e visitas a clientes presos.">
         <Seg rotulo="Situação" valor={ver} aoMudar={setVer} opcoes={[["agendado", "Agendados"], ["realizado", "Realizados"], ["cancelado", "Cancelados"]] as const} />
-        <button className="btn btn-p" onClick={() => setNovo(true)}><Plus />Agendar</button>
+        <NovoAtendimento modo="agora" /><NovoAtendimento modo="agendar" classe="btn btn-g" />
       </Cabecalho>
       <div className="painel overflow-x-auto">
         {lista.length === 0 ? <Vazio titulo="Nenhum atendimento nesta situação">Use “Agendar” para marcar o próximo.</Vazio> : (
@@ -47,17 +36,6 @@ export default function Atendimentos() {
           </table>
         )}
       </div>
-      <Dialogo aberto={novo} aoFechar={() => setNovo(false)} titulo="Agendar atendimento" rodape={<><button className="btn btn-g" onClick={() => setNovo(false)}>Cancelar</button><button className="btn btn-p" disabled={!f.cliente.trim() || !f.data} onClick={salvar}>Agendar</button></>}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Rotulado rotulo="Cliente ou interessado" className="sm:col-span-2"><input className="inp" list="at-clientes" value={f.cliente} onChange={(e) => setF({ ...f, cliente: e.target.value })} /><datalist id="at-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist></Rotulado>
-          <Rotulado rotulo="Data"><input type="date" className="inp" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} /></Rotulado>
-          <Rotulado rotulo="Hora"><input type="time" className="inp" value={f.hora} onChange={(e) => setF({ ...f, hora: e.target.value })} /></Rotulado>
-          <Rotulado rotulo="Tipo"><select className="inp" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as Atendimento["tipo"] })}>{TIPOS.map((t) => <option key={t}>{t}</option>)}</select></Rotulado>
-          <Rotulado rotulo="Duração (min)"><input type="number" className="inp" value={f.duracao} onChange={(e) => setF({ ...f, duracao: Number(e.target.value) })} /></Rotulado>
-          <Rotulado rotulo="Valor da consulta (R$)"><input type="number" className="inp" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} /></Rotulado>
-          <Rotulado rotulo="Quem atende"><select className="inp" value={f.resp} onChange={(e) => setF({ ...f, resp: e.target.value })}><option value="">Escolher</option>{db.equipe.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}</select></Rotulado>
-        </div>
-      </Dialogo>
     </>
   );
 }

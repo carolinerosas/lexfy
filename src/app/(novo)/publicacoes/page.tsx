@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarPlus, Check, Loader2, Plus, Search, Server } from "lucide-react";
+import { CalendarPlus, Check, Gavel, ListTodo, Loader2, Plus, Search, Server } from "lucide-react";
 import { aguardarGravacoes, alterar, incluir, lerDB, recarregar, useDB } from "@/novo/lib/store";
 import { data, hojeISO, quando } from "@/novo/lib/format";
 import { areaDe } from "@/novo/lib/areas";
@@ -114,6 +114,7 @@ function Publicacoes() {
                   )}
                   <div className="flex flex-wrap gap-2">
                     {c && !ja && !feito[p.id] && (lido || p.prazo_sugerido) && <button className="btn btn-p btn-sm" onClick={() => lancar(p, c)}><CalendarPlus />Lançar prazo</button>}
+                    <LancarAMao p={p} c={c} judiciais={judiciais} aviso={(m) => setFeito((x) => ({ ...x, [p.id]: m }))} />
                     {!p.lida && <button className="btn btn-g btn-sm" onClick={() => alterar("publicacoes", p.id, { lida: true })}><Check />Marcar lida</button>}
                   </div>
                 </div>
@@ -130,6 +131,37 @@ function Publicacoes() {
             aoCriar={(id) => { const p = incluirPara; setIncluirPara(null); vincular(p, id); }} />
         );
       })()}
+    </>
+  );
+}
+
+/** Prazo, audiência e tarefa lançados à mão a partir da publicação (com ou sem leitura automática). */
+function LancarAMao({ p, c, judiciais, aviso }: { p: Publicacao; c?: Caso; judiciais: Caso[]; aviso: (m: string) => void }) {
+  const db = useDB();
+  const casoOpcoes = judiciais.map((x) => [x.id, `${x.cliente_nome}: ${x.titulo}`] as const);
+  const resp = (id: string) => db.casos.find((x) => x.id === id)?.responsavel_id ?? db.equipe[0]?.id ?? "e1";
+  const origem = `Publicação de ${data(p.data)} (${p.diario})`;
+  const prio = [["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as const;
+  const inicialCaso = c?.id ?? "";
+  return (
+    <>
+      <BotaoNovo rotulo="Prazo" titulo="Lançar prazo" classe="btn btn-g btn-sm" icone={<CalendarPlus />} botao="Lançar prazo" inicial={{ caso_id: inicialCaso }}
+        aoSalvar={(v) => { const id = String(v.caso_id); if (!v.caso_id) return;
+          if (!p.caso_id) alterar("publicacoes", p.id, { caso_id: id });
+          incluir("prazos", { caso_id: id, titulo: String(v.titulo), data: String(v.data), fatal: !!v.fatal, concluido: false, prioridade: (v.prioridade as "alta" | "media" | "baixa") || "alta", responsavel_id: resp(id), base: `${origem}: lançado à mão.` });
+          alterar("publicacoes", p.id, { lida: true }); aviso(`Prazo lançado: ${String(v.titulo)}, vence ${data(String(v.data))}.`); }}
+        campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, obrig: true, opcoes: casoOpcoes }, { k: "titulo", rotulo: "Prazo (ex.: Resposta à acusação)", largo: true, obrig: true, lista: "prazos_titulos" }, { k: "data", rotulo: "Vence em", tipo: "data", obrig: true }, { k: "prioridade", rotulo: "Prioridade", tipo: "opcoes", inicial: "alta", opcoes: prio }, { k: "fatal", rotulo: "Prazo fatal", tipo: "check", inicial: true }]} />
+      <BotaoNovo rotulo="Audiência" titulo="Marcar audiência" classe="btn btn-g btn-sm" icone={<Gavel />} botao="Marcar audiência" inicial={{ caso_id: inicialCaso }}
+        aoSalvar={(v) => { const id = String(v.caso_id); if (!v.caso_id) return;
+          if (!p.caso_id) alterar("publicacoes", p.id, { caso_id: id });
+          incluir("audiencias", { caso_id: id, titulo: String(v.titulo || "Audiência"), data_hora: `${String(v.data)}T${String(v.hora || "09:00")}:00`, local: v.local ? String(v.local) : undefined, modalidade: (v.modalidade as "presencial" | "virtual" | "híbrida") || "presencial", realizada: false, responsavel_id: resp(id), observacoes: `${origem}: marcada à mão.` });
+          alterar("publicacoes", p.id, { lida: true }); aviso(`Audiência de ${data(String(v.data))} na agenda.`); }}
+        campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, obrig: true, opcoes: casoOpcoes }, { k: "titulo", rotulo: "Tipo da audiência", largo: true, inicial: "Audiência", lista: "audiencias_titulos" }, { k: "data", rotulo: "Data", tipo: "data", obrig: true }, { k: "hora", rotulo: "Hora", tipo: "hora", inicial: "09:00" }, { k: "modalidade", rotulo: "Modalidade", tipo: "opcoes", inicial: "presencial", opcoes: ["presencial", "virtual", "híbrida"] }, { k: "local", rotulo: "Local" }]} />
+      <BotaoNovo rotulo="Tarefa" titulo="Criar tarefa" classe="btn btn-g btn-sm" icone={<ListTodo />} botao="Criar tarefa" inicial={{ caso_id: inicialCaso, titulo: "" }}
+        aoSalvar={(v) => { const id = v.caso_id ? String(v.caso_id) : undefined;
+          incluir("tarefas", { caso_id: id, titulo: String(v.titulo), estado: "a fazer", prioridade: (v.prioridade as "alta" | "media" | "baixa") || "media", responsavel_id: id ? resp(id) : db.equipe[0]?.id ?? "e1", limite: v.limite ? String(v.limite) : undefined });
+          aviso(`Tarefa criada: ${String(v.titulo)}.`); }}
+        campos={[{ k: "titulo", rotulo: "Tarefa", largo: true, obrig: true }, { k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, opcoes: casoOpcoes }, { k: "limite", rotulo: "Fazer até", tipo: "data" }, { k: "prioridade", rotulo: "Prioridade", tipo: "opcoes", inicial: "media", opcoes: prio }]} />
     </>
   );
 }
