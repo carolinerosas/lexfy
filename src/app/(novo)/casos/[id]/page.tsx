@@ -15,6 +15,7 @@ import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
 import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { crimeContraAVida } from "@/lib/prazo-publicacao";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
 import { semAcento } from "@/novo/lib/format";
 import type { Caso, Custa } from "@/novo/lib/types";
@@ -28,6 +29,9 @@ import { ExecucaoPenalPanel } from "@/components/ui/execucao-penal-panel";
 import { DocumentosPanel } from "@/components/ui/documentos-panel";
 
 type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "incidentes" | "beneficios" | "arquivos" | "modelos" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
+
+/** Fase da área Criminal → fase equivalente na área do Júri. */
+const FASE_PARA_JURI = [0, 1, 2, 2, 2, 3, 4, 7, 8];
 
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
@@ -86,6 +90,12 @@ export default function PaginaCaso() {
             </select>
           </div>
         </div>
+        {area.id === "criminal" && crimeContraAVida(`${caso.titulo} ${caso.dados.tipo_penal ?? ""}`) && (
+          <div role="note" className="flex flex-wrap items-center gap-3 border-t border-line-2 bg-porcelana px-5 py-3 text-[13.5px]">
+            <p className="min-w-0 flex-1"><span className="font-semibold">Crime doloso contra a vida: competência do Tribunal do Júri.</span> Este caso está na área Criminal. Na área do Júri as fases são sumário da culpa, pronúncia, recurso da pronúncia, plenário e apelação.</p>
+            <button className="btn btn-p btn-sm" onClick={() => alterar("casos", caso.id, { area: "juri", fase: FASE_PARA_JURI[caso.fase] ?? 0, dados: { ...caso.dados, imputacao: String(caso.dados.tipo_penal ?? caso.titulo) } })}>Mudar para Tribunal do Júri</button>
+          </div>
+        )}
         <ol className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
           {area.fases.map((f, i) => (
             <li key={f} className="min-w-[104px] flex-1">
