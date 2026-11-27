@@ -28,12 +28,17 @@ function blocoArea(a: Area): string {
 
 /** Texto completo para colar no Cowork. Sempre em sincronia com as fichas do sistema. */
 export function instrucoesCowork(): string {
+  return `${corpoInstrucoes()}\n${areasTexto()}`;
+}
+
+function corpoInstrucoes(): string {
   return `# Extração de processo para o JUSTIO (versão ${VERSAO_IMPORTACAO})
 
-Você vai ler o PDF dos autos de um processo e devolver UM ÚNICO bloco \`\`\`json, sem texto antes ou depois, no formato descrito abaixo. A advogada cola esse bloco no JUSTIO (Importar > Do Cowork), revisa campo a campo e só então o sistema grava.
+Você vai ler o PDF dos autos de um processo, ou as informações dadas na conversa, e devolver UM ÚNICO bloco \`\`\`json, sem texto antes ou depois, no formato descrito abaixo. A advogada cola esse bloco no JUSTIO (Importar > Do Cowork), revisa campo a campo e só então o sistema grava.
 
 ## Regras
 1. Extraia só o que está escrito nos autos. Não deduza, não complete e não invente. Se não achou, omita a chave (não escreva "não informado", null ou "").
+   Se a fonte for a conversa, use só o que a advogada disse ou mostrou; o que faltar para a ficha vai em "pendencias".
 2. Datas: sempre AAAA-MM-DD. Data e hora: AAAA-MM-DDTHH:MM (horário de Brasília).
 3. Valores em dinheiro: número com ponto decimal, sem "R$" (ex.: 12500.75).
 4. Campos de lista: array de textos, um item por elemento.
@@ -71,10 +76,31 @@ Você vai ler o PDF dos autos de um processo e devolver UM ÚNICO bloco \`\`\`js
 
 Prazos: só os que ainda estão correndo ou por vir, com a data final já contada. Andamentos: os atos relevantes (recebimento da denúncia, citação, decisões, sentença, recursos, prisões e solturas), do mais antigo para o mais recente.
 
-## Áreas e campos da ficha
-
-${AREAS.map(blocoArea).join("\n\n")}
 `;
+}
+
+/** Campos das fichas de todas as áreas. */
+export function areasTexto(): string {
+  return `## Áreas e campos da ficha\n\n${AREAS.map(blocoArea).join("\n\n")}\n`;
+}
+
+/** Skill para o Claude ou o Cowork: as mesmas instruções, com o cabeçalho que ativa a skill. */
+export function skillJustio(): string {
+  return `---
+name: justio-extracao
+description: Extrai de um PDF de processo (autos, denúncia, sentença, petição) ou das informações da conversa todos os dados das fichas do JUSTIO (cliente, processo e ficha da área: criminal, júri, cível, família, trabalhista, previdenciário e as demais) e devolve um bloco JSON para colar em JUSTIO > Importar > Do Cowork, onde a advogada revisa e confirma. Use sempre que a advogada pedir para cadastrar, importar, alimentar ou atualizar no JUSTIO um processo ou cliente, ou para extrair dados de autos para o sistema.
+---
+
+## Como usar esta skill
+
+1. Leia a fonte inteira: o PDF dos autos (veja como imagem as páginas com fotos, laudos e prints) ou o que a advogada escreveu na conversa. Com vários documentos do mesmo processo, junte tudo num único resultado.
+2. Identifique a área pela classe, pelo assunto e pelo juízo, e use só os campos da ficha dessa área.
+3. Abra o arquivo \`areas.md\` desta skill e leia só a seção da área escolhida: ali estão as chaves, os tipos e as opções exatas da ficha.
+4. Devolva só o bloco JSON no formato abaixo. Com mais de um processo, entregue um processo por resposta e diga que há outro. Não grave arquivos e não tente acessar o JUSTIO: a advogada cola o bloco em Importar > Do Cowork, revisa campo a campo e confirma.
+5. Se a advogada pedir para atualizar um processo que já existe, extraia tudo do mesmo jeito: o JUSTIO reconhece o caso pelo número e só preenche o que está vazio; valor diferente só é substituído se ela marcar.
+
+${corpoInstrucoes()}
+## Áreas e campos da ficha\n\nEstão em \`areas.md\`, nesta mesma pasta. Use só as chaves da área do processo, com as opções escritas exatamente como lá.\n`;
 }
 
 // ───────────── leitura do que o Cowork devolveu ─────────────

@@ -43,6 +43,16 @@ function campo(def: string): Campo {
 }
 const sec = (titulo: string, ...campos: string[]): Secao => ({ titulo, campos: campos.map(campo) });
 const secSo = (so: string[], titulo: string, ...campos: string[]): Secao => ({ ...sec(titulo, ...campos), so });
+
+/** Resultado do processo judicial (fora do penal): núcleo comum e campos próprios de cada área. */
+const RESULTADO_CIVEL = "Pendente;Procedente;Parcialmente procedente;Improcedente;Extinto sem resolução do mérito;Acordo homologado;Desistência homologada";
+const secResultado = (...proprios: string[]): Secao => sec("Sentença e resultado",
+  `resultado:Resultado|o|${RESULTADO_CIVEL}`, "sentenca_data:Data da sentença|d", ...proprios,
+  "condenacao_valor:Valor da condenação|v", "obrigacao:Obrigação de fazer ou não fazer imposta|l",
+  "honorarios_sucumbencia:Honorários de sucumbência (percentual ou valor)", "sucumbencia:Sucumbência a cargo de|o|Parte contrária;Cliente;Recíproca",
+  "custas:Custas|o|A cargo da parte contrária;A cargo do cliente;Rateadas;Gratuidade de justiça",
+  "recurso:Recurso|o|Não interposto;Interposto pelo cliente;Interposto pela parte contrária;Interposto por ambos;Provido;Parcialmente provido;Desprovido;Recurso especial ou extraordinário pendente",
+  "acordao_data:Data do acórdão|d", "transito:Trânsito em julgado|d", "cumprimento_valor:Valor em cumprimento de sentença|v");
 const pz = (nome: string, prazo: string, base: string): PrazoRef => ({ nome, prazo, base });
 
 const FASES_CIVEL = ["A ajuizar", "Inicial distribuída", "Citação", "Contestação e réplica", "Saneamento", "Instrução", "Sentença", "Recurso", "Cumprimento de sentença", "Encerrado"];
@@ -57,6 +67,7 @@ export const AREAS: Area[] = [
       sec("Ação", "acao:Tipo de ação", "rito:Rito|o|Comum;Juizado Especial Cível;Procedimento especial;Execução de título;Monitória", "polo:Polo do cliente|o|Autor;Réu;Terceiro interessado", "tutela:Tutela de urgência|o|Não pedida;Pedida;Deferida;Indeferida;Revogada", "gratuidade:Justiça gratuita|s", "condenacao:Valor da condenação|v"),
       sec("Prova", "pericia:Perícia|s", "perito:Perito nomeado", "assistente:Assistente técnico", "testemunhas:Testemunhas|m"),
       sec("Cumprimento e execução", "executado:Valor em execução|v", "sisbajud:Sisbajud|o|Não pedido;Pedido;Positivo;Negativo", "penhora:Bens penhorados|m"),
+      secResultado(),
     ],
     prazos: [
       pz("Contestação", "15 dias úteis", "CPC, art. 335"),
@@ -80,6 +91,7 @@ export const AREAS: Area[] = [
       sec("Relação de consumo", "fornecedor:Fornecedor", "produto:Produto ou serviço", "problema:Tipo de problema|o|Vício do produto;Acidente de consumo;Cobrança indevida;Negativação indevida;Atraso ou cancelamento;Recall;Assinatura não contratada", "compra:Data da compra|d", "reclamacao:Data da primeira reclamação|d", "protocolo:Protocolos de atendimento|m"),
       sec("Tentativa administrativa", "procon:Reclamação no Procon ou consumidor.gov|s", "resposta:Resposta do fornecedor|l"),
       sec("Pedidos", "negativacao:Há negativação|s", "orgao_neg:Órgão negativador", "dano_material:Dano material|v", "dano_moral:Dano moral pedido|v", "inversao:Inversão do ônus da prova|o|Não pedida;Pedida;Deferida;Indeferida"),
+      secResultado("dano_moral_fixado:Dano moral fixado|v", "dano_material_fixado:Dano material fixado|v", "repeticao_indebito:Repetição do indébito|v"),
     ],
     prazos: [
       pz("Reclamar de vício aparente (não durável)", "30 dias da entrega", "CDC, art. 26, I"),
@@ -108,6 +120,7 @@ export const AREAS: Area[] = [
       secSo(["Investigação de paternidade"], "Paternidade", "suposto_pai:Suposto pai", "dna:Exame de DNA|o|Não requerido;Requerido;Agendado;Realizado: positivo;Realizado: negativo;Recusa do investigado"),
       secSo(["Interdição e curatela"], "Curatela", "curatelando:Pessoa a ser curatelada", "laudo_medico:Laudo médico e CID", "curador:Curador pretendido", "pericia_curatela:Perícia|o|Não marcada;Marcada;Realizada", "limites:Atos sujeitos à curatela|l"),
       sec("Partes", "renda_cliente:Renda do cliente", "renda_outra:Renda da outra parte", "protetiva:Medida protetiva em vigor|s", "acordo:Possibilidade de acordo|o|Provável;Possível;Improvável"),
+      secResultado("alimentos_fixados:Alimentos fixados", "guarda_definida:Guarda definida|o|Compartilhada;Unilateral para o cliente;Unilateral para a outra parte", "convivencia_fixada:Convivência fixada|l", "partilha_decidida:Partilha decidida|l"),
     ],
     prazos: [
       pz("Contestação", "15 dias úteis da audiência de mediação", "CPC, arts. 335 e 697"),
@@ -230,6 +243,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Inquérito", "numero_ip:Nº do inquérito", "delegacia:Delegacia", "autoridade:Autoridade policial", "instauracao:Data de instauração|d", "situacao:Situação|o|Em andamento;Relatado;Denunciado;Arquivado;Baixado para diligências", "posicao:Posição do cliente|o|Investigado;Vítima;Testemunha"),
       sec("Diligências", "preso:Investigado preso|s", "oitiva:Oitiva marcada|d", "cautelares:Medidas cautelares|m", "apreendidos:Bens apreendidos|m", "restituicao:Pedido de restituição|o|Não se aplica;Não requerido;Requerido;Deferido;Indeferido"),
+      sec("Desfecho", "desfecho:Desfecho|o|Em andamento;Relatado sem indiciamento;Indiciamento;Arquivado;Denúncia oferecida;ANPP proposto;Transação penal proposta", "desfecho_data:Data do desfecho|d", "processo_gerado:Número do processo gerado"),
     ],
     prazos: [
       pz("Conclusão do inquérito (investigado preso)", "10 dias", "CPP, art. 10"),
@@ -253,6 +267,7 @@ export const AREAS: Area[] = [
       sec("Pedidos", "pedidos:Pedidos|m", "valor_pedidos:Valor dos pedidos|v", "rito:Rito|o|Sumaríssimo;Ordinário;Sumário", "pericia:Perícia|o|Não;Insalubridade;Periculosidade;Médica;Contábil"),
       sec("Audiência e prova", "preposto:Preposto", "testemunhas:Testemunhas|m"),
       sec("Recurso e execução", "deposito:Depósito recursal|v", "acordo:Acordo homologado|v", "liquidacao:Valor liquidado|v"),
+      secResultado("verbas_deferidas:Verbas deferidas|m", "valor_liquidado:Valor liquidado|v"),
     ],
     prazos: [
       pz("Ajuizar após o fim do contrato", "2 anos (alcança os últimos 5 anos)", "CF, art. 7º, XXIX"),
@@ -278,6 +293,7 @@ export const AREAS: Area[] = [
       sec("Tempo e carência", "tempo:Tempo de contribuição reconhecido", "carencia:Carência (contribuições)|n", "especiais:Períodos especiais|m", "ppp:PPP e LTCAT juntados|s", "cnis:CNIS conferido|s", "segurado:Qualidade de segurado|o|Mantida;Período de graça;Perdida;A comprovar"),
       sec("Incapacidade", "pericia:Perícia médica|d", "cid:CID", "laudo:Conclusão do laudo|l"),
       sec("Valores", "rmi:Renda mensal inicial estimada|v", "atrasados:Atrasados estimados|v"),
+      secResultado("beneficio_concedido:Benefício|o|Concedido;Negado;Restabelecido;Revisado", "dib_fixada:DIB fixada na sentença|d", "implantacao:Data da implantação|d"),
     ],
     prazos: [
       pz("Recurso ao Conselho de Recursos da Previdência", "30 dias da ciência", "Regimento do CRPS"),
@@ -300,6 +316,7 @@ export const AREAS: Area[] = [
       sec("Crédito", "tributo:Tributo", "ente:Ente|o|União;Estado;Município", "tipo:Medida|o|Execução fiscal;Ação anulatória;Mandado de segurança;Repetição de indébito;Defesa administrativa;Transação ou parcelamento;Exceção de pré-executividade", "cda:Certidão de dívida ativa", "periodo:Período de apuração", "constituicao:Constituição do crédito|d", "valor_atual:Valor atualizado|v"),
       sec("Garantia e exigibilidade", "garantia:Garantia do juízo|o|Não há;Penhora;Depósito integral;Seguro-garantia;Fiança bancária", "suspensa:Exigibilidade suspensa|s", "certidao:Certidão de regularidade|o|Negativa;Positiva com efeitos de negativa;Positiva", "parcelamento:Parcelamento ou transação|l"),
       sec("Tese", "tese:Tese|l", "prescricao:Prescrição prevista|d"),
+      secResultado("debito_situacao:Situação do débito|o|Extinto;Reduzido;Mantido;Suspenso"),
     ],
     prazos: [
       pz("Pagar ou garantir a execução fiscal", "5 dias da citação", "Lei 6.830/80, art. 8º"),
@@ -343,6 +360,7 @@ export const AREAS: Area[] = [
       sec("Imóvel", "tipo:Ação|o|Despejo por falta de pagamento;Despejo por denúncia vazia;Renovatória;Revisional de aluguel;Usucapião;Reintegração ou manutenção de posse;Adjudicação compulsória;Rescisão de compra e venda;Cobrança de condomínio", "imovel:Imóvel", "matricula:Matrícula", "cartorio:Registro de imóveis"),
       sec("Contrato", "inicio:Início do contrato|d", "fim:Fim do contrato|d", "aluguel:Aluguel|v", "garantia:Garantia|o|Sem garantia;Caução;Fiador;Seguro-fiança;Título de capitalização", "debito:Débito|v"),
       sec("Posse e liminar", "posse:Posse desde|d", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Cumprida"),
+      secResultado("desocupacao:Prazo ou data da desocupação"),
     ],
     prazos: [
       pz("Ação renovatória", "De 1 ano a 6 meses antes do fim do contrato", "Lei 8.245/91, art. 51, § 5º"),
@@ -363,6 +381,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Ato e parte", "tipo:Tipo|o|Mandado de segurança;Ação contra ente público;Improbidade administrativa;Licitação e contrato;Concurso público;Servidor público;Processo disciplinar;Desapropriação;Responsabilidade civil do Estado", "ente:Ente ou órgão", "autoridade:Autoridade coatora", "ato:Ato impugnado|l", "ciencia:Ciência do ato|d"),
       sec("Andamento", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Suspensa", "pagamento:Forma de pagamento|o|Não se aplica;Requisição de pequeno valor;Precatório", "valor:Valor|v"),
+      secResultado(),
     ],
     prazos: [
       pz("Mandado de segurança", "120 dias da ciência do ato", "Lei 12.016/09, art. 23"),
@@ -384,6 +403,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Pedido", "reu:Réu|o|Operadora de plano de saúde;União;Estado;Município;Estado e Município", "operadora:Operadora ou ente", "pedido:Procedimento ou medicamento", "anvisa:Registro na Anvisa|s", "rol:Previsto no rol da ANS|s", "negativa:Data da negativa|d", "protocolo:Protocolo da negativa"),
       sec("Urgência", "laudo:Laudo médico (médico e CRM)", "urgencia:Urgência ou emergência|s", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida", "multa:Multa diária|v", "cumprimento:Cumprimento|o|Não se aplica;Pendente;Cumprida;Descumprida;Bloqueio de valores"),
+      secResultado(),
     ],
     prazos: [
       pz("Autorização de urgência e emergência", "Imediata", "Resolução ANS 566/2022"),
@@ -402,6 +422,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Contrato", "instituicao:Instituição financeira", "contrato:Nº do contrato", "tipo:Tipo|o|Revisional;Superendividamento;Fraude ou golpe;Consignado não contratado;Busca e apreensão;Execução de cédula", "financiado:Valor financiado|v", "taxa:Taxa contratada", "taxa_media:Taxa média do Banco Central", "parcelas:Parcelas pagas e totais"),
       sec("Situação", "negativacao:Há negativação|s", "bem:Bem dado em garantia", "apreendido:Bem apreendido|s", "plano:Plano de pagamento proposto|l"),
+      secResultado("taxa_fixada:Taxa de juros fixada", "valor_restituir:Valor a restituir ao cliente|v"),
     ],
     prazos: [
       pz("Pagar a dívida na busca e apreensão", "5 dias da execução da liminar", "Decreto-Lei 911/69, art. 3º, § 2º"),
@@ -421,6 +442,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Autuação", "tipo:Tipo|o|Auto de infração;Ação civil pública;Crime ambiental;Licenciamento;Termo de ajustamento de conduta", "orgao:Órgão|o|Ibama;ICMBio;INEA;Secretaria municipal;Ministério Público", "auto:Nº do auto ou processo", "lavratura:Data da lavratura|d", "multa:Multa|v", "embargo:Área ou atividade embargada|s"),
       sec("Regularização", "licenca:Licença (tipo e validade)", "tac:Obrigações do termo de ajuste|l", "reparacao:Projeto de recuperação da área|o|Não exigido;Exigido;Protocolado;Em execução;Concluído"),
+      secResultado(),
     ],
     prazos: [
       pz("Defesa contra auto de infração federal", "20 dias da ciência", "Decreto 6.514/08, art. 113"),
@@ -440,6 +462,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Feito", "tipo:Tipo|o|Registro de candidatura;Investigação judicial eleitoral;Impugnação de mandato eletivo;Representação por propaganda;Prestação de contas;Recurso contra expedição de diploma", "candidato:Candidato ou partido", "cargo:Cargo", "eleicao:Eleição (ano)", "zona:Zona eleitoral"),
       sec("Contas", "contas:Situação das contas|o|Não se aplica;A prestar;Prestadas;Aprovadas;Aprovadas com ressalvas;Desaprovadas;Não prestadas", "diligencias:Diligências|m"),
+      secResultado("sancao:Sanção aplicada|l"),
     ],
     prazos: [
       pz("Recurso eleitoral", "3 dias", "Código Eleitoral, art. 258"),
@@ -460,6 +483,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Caso", "tipo:Tipo|o|Remoção de conteúdo;Vazamento de dados;Identificação de usuário;Crime contra a honra;Fraude ou golpe;Perfil falso", "plataforma:Plataforma ou controlador", "url:Endereços (URL)|m", "ata:Ata notarial ou captura certificada|s", "conhecimento:Data do conhecimento|d"),
       sec("Medidas", "preservacao:Preservação de registros pedida|s", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Cumprida", "anpd:Comunicação à ANPD|o|Não se aplica;Pendente;Feita", "dano:Dano moral pedido|v"),
+      secResultado("remocao:Remoção de conteúdo|o|Determinada;Negada;Cumprida"),
     ],
     prazos: [
       pz("Guarda de registros de conexão", "1 ano", "Marco Civil da Internet, art. 13"),
