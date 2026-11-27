@@ -2,6 +2,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CalendarPlus, Check, Gavel, ListTodo, Loader2, Plus, Search, Server } from "lucide-react";
+import { gravarBusca, useBusca } from "@/novo/lib/buscas";
 import { aguardarGravacoes, alterar, incluir, lerDB, recarregar, useDB } from "@/novo/lib/store";
 import { data, hojeISO, quando } from "@/novo/lib/format";
 import { areaDe } from "@/novo/lib/areas";
@@ -173,15 +174,35 @@ interface Achada {
   numero_processo?: string; classe?: string; orgao?: string; ja_salva: boolean; processo_id?: string; partes?: { nome: string; polo: string }[];
 }
 
+interface JobPub { rodando: boolean; achadas: Achada[] | null; erros: string[]; marcadas: Set<string>; procMarcados: Set<string>; aviso: string }
+const JOB_PUB: JobPub = { rodando: false, achadas: null, erros: [], marcadas: new Set(), procMarcados: new Set(), aviso: "" };
+const CHAVE_PUB = "publicacoes";
+const mexerPub = (f: (j: JobPub) => Partial<JobPub>) => gravarBusca<JobPub>(CHAVE_PUB, (j) => ({ ...j, ...f(j) }), JOB_PUB);
+
+/** Roda fora do componente: a consulta aos diários segue com a janela fechada ou em outra página. */
+async function rodarBuscaPublicacoes() {
+  mexerPub(() => ({ rodando: true, aviso: "", erros: [], achadas: null }));
+  try {
+    const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apenasBuscar: true }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
+    const lista = (j.resultados ?? []) as Achada[];
+    mexerPub(() => ({ achadas: lista, erros: j.erros ?? [], marcadas: new Set(lista.filter((a) => !a.ja_salva).map((a) => a.hash)), procMarcados: new Set() }));
+  } catch (e) {
+    mexerPub(() => ({ erros: [e instanceof Error ? e.message : "A busca falhou."] }));
+  } finally { mexerPub(() => ({ rodando: false })); }
+}
+
 function BuscarPublicacoes() {
   const db = useDB();
   const [aberto, setAberto] = useState(false);
-  const [rodando, setRodando] = useState(false);
-  const [achadas, setAchadas] = useState<Achada[] | null>(null);
-  const [erros, setErros] = useState<string[]>([]);
-  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
-  const [procMarcados, setProcMarcados] = useState<Set<string>>(new Set());
-  const [aviso, setAviso] = useState("");
+  const [gravando, setGravando] = useState(false);
+  const job = useBusca(CHAVE_PUB, JOB_PUB);
+  const { achadas, erros, marcadas, procMarcados, aviso } = job;
+  const rodando = job.rodando || gravando;
+  const setMarcadas = (m: Set<string>) => mexerPub(() => ({ marcadas: m }));
+  const setProcMarcados = (m: Set<string>) => mexerPub(() => ({ procMarcados: m }));
+  const setAviso = (a: string) => mexerPub(() => ({ aviso: a }));
   const [detalhar, setDetalhar] = useState<DadosPublicacao | null>(null);
 
   const casoPeloNumero = (n?: string) => (n ? db.casos.find((c) => c.numero && soDigitos(c.numero) === soDigitos(n)) : undefined);
@@ -199,38 +220,23 @@ function BuscarPublicacoes() {
     return [...m.values()];
   }, [achadas, db.casos]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function buscar() {
-    setRodando(true); setAviso(""); setErros([]); setAchadas(null);
-    try {
-      const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apenasBuscar: true }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
-      const lista = (j.resultados ?? []) as Achada[];
-      setAchadas(lista);
-      setErros(j.erros ?? []);
-      setMarcadas(new Set(lista.filter((a) => !a.ja_salva).map((a) => a.hash)));
-      setProcMarcados(new Set());
-    } catch (e) {
-      setErros([e instanceof Error ? e.message : "A busca falhou."]);
-    } finally { setRodando(false); }
-  }
+  const buscar = () => { if (!job.rodando) rodarBuscaPublicacoes(); };
 
   async function gravar() {
     const sel = novas.filter((a) => marcadas.has(a.hash));
     if (!sel.length) return;
-    setRodando(true);
+    setGravando(true);
     try {
       await aguardarGravacoes(); // casos recém-cadastrados precisam estar no banco para a publicação vincular
       const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resultados: sel }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
       setAviso(`${j.imported} publicação${j.imported === 1 ? "" : "ões"} gravada${j.imported === 1 ? "" : "s"}. Nas de processo cadastrado, o prazo já foi lançado e o aviso foi para o celular.`);
-      setAchadas((achadas ?? []).map((a) => (marcadas.has(a.hash) ? { ...a, ja_salva: true } : a)));
-      setMarcadas(new Set());
+      mexerPub((j) => ({ achadas: (j.achadas ?? []).map((a) => (marcadas.has(a.hash) ? { ...a, ja_salva: true } : a)), marcadas: new Set() }));
       recarregar();
     } catch (e) {
       setAviso(`Não gravou: ${e instanceof Error ? e.message : "erro"}`);
-    } finally { setRodando(false); }
+    } finally { setGravando(false); }
   }
 
   function cadastrarEmLote() {
@@ -259,14 +265,14 @@ function BuscarPublicacoes() {
 
   return (
     <>
-      <button className="btn btn-p" onClick={() => { setAberto(true); if (!achadas && !rodando) buscar(); }}><Search />Buscar agora</button>
-      <Dialogo aberto={aberto} aoFechar={() => { if (!rodando) setAberto(false); }} titulo="Buscar publicações pela OAB" largo
+      <button className="btn btn-p" onClick={() => { setAberto(true); if (!achadas && !rodando) buscar(); }}>{job.rodando ? <Loader2 className="animate-spin" /> : <Search />}{job.rodando ? "Buscando…" : novas.length > 0 ? `${novas.length} nova${novas.length > 1 ? "s" : ""} achada${novas.length > 1 ? "s" : ""}` : "Buscar agora"}</button>
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Buscar publicações pela OAB" largo
         rodape={<>
           {aviso && <p role="status" className="mr-auto self-center text-[13px] font-semibold">{aviso}</p>}
-          <button className="btn btn-g" disabled={rodando} onClick={buscar}>{rodando ? <Loader2 className="animate-spin" /> : <Search />}Buscar de novo</button>
+          <button className="btn btn-g" disabled={rodando} onClick={buscar}>{job.rodando ? <Loader2 className="animate-spin" /> : <Search />}Buscar de novo</button>
           <button className="btn btn-p" disabled={rodando || marcadas.size === 0} onClick={gravar}>Gravar {marcadas.size} selecionada{marcadas.size === 1 ? "" : "s"}</button>
         </>}>
-        {rodando && !achadas && <p className="flex items-center gap-2 py-6 text-ink-2"><Loader2 className="size-4 animate-spin" />Consultando os diários. Pode levar até um minuto.</p>}
+        {job.rodando && !achadas && <p className="flex items-center gap-2 py-6 text-ink-2"><Loader2 className="size-4 animate-spin" />Consultando os diários. Pode levar até um minuto. Pode fechar esta janela: a busca continua em segundo plano e o botão avisa quando terminar.</p>}
         {erros.length > 0 && <div role="alert" className="mb-3 rounded-[12px] bg-perigo-f p-3 text-[13px] text-perigo"><p className="font-semibold">Alguns diários não responderam:</p><ul className="mt-1 list-disc pl-5">{erros.map((e) => <li key={e} className="break-words">{e}</li>)}</ul></div>}
 
         {achadas && (
