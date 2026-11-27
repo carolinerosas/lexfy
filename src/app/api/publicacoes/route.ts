@@ -1,3 +1,4 @@
+import { corrigirCaixa } from "@/lib/caixa";
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { Processo, Publicacao } from "@/types";
@@ -437,7 +438,7 @@ function mapDjenItem(item: DjenComunicacao): PubEncontrada {
 
   return {
     titulo: `${tipo}${processo ? ` · ${processo}` : ""}`,
-    conteudo: conteudo.trim(),
+    conteudo: corrigirCaixa(conteudo.trim()),
     data_publicacao: dataDisponibilizacao || dataHoje().iso,
     diario: item.meiocompleto ?? "Diario de Justica Eletronico Nacional",
     url: item.link || undefined,

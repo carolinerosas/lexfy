@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -40,6 +40,14 @@ export default function PaginaCaso() {
   const { pessoa } = useMapas(db);
   const [aba, setAba] = useState<Aba>("ficha");
   const caso = db.casos.find((c) => c.id === id);
+  // a faixa de fases abre já mostrando a fase atual (rola só a faixa, não a página)
+  const faixaFases = useRef<HTMLOListElement>(null);
+  const faseAtual = caso?.fase;
+  useEffect(() => {
+    const ol = faixaFases.current;
+    const li = ol?.querySelector('[aria-current="step"]')?.parentElement as HTMLElement | null | undefined;
+    if (ol && li) ol.scrollLeft = Math.max(0, li.offsetLeft - ol.clientWidth / 2 + li.offsetWidth / 2);
+  }, [id, faseAtual]);
   if (!caso) return <div className="painel"><Vazio titulo="Caso não encontrado">Ele pode ter sido excluído. <Link className="font-semibold text-cobalto underline" href="/processos">Voltar para os processos</Link></Vazio></div>;
 
   const area = areaDe(caso.area);
@@ -81,23 +89,26 @@ export default function PaginaCaso() {
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-ink-2">{caso.vinculados!.map((v) => <span key={v.id} className="inline-flex items-center gap-1"><span className="text-ink-3">{v.tipo}:</span><span className="break-all font-mono">{v.numero}</span><Copiar texto={v.numero} rotulo={`Copiar número do ${v.tipo.toLowerCase()}`} /></span>)}</p>
             )}
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <MensagemCliente caso={caso} />
-            <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" comTexto />
-            <Link href={`/documentos?caso=${caso.id}`} className="btn btn-g">Gerar documento</Link>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-2 bg-porcelana px-5 py-3">
+          <span className="flex items-center gap-2">
             <Avatar pessoa={pessoa(caso.responsavel_id)} tamanho={30} />
             <select className="inp w-auto" aria-label="Situação do caso" value={caso.status} onChange={(e) => alterar("casos", caso.id, { status: e.target.value as Caso["status"] })}>
               <option value="ativo">Em andamento</option><option value="suspenso">Suspenso</option><option value="arquivado">Arquivado</option><option value="encerrado">Encerrado</option>
             </select>
-          </div>
+          </span>
+          <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" />
+            <MensagemCliente caso={caso} />
+          </span>
         </div>
         {area.id === "criminal" && crimeContraAVida(`${caso.titulo} ${caso.dados.tipo_penal ?? ""}`) && (
           <div role="note" className="flex flex-wrap items-center gap-3 border-t border-line-2 bg-porcelana px-5 py-3 text-[13.5px]">
-            <p className="min-w-0 flex-1"><span className="font-semibold">Crime doloso contra a vida: competência do Tribunal do Júri.</span> Este caso está na área Criminal. Na área do Júri as fases são sumário da culpa, pronúncia, recurso da pronúncia, plenário e apelação.</p>
+            <p className="min-w-[min(100%,260px)] flex-1"><span className="font-semibold">Crime doloso contra a vida: competência do Tribunal do Júri.</span> Este caso está na área Criminal. Na área do Júri as fases são sumário da culpa, pronúncia, recurso da pronúncia, plenário e apelação.</p>
             <button className="btn btn-p btn-sm" onClick={() => alterar("casos", caso.id, { area: "juri", fase: FASE_PARA_JURI[caso.fase] ?? 0, dados: { ...caso.dados, imputacao: String(caso.dados.tipo_penal ?? caso.titulo) } })}>Mudar para Tribunal do Júri</button>
           </div>
         )}
-        <ol className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
+        <ol ref={faixaFases} className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
           {area.fases.map((f, i) => (
             <li key={f} className="min-w-[104px] flex-1">
               <button onClick={() => alterar("casos", caso.id, { fase: i })} aria-current={i === caso.fase ? "step" : undefined} title={`Mover para: ${f}`}

@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from "react";
 import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
+import { corrigirCaixa as cx } from "@/lib/caixa";
 import { AREAS, areaDe } from "./areas";
 import { semAcento } from "./format";
 import type { Colaborador, Config, DB, Tabela } from "./types";
@@ -89,7 +90,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
     antiga: "clientes", select: "id,nome,cpf,email,celular,cidade,uf,profissao,observacoes,created_at", ordem: ["nome", true],
     campos: { nome: "nome", documento: "cpf", email: "email", celular: "celular", cidade: "cidade", uf: "uf", profissao: "profissao", observacoes: "observacoes" },
     extras: ["tipo", "origem"],
-    ler: (c, x) => limpo({ id: c.id, nome: c.nome, tipo: x.tipo ?? (String(c.cpf ?? "").replace(/\D/g, "").length > 11 ? "pj" : "pf"), documento: c.cpf, email: c.email, celular: c.celular, cidade: c.cidade, uf: c.uf, profissao: c.profissao, origem: x.origem, observacoes: c.observacoes, criado_em: dia(c.created_at) ?? "" }),
+    ler: (c, x) => limpo({ id: c.id, nome: cx(c.nome), tipo: x.tipo ?? (String(c.cpf ?? "").replace(/\D/g, "").length > 11 ? "pj" : "pf"), documento: c.cpf, email: c.email, celular: c.celular, cidade: c.cidade, uf: c.uf, profissao: c.profissao, origem: x.origem, observacoes: c.observacoes, criado_em: dia(c.created_at) ?? "" }),
     aoInserir: () => ({ updated_at: agora() }),
   },
   casos: {
@@ -101,8 +102,8 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
       const a = areaDe(area);
       const fase = typeof x.fase === "number" ? x.fase : Math.max(0, a.fases.findIndex((f) => semAcento(f) === semAcento(String(p.fase ?? ""))));
       return limpo({
-        id: p.id, natureza: a.grupo, area: a.id, numero: p.numero ?? "", titulo: p.titulo ?? "", status: p.status ?? "ativo", fase: Math.min(fase, a.fases.length - 1),
-        orgao: p.vara, comarca: p.comarca, uf: p.uf, cliente_id: p.cliente_id ?? "", cliente_nome: p.cliente_nome ?? "", parte_contraria: p.parte_contraria, valor: p.valor_causa ?? undefined,
+        id: p.id, natureza: a.grupo, area: a.id, numero: p.numero ?? "", titulo: cx(p.titulo ?? ""), status: p.status ?? "ativo", fase: Math.min(fase, a.fases.length - 1),
+        orgao: p.vara, comarca: p.comarca, uf: p.uf, cliente_id: p.cliente_id ?? "", cliente_nome: cx(p.cliente_nome ?? ""), parte_contraria: p.parte_contraria ? cx(p.parte_contraria) : p.parte_contraria, valor: p.valor_causa ?? undefined,
         responsavel_id: x.responsavel_id ?? "e1", distribuido_em: dia(p.data_distribuicao), dados: (x.dados as Linha | undefined) ?? fichaDoAntigo(p, a.id), risco: x.risco, docs_pendentes: x.docs_pendentes, vinculados: x.vinculados, execucao: x.execucao, orcamentos: x.orcamentos, criado_em: dia(p.created_at) ?? "",
       });
     },
@@ -129,13 +130,13 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
     antiga: "movimentacoes", select: "id,processo_id,descricao,data_movimentacao,fonte,lida,texto_cliente", ordem: ["data_movimentacao", false], limite: 3000,
     campos: { caso_id: "processo_id", descricao: "descricao", data: "data_movimentacao", fonte: "fonte", lido: "lida", texto_cliente: "texto_cliente" },
     extras: [],
-    ler: (m) => limpo({ id: m.id, caso_id: m.processo_id, data: dia(m.data_movimentacao) ?? "", descricao: m.descricao ?? "", fonte: m.fonte || "tribunal", lido: !!m.lida, texto_cliente: m.texto_cliente }),
+    ler: (m) => limpo({ id: m.id, caso_id: m.processo_id, data: dia(m.data_movimentacao) ?? "", descricao: cx(m.descricao ?? ""), fonte: m.fonte || "tribunal", lido: !!m.lida, texto_cliente: m.texto_cliente }),
   },
   publicacoes: {
     antiga: "publicacoes", select: "id,processo_id,titulo,conteudo,data_publicacao,diario,lida", ordem: ["data_publicacao", false], limite: 300,
     campos: { caso_id: "processo_id", data: "data_publicacao", diario: "diario", texto: "conteudo", lida: "lida", orgao: "titulo" },
     extras: ["prazo_sugerido"],
-    ler: (p, x) => limpo({ id: p.id, caso_id: p.processo_id, data: dia(p.data_publicacao) ?? "", diario: p.diario ?? "DJEN", orgao: p.titulo ?? "", texto: p.conteudo ?? p.titulo ?? "", lida: !!p.lida, prazo_sugerido: x.prazo_sugerido }),
+    ler: (p, x) => limpo({ id: p.id, caso_id: p.processo_id, data: dia(p.data_publicacao) ?? "", diario: p.diario ?? "DJEN", orgao: cx(p.titulo ?? ""), texto: cx(p.conteudo ?? p.titulo ?? ""), lida: !!p.lida, prazo_sugerido: x.prazo_sugerido }),
   },
   honorarios: {
     // No antigo, "cobranca" é o que o cliente deve e "pagamento" é o registro do que entrou.
@@ -158,7 +159,7 @@ const SPECS: Partial<Record<Tabela, Spec>> = {
     antiga: "atendimentos", select: "id,processo_id,cliente_id,cliente_nome,data_hora,duracao_min,tipo,status,notas,valor_cobrado", ordem: ["data_hora", false],
     campos: { cliente_id: "cliente_id", cliente_nome: "cliente_nome", caso_id: "processo_id", data_hora: ["data_hora", paraUTC], duracao_min: "duracao_min", tipo: ["tipo", (v) => TIPO_AT_INV[String(v)] ?? "outro"], status: "status", notas: "notas", valor: "valor_cobrado" },
     extras: ["responsavel_id", "tipo"],
-    ler: (a, x) => limpo({ id: a.id, cliente_id: a.cliente_id, cliente_nome: a.cliente_nome ?? "", caso_id: a.processo_id, data_hora: paraLocal(a.data_hora), duracao_min: a.duracao_min ?? 45, tipo: x.tipo ?? TIPO_AT[String(a.tipo ?? "retorno")] ?? "retorno", status: a.status ?? "agendado", notas: a.notas, responsavel_id: x.responsavel_id ?? "e1", valor: a.valor_cobrado ?? undefined }),
+    ler: (a, x) => limpo({ id: a.id, cliente_id: a.cliente_id, cliente_nome: cx(a.cliente_nome ?? ""), caso_id: a.processo_id, data_hora: paraLocal(a.data_hora), duracao_min: a.duracao_min ?? 45, tipo: x.tipo ?? TIPO_AT[String(a.tipo ?? "retorno")] ?? "retorno", status: a.status ?? "agendado", notas: a.notas, responsavel_id: x.responsavel_id ?? "e1", valor: a.valor_cobrado ?? undefined }),
   },
   tarefas: {
     antiga: "tarefas", select: "id,processo_id,titulo,descricao,data_limite,concluida,prioridade", ordem: ["created_at", false],
