@@ -8,7 +8,7 @@ import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
 import { brl, data, hojeISO } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { FormRapido, type Valores } from "./form-rapido";
-import { Dialogo, Rotulado } from "./ui";
+import { Dialogo, Rotulado, NotaInfo } from "./ui";
 import type { Honorario } from "@/novo/lib/types";
 
 /** Lança a entrada e as parcelas mensais do restante (a última absorve os centavos). */
@@ -99,7 +99,7 @@ export function Cobrar({ honorario }: { honorario: Honorario }) {
           <a className="btn btn-p btn-sm" target="_blank" rel="noreferrer" href={linkWhatsApp(msg, cliente?.celular)}><MessageCircle />{cliente?.celular ? "Abrir no WhatsApp" : "Escolher contato no WhatsApp"}</a>
         </div>
         {copiado === "erro" && <p role="alert" className="mt-2 text-[13px] text-perigo">O navegador bloqueou a cópia. Selecione o texto e copie à mão.</p>}
-        <p className="mt-4 text-[12.5px] text-ink-3">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Receber”.</p>
+        <NotaInfo className="mt-4">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Receber”.</NotaInfo>
       </Dialogo>
     </>
   );

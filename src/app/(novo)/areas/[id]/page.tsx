@@ -7,7 +7,7 @@ import { useDB } from "@/novo/lib/store";
 import { AREA_POR_ID } from "@/novo/lib/areas";
 import { brlCurto, diasAte } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, Vazio, valorCampo, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Vazio, valorCampo, useMapas, NotaInfo, BotaoInfo } from "@/novo/components/ui";
 import { NovoCaso } from "@/novo/components/novo-caso";
 
 const TIPO = { t: "Texto", l: "Texto longo", m: "Lista", d: "Data", v: "Valor", n: "Número", s: "Sim ou não", o: "Opções" } as const;
@@ -35,8 +35,7 @@ export default function PaginaArea() {
         <div className="flex flex-wrap items-end justify-between gap-4 p-5 sm:p-6">
           <div className="min-w-0">
             <p className="flex items-center gap-3"><Azulejo area={area} tamanho={44} /><span className="tag tag-tinta">{area.grupo === "judicial" ? "Judicial" : "Extrajudicial"}</span></p>
-            <h1 className="titulo mt-3 text-[38px]">{area.nome}</h1>
-            <p className="mt-1 max-w-[70ch] text-ink-2">{area.resumo}</p>
+            <h1 className="titulo mt-3 flex flex-wrap items-center gap-x-3 text-[38px]">{area.nome}<BotaoInfo rotulo={`Sobre ${area.nome}`}>{area.resumo}</BotaoInfo></h1>
           </div>
           <button className="btn btn-p" onClick={() => setNovo(true)}><Plus />Novo caso nesta área</button>
         </div>
@@ -101,7 +100,7 @@ export default function PaginaArea() {
           <section className="painel overflow-x-auto">
             <table className="tb"><thead><tr><th>Ato</th><th>Prazo</th><th>Base legal</th></tr></thead>
               <tbody>{area.prazos.map((p) => <tr key={p.nome}><td className="font-semibold">{p.nome}</td><td>{p.prazo}</td><td className="text-ink-2">{p.base}</td></tr>)}</tbody></table>
-            <p className="border-t border-line-2 px-4 py-2.5 text-[12.5px] text-ink-3">Tabela de consulta rápida. A lei pode ter mudado e o caso concreto pode ter regra própria: confira antes de contar.</p>
+            <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Tabela de consulta rápida. A lei pode ter mudado e o caso concreto pode ter regra própria: confira antes de contar.</NotaInfo>
           </section>
         )}
       </div>

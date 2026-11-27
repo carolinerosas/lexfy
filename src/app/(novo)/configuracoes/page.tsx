@@ -4,7 +4,7 @@ import { Download } from "lucide-react";
 import { alterarConfig, exportarBanco, useDB, useSituacao } from "@/novo/lib/store";
 import { AREAS } from "@/novo/lib/areas";
 import { Azulejo } from "@/novo/components/azulejo";
-import { Cabecalho, Rotulado } from "@/novo/components/ui";
+import { Cabecalho, Rotulado, NotaInfo } from "@/novo/components/ui";
 import { ConfigConta } from "@/novo/components/config-conta";
 import { GerenciarListas } from "@/novo/components/listas";
 
@@ -46,7 +46,7 @@ export default function Configuracoes() {
         </div>
         <section className="painel h-fit">
           <div className="painel-cab"><h2>Áreas em que o escritório atua</h2><span className="text-[12.5px] text-ink-3">{cfg.areasAtivas.length} de {AREAS.length}</span></div>
-          <p className="px-5 pt-3 text-[13px] text-ink-2">As áreas desmarcadas saem das listas e do cadastro de caso novo. Os casos já cadastrados continuam acessíveis.</p>
+          <NotaInfo className="px-5">As áreas desmarcadas saem das listas e do cadastro de caso novo. Os casos já cadastrados continuam acessíveis.</NotaInfo>
           {(["judicial", "extrajudicial"] as const).map((g) => (
             <fieldset key={g} className="px-5 py-3">
               <legend className="pb-2 text-[12.5px] font-semibold text-ink-3">{g === "judicial" ? "Judicial" : "Extrajudicial"}</legend>

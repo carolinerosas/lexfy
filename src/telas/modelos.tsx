@@ -1,5 +1,6 @@
 "use client";
 
+import { BotaoInfo } from "@/novo/components/ui";
 import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Trash2, Upload, FilePlus2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,10 +122,10 @@ export default function ModelosPage() {
         <div className="flex items-center gap-3 mb-1">
           <FileText className="w-5 h-5 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Modelos de documentos</h1>
-        </div>
-        <p className="text-gray-400 text-sm mt-1">
+          <BotaoInfo>
           Suba seus modelos em Word com marcadores. Na página de cada cliente, o Justio preenche e baixa o documento pronto.
-        </p>
+                  </BotaoInfo>
+        </div>
       </div>
 
       <Card className="mb-6">

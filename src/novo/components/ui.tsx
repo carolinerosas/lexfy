@@ -14,28 +14,50 @@ import type { Caso, Colaborador, DB } from "@/novo/lib/types";
 /** Botão "i" pequeno: ao tocar, mostra o texto numa caixinha. Fecha ao tocar fora ou com Esc. */
 export function BotaoInfo({ children, rotulo = "Mais informações" }: { children: ReactNode; rotulo?: string }) {
   const [aberto, setAberto] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number; largura: number } | null>(null);
   const raiz = useRef<HTMLSpanElement>(null);
+  const botao = useRef<HTMLButtonElement>(null);
+
+  function alternar() {
+    if (aberto) { setAberto(false); return; }
+    const r = botao.current?.getBoundingClientRect();
+    if (r) {
+      const largura = Math.min(340, window.innerWidth - 24);
+      setPos({ top: r.bottom + 8, left: Math.max(12, Math.min(r.left, window.innerWidth - largura - 12)), largura });
+    }
+    setAberto(true);
+  }
   useEffect(() => {
     if (!aberto) return;
     const fora = (e: Event) => { if (raiz.current && !raiz.current.contains(e.target as Node)) setAberto(false); };
     const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAberto(false); };
+    const fechar = () => setAberto(false);
     document.addEventListener("pointerdown", fora);
     document.addEventListener("keydown", tecla);
-    return () => { document.removeEventListener("pointerdown", fora); document.removeEventListener("keydown", tecla); };
+    window.addEventListener("scroll", fechar, true);
+    window.addEventListener("resize", fechar);
+    return () => { document.removeEventListener("pointerdown", fora); document.removeEventListener("keydown", tecla); window.removeEventListener("scroll", fechar, true); window.removeEventListener("resize", fechar); };
   }, [aberto]);
+
   return (
     <span ref={raiz} className="inline-flex align-middle">
-      <button type="button" aria-label={rotulo} aria-expanded={aberto} onClick={() => setAberto(!aberto)}
-        className="inline-flex size-6 items-center justify-center rounded-full border border-line text-ink-3 hover:border-ink-3 hover:text-ink"><Info className="size-3.5" /></button>
-      {aberto && <span role="note" className="absolute left-0 top-full z-30 mt-2 block w-[min(340px,100%)] rounded-[12px] border border-line bg-white p-3 text-left font-sans text-[13px] font-normal leading-snug tracking-normal text-ink-2 shadow-[var(--shadow-flutua)]">{children}</span>}
+      <button ref={botao} type="button" aria-label={rotulo} aria-expanded={aberto} onClick={alternar}
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-line text-ink-3 hover:border-ink-3 hover:text-ink"><Info className="size-3.5" /></button>
+      {aberto && pos && <span role="note" style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.largura }}
+        className="z-[60] block rounded-[12px] border border-line bg-white p-3 text-left font-sans text-[13px] font-normal leading-snug tracking-normal text-ink-2 shadow-[var(--shadow-flutua)]">{children}</span>}
     </span>
   );
+}
+
+/** Nota de rodapé de um quadro: só o "i", o texto aparece ao tocar. */
+export function NotaInfo({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`flex justify-end ${className}`}><BotaoInfo>{children}</BotaoInfo></div>;
 }
 
 export function Cabecalho({ titulo, sub, children }: { titulo: string; sub?: ReactNode; children?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div className="relative min-w-0">
+      <div className="min-w-0">
         <h1 className="titulo flex flex-wrap items-center gap-x-3 text-[34px]">{titulo}{sub && <BotaoInfo rotulo={`Sobre ${titulo}`}>{sub}</BotaoInfo>}</h1>
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}

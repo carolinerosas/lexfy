@@ -4,7 +4,7 @@ import { CheckCheck } from "lucide-react";
 import { alterar, useDB } from "@/novo/lib/store";
 import { AREAS } from "@/novo/lib/areas";
 import { data, diasAte, quando } from "@/novo/lib/format";
-import { Cabecalho, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Cabecalho, LinkCaso, Seg, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import { BuscarAndamentos } from "@/novo/components/caso-extras";
 
 export default function Andamentos() {
@@ -55,7 +55,7 @@ export default function Andamentos() {
                 <li key={c.id} className="border-b border-line-2 px-4 py-2.5 last:border-0"><LinkCaso caso={c} /><p className="mt-0.5 text-[12.5px] text-ocre">{dias === null ? "Nenhum andamento registrado" : `Sem movimentação há ${dias} dias`}</p></li>
               ))}</ul>
             )}
-            <p className="border-t border-line-2 px-4 py-2.5 text-[12.5px] text-ink-3">Processo parado em cartório costuma pedir despacho com o juízo ou petição de impulso.</p>
+            <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Processo parado em cartório costuma pedir despacho com o juízo ou petição de impulso.</NotaInfo>
           </section>
           <section className="painel p-4 text-[13px] text-ink-2">
             <p className="font-semibold text-ink">De onde vêm os andamentos</p>

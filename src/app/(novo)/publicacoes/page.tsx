@@ -1,14 +1,14 @@
 "use client";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarPlus, Check, Gavel, ListTodo, Loader2, Plus, Search, Server } from "lucide-react";
+import { CalendarPlus, Check, Gavel, ListTodo, Loader2, Plus, Search } from "lucide-react";
 import { gravarBusca, useBusca } from "@/novo/lib/buscas";
 import { aguardarGravacoes, alterar, incluir, lerDB, recarregar, useDB } from "@/novo/lib/store";
 import { data, hojeISO, quando } from "@/novo/lib/format";
 import { areaDe } from "@/novo/lib/areas";
 import { dadosDaPublicacao, detectarAudiencia, detectarPrazo, ePenal, extrairCNJ, soDigitos, vencimentoDaPublicacao, type DadosPublicacao } from "@/lib/prazo-publicacao";
 import { semAcento } from "@/novo/lib/format";
-import { Cabecalho, Copiar, Dialogo, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Cabecalho, Copiar, Dialogo, LinkCaso, Seg, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { NovoCaso } from "@/novo/components/novo-caso";
 import type { Caso, DB, Publicacao } from "@/novo/lib/types";
@@ -71,17 +71,13 @@ function Publicacoes() {
 
   return (
     <>
-      <Cabecalho titulo="Publicações" sub="Intimações dos diários eletrônicos em nome da advogada. Quando o processo está cadastrado, o prazo entra sozinho na agenda e você recebe aviso no celular.">
+      <Cabecalho titulo="Publicações" sub={<><span className="block">Intimações dos diários eletrônicos em nome da advogada. Quando o processo está cadastrado, o prazo entra sozinho na agenda e você recebe aviso no celular.</span><span className="mt-2 block"><strong className="font-semibold text-ink">Busca diária no servidor, pela OAB.</strong> Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</span></>}>
         <BuscarPublicacoes />
         <BotaoNovo rotulo="Registrar à mão" classe="btn btn-g" aoSalvar={(v) => incluir("publicacoes", { caso_id: v.caso_id ? String(v.caso_id) : undefined, data: String(v.data ?? hojeISO()), diario: String(v.diario ?? "DJEN"), orgao: String(v.orgao ?? ""), texto: String(v.texto), lida: false, prazo_sugerido: v.prazo ? String(v.prazo) : undefined })}
           campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, opcoes: judiciais.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "data", rotulo: "Disponibilizada em", tipo: "data", inicial: hojeISO() }, { k: "diario", rotulo: "Diário", tipo: "opcoes", inicial: "DJEN", opcoes: ["DJEN", "DEJT", "DJe estadual", "DOU"] }, { k: "orgao", rotulo: "Vara ou órgão", largo: true }, { k: "texto", rotulo: "Texto da publicação", tipo: "longo", obrig: true }, { k: "prazo", rotulo: "Prazo (ex.: Réplica: 15 dias úteis)", largo: true, dica: "Se o texto já disser o prazo, não precisa preencher." }]} />
       </Cabecalho>
       <div className="mb-4"><Seg rotulo="Filtro" valor={ver} aoMudar={setVer} opcoes={[["novas", `Não lidas (${db.publicacoes.filter((p) => !p.lida).length})`], ["sem", `Sem caso (${db.publicacoes.filter((p) => !p.caso_id).length})`], ["todas", "Todas"]] as const} /></div>
 
-      <section className="painel mb-4 flex items-start gap-3 p-4">
-        <Server className="mt-0.5 size-5 shrink-0" />
-        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</p></div>
-      </section>
 
       <div className="painel">
         {lista.length === 0 ? <Vazio titulo={ver === "novas" ? "Nenhuma publicação por ler" : "Nenhuma publicação neste filtro"}>Quando a busca encontrar algo em nome da OAB cadastrada, a publicação aparece aqui.</Vazio> : (
@@ -297,7 +293,7 @@ function BuscarPublicacoes() {
                     <button className="btn btn-g btn-sm shrink-0" onClick={() => setDetalhar(p.dados)}>Com detalhes</button>
                   </li>
                 ))}</ul>
-                <p className="border-t border-line-2 px-3 py-2 text-[12.5px] text-ink-3">“Cadastrar” cria o caso com o número, a classe e o órgão, e cliente a identificar. “Com detalhes” abre o formulário completo.</p>
+                <NotaInfo className="border-t border-line-2 px-3 px-3 py-1.5">“Cadastrar” cria o caso com o número, a classe e o órgão, e cliente a identificar. “Com detalhes” abre o formulário completo.</NotaInfo>
               </section>
             )}
 

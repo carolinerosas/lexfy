@@ -8,7 +8,7 @@ import { resumoExecucao } from "@/novo/lib/execucao";
 import { brl, data, hojeISO, hora } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
-import { Copiar, Dialogo, Rotulado, Vazio, valorCampo } from "./ui";
+import { Copiar, Dialogo, Rotulado, Vazio, valorCampo, NotaInfo } from "./ui";
 import { Acoes } from "./acoes";
 import { BotaoNovo, type CampoF } from "./form-rapido";
 import type { Caso, DB, Vinculado } from "@/novo/lib/types";
@@ -252,7 +252,7 @@ export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe =
               })}
             </ul>
             {buscou && !rodando && <p className="mt-3 text-[13px] text-ink-2">Nenhum andamento novo para gravar.{Object.values(estado).some((e) => e.st === "erro") ? " Alguns tribunais não responderam; passe o mouse em “não consultou” para ver o motivo." : ""}</p>}
-            <p className="mt-3 text-[12.5px] text-ink-3">A consulta usa o DataJud do CNJ e as consultas públicas dos tribunais. Nada é gravado antes de você escolher.</p>
+            <NotaInfo className="mt-3">A consulta usa o DataJud do CNJ e as consultas públicas dos tribunais. Nada é gravado antes de você escolher.</NotaInfo>
           </>
         )}
         {achados.length > 0 && (

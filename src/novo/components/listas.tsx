@@ -1,4 +1,5 @@
 "use client";
+import { NotaInfo } from "@/novo/components/ui";
 // Gerência das listas que a advogada alimenta (opções dos campos da ficha, tipos de ação, crimes…).
 import { useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
@@ -43,7 +44,7 @@ export function GerenciarListas() {
     <section className="painel">
       <div className="painel-cab"><h2>Listas que você alimenta</h2><span className="text-[12.5px] text-ink-3">{usadas.length} com itens</span></div>
       <div className="space-y-3 p-5">
-        <p className="text-[13px] text-ink-2">Todo campo de escolha tem “Cadastrar outra opção”, e os campos de lista guardam o que você digita. Aqui você vê, inclui e tira itens de cada lista.</p>
+        <NotaInfo className="">Todo campo de escolha tem “Cadastrar outra opção”, e os campos de lista guardam o que você digita. Aqui você vê, inclui e tira itens de cada lista.</NotaInfo>
         <input className="inp" placeholder="Procurar campo" aria-label="Procurar campo" value={filtro} onChange={(e) => setFiltro(e.target.value)} />
         <select className="inp" value={chave} aria-label="Lista" onChange={(e) => setChave(e.target.value)}>
           {usadas.length > 0 && <optgroup label="Com itens">{usadas.filter((k) => visiveis.includes(k)).map((k) => <option key={k} value={k}>{nomes[k]} ({listas[k].length})</option>)}</optgroup>}

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { addDays, addYears, differenceInCalendarDays, differenceInYears } from "date-fns";
 import { brl, data, diaSemana, hojeISO, iso } from "@/novo/lib/format";
 import { contarPrazo } from "@/novo/lib/prazo";
-import { Abas, Cabecalho, Rotulado } from "@/novo/components/ui";
+import { Abas, Cabecalho, Rotulado, NotaInfo } from "@/novo/components/ui";
 
 type Aba = "prazo" | "progressao" | "prescricao" | "rescisao";
 const dia = (s: string) => new Date(`${s}T12:00:00`);
@@ -11,7 +11,7 @@ const dia = (s: string) => new Date(`${s}T12:00:00`);
 function Resultado({ rotulo, valor, nota }: { rotulo: string; valor: string; nota?: string }) {
   return <div className="rounded-[16px] bg-ink p-5 text-white" role="status"><p className="text-[12.5px] font-semibold text-white/70">{rotulo}</p><p className="titulo mt-1 text-[30px]">{valor}</p>{nota && <p className="mt-1 text-[13px] text-white/75">{nota}</p>}</div>;
 }
-const Aviso = ({ children }: { children: React.ReactNode }) => <p className="mt-4 max-w-[70ch] text-[12.5px] text-ink-3">{children}</p>;
+const Aviso = ({ children }: { children: React.ReactNode }) => <NotaInfo className="mt-3">{children}</NotaInfo>;
 
 function Prazo() {
   const [f, setF] = useState({ base: hojeISO(), dias: 15, uteis: true, diario: true, recesso: true });
@@ -70,7 +70,7 @@ function Prescricao() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2"><Rotulado rotulo="Pena: anos"><input type="number" min={0} className="inp" value={f.anos} onChange={(e) => setF({ ...f, anos: Number(e.target.value) })} /></Rotulado><Rotulado rotulo="Meses"><input type="number" min={0} max={11} className="inp" value={f.meses} onChange={(e) => setF({ ...f, meses: Number(e.target.value) })} /></Rotulado></div>
-        <p className="text-[12.5px] text-ink-3">Use a pena máxima do tipo antes da sentença, ou a pena aplicada depois do trânsito para a acusação (CP, art. 110).</p>
+        <NotaInfo className="">Use a pena máxima do tipo antes da sentença, ou a pena aplicada depois do trânsito para a acusação (CP, art. 110).</NotaInfo>
         <Rotulado rotulo="Último marco (fato, recebimento da denúncia, sentença…)"><input type="date" className="inp" value={f.marco} onChange={(e) => setF({ ...f, marco: e.target.value })} /></Rotulado>
         <label className="flex items-start gap-2"><input type="checkbox" className="mt-1" checked={f.metade} onChange={(e) => setF({ ...f, metade: e.target.checked })} /><span>Reduzir pela metade <span className="block text-[12.5px] text-ink-3">Menor de 21 anos na data do fato ou maior de 70 na sentença (CP, art. 115).</span></span></label>
       </div>

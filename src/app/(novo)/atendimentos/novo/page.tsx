@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { useDB } from "@/novo/lib/store";
+import { BotaoInfo } from "@/novo/components/ui";
 import { CamposAtendimento, criarAtendimento, formVazio } from "@/novo/components/atendimento";
 
 export default function PaginaNovoAtendimento() {
@@ -26,8 +27,7 @@ function NovoAtendimentoPagina() {
   return (
     <>
       <Link href={clienteId ? `/clientes/${clienteId}` : "/atendimentos"} className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-cobalto"><ChevronLeft className="size-4" />{clienteId ? "Cliente" : "Atendimentos"}</Link>
-      <h1 className="titulo mb-1 text-[28px] sm:text-[34px]">Iniciar atendimento</h1>
-      <p className="mb-5 text-ink-2">Confirme os dados e comece. As anotações abrem em seguida, na tela inteira.</p>
+      <h1 className="titulo mb-5 flex flex-wrap items-center gap-x-3 text-[28px] sm:text-[34px]">Iniciar atendimento<BotaoInfo>Confirme os dados e comece. As anotações abrem em seguida, na tela inteira.</BotaoInfo></h1>
       <section className="painel max-w-[760px] p-4 sm:p-5">
         <CamposAtendimento f={f} setF={setF} clienteId={clienteId} />
         <div className="mt-5 flex flex-wrap justify-end gap-2">

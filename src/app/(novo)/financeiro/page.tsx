@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { areaDe, AREAS } from "@/novo/lib/areas";
 import { brl, brlCurto, data, hojeISO, horas } from "@/novo/lib/format";
-import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Rotulado, Seg, Vazio, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Rotulado, Seg, Vazio, useMapas, NotaInfo, BotaoInfo } from "@/novo/components/ui";
 import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import type { Custa } from "@/novo/lib/types";
@@ -84,7 +84,7 @@ export default function Financeiro() {
                     </div>
                   ))}
                 </div>
-                <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Saídas somam as contas do escritório e a remuneração da equipe. Honorários de êxito ficam fora da previsão.</p>
+                <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Saídas somam as contas do escritório e a remuneração da equipe. Honorários de êxito ficam fora da previsão.</NotaInfo>
               </section>
               <section className="painel">
                 <div className="painel-cab"><h2>Honorários recebidos por área</h2></div>
@@ -133,7 +133,7 @@ export default function Financeiro() {
 
         {aba === "custas" && (
           <div className="space-y-5">
-            <p className="max-w-[75ch] text-ink-2">O dinheiro do cliente fica separado do dinheiro do escritório: alvarás levantados aparecem como valor a repassar, e as custas adiantadas ficam marcadas até o reembolso. {reembolsar.length > 0 && <>Há <strong className="text-ink">{brl(soma(reembolsar))}</strong> em custas a cobrar dos clientes.</>}</p>
+            <div className="flex flex-wrap items-center gap-2 text-ink-2"><BotaoInfo>O dinheiro do cliente fica separado do dinheiro do escritório: alvarás levantados aparecem como valor a repassar, e as custas adiantadas ficam marcadas até o reembolso.</BotaoInfo>{reembolsar.length > 0 && <p>Há <strong className="text-ink">{brl(soma(reembolsar))}</strong> em custas a cobrar dos clientes.</p>}</div>
             <BotaoNovo rotulo="Lançar custa ou repasse" aoSalvar={(v) => incluir("custas", { caso_id: String(v.caso_id), descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hoje), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", obrig: true, largo: true, opcoes: db.casos.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hoje }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
             <div className="painel overflow-x-auto">

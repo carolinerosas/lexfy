@@ -4,7 +4,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { areaDe } from "@/novo/lib/areas";
 import { brl, data, diasAte, hojeISO, horas, quando } from "@/novo/lib/format";
-import { Abas, Avatar, Cabecalho, Dialogo, Rotulado, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Cabecalho, Dialogo, Rotulado, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import type { Ausencia, Candidato, Colaborador, Treinamento } from "@/novo/lib/types";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { PontoAba } from "@/novo/components/ponto";
@@ -67,7 +67,7 @@ export default function Pessoas() {
                   <span className={`tag ${v.n <= 15 ? "tag-perigo" : v.n <= 60 ? "tag-alerta" : ""}`}>{quando(v.d)}</span>
                 </li>
               ))}</ul>
-              <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Certificado digital vencido impede o protocolo. O estágio tem limite de 2 anos no mesmo escritório (Lei 11.788/08, art. 11).</p>
+              <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Certificado digital vencido impede o protocolo. O estágio tem limite de 2 anos no mesmo escritório (Lei 11.788/08, art. 11).</NotaInfo>
             </section>
           </div>
         )}
@@ -92,7 +92,7 @@ export default function Pessoas() {
               <div className="grid grid-cols-2 gap-3"><Rotulado rotulo="De"><input type="date" className="inp" value={na.inicio} onChange={(e) => setNa({ ...na, inicio: e.target.value })} /></Rotulado><Rotulado rotulo="Até"><input type="date" className="inp" value={na.fim} onChange={(e) => setNa({ ...na, fim: e.target.value })} /></Rotulado></div>
               <Rotulado rotulo="Observação"><input className="inp" value={na.observacao} onChange={(e) => setNa({ ...na, observacao: e.target.value })} /></Rotulado>
               <button className="btn btn-p w-full" disabled={!na.colaborador_id || !na.inicio}><Plus />Registrar</button>
-              <p className="text-[12.5px] text-ink-3">O sistema avisa quando há prazo da pessoa vencendo dentro do período, para redistribuir antes de aprovar.</p>
+              <NotaInfo className="">O sistema avisa quando há prazo da pessoa vencendo dentro do período, para redistribuir antes de aprovar.</NotaInfo>
             </form>
           </div>
         )}

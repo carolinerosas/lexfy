@@ -11,7 +11,7 @@ import { SUGESTOES_FIXAS } from "@/novo/lib/areas";
 import type { Caso, CrimeExec, DadosExecucao, Interrupcao, Remicao } from "@/novo/lib/types";
 import { Acoes } from "./acoes";
 import { BotaoNovo, type CampoF, type Valores } from "./form-rapido";
-import { Vazio } from "./ui";
+import { Vazio, NotaInfo } from "./ui";
 
 const camposCrime: CampoF[] = [
   { k: "crime", rotulo: "Crime", obrig: true, largo: true, lista: "exec_crime", sugestoes: SUGESTOES_FIXAS.tipo_penal },
@@ -85,7 +85,7 @@ export function Execucao({ caso }: { caso: Caso }) {
             );
           })}</ul>
         )}
-        <p className="border-t border-line-2 px-4 py-2.5 text-[12px] text-ink-3">Frações sugeridas: LEP, art. 112 (Lei 13.964/2019 para fatos a partir de 23/01/2020; antes, 1/6, ou 2/5 e 3/5 para hediondos) e CP, art. 83. Ajuste quando o caso pedir outra (maus antecedentes, reincidência genérica em hediondo, decisão do juízo).</p>
+        <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Frações sugeridas: LEP, art. 112 (Lei 13.964/2019 para fatos a partir de 23/01/2020; antes, 1/6, ou 2/5 e 3/5 para hediondos) e CP, art. 83. Ajuste quando o caso pedir outra (maus antecedentes, reincidência genérica em hediondo, decisão do juízo).</NotaInfo>
       </section>
 
       <section className="painel">
@@ -150,7 +150,7 @@ export function Execucao({ caso }: { caso: Caso }) {
               </li>
             ))}</ul>
           )}
-          <p className="border-t border-line-2 px-4 py-2.5 text-[12px] text-ink-3">Falta grave que interrompe a data-base da progressão: altere a data-base em Datas da execução. Ela não interrompe o livramento (Súmula 441 do STJ).</p>
+          <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Falta grave que interrompe a data-base da progressão: altere a data-base em Datas da execução. Ela não interrompe o livramento (Súmula 441 do STJ).</NotaInfo>
         </section>
       </div>
     </>

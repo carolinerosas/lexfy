@@ -5,7 +5,7 @@ import { Check, Copy, Printer, Save, Trash2 } from "lucide-react";
 import { alterar, excluir, incluir, useDB } from "@/novo/lib/store";
 import { MODELOS } from "@/novo/lib/modelos";
 import { data, hojeISO } from "@/novo/lib/format";
-import { Cabecalho, LinkCaso, Rotulado, Vazio, useMapas } from "@/novo/components/ui";
+import { Cabecalho, LinkCaso, Rotulado, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import type { DocumentoGerado } from "@/novo/lib/types";
 
 const PROX: Record<DocumentoGerado["assinatura"], DocumentoGerado["assinatura"] | null> = { rascunho: "enviado para assinatura", "enviado para assinatura": "assinado", assinado: null };
@@ -84,7 +84,7 @@ function Gerador() {
                 </td></tr>
             ))}</tbody></table></div>
         )}
-        <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Aqui o sistema só acompanha a situação da assinatura. O envio para assinatura eletrônica com validade jurídica depende de contratar um serviço de assinatura.</p>
+        <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Aqui o sistema só acompanha a situação da assinatura. O envio para assinatura eletrônica com validade jurídica depende de contratar um serviço de assinatura.</NotaInfo>
       </section>
     </>
   );

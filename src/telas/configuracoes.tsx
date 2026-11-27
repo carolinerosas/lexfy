@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
+import { BotaoInfo } from "@/novo/components/ui";
 import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -131,8 +132,8 @@ export default function ConfiguracoesPage() {
         <div className="flex items-center gap-3 mb-1">
           <Settings className="w-5 h-5 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configurações</h1>
+          <BotaoInfo>Integrações e preferências do sistema</BotaoInfo>
         </div>
-        <p className="text-gray-400 text-sm mt-1">Integrações e preferências do sistema</p>
       </div>
 
       {/* Perfil do Advogado */}

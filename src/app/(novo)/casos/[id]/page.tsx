@@ -14,7 +14,7 @@ import { BuscaNumero } from "@/novo/components/busca-numero";
 import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas, NotaInfo } from "@/novo/components/ui";
 import { CampoCliente } from "@/novo/components/campo-cliente";
 import { crimeContraAVida } from "@/lib/prazo-publicacao";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
@@ -255,7 +255,7 @@ export default function PaginaCaso() {
             <div className="painel-cab"><h2>Prazos de referência: {area.nome}</h2></div>
             <table className="tb"><thead><tr><th>Ato</th><th>Prazo</th><th>Base legal</th></tr></thead>
               <tbody>{area.prazos.map((p) => <tr key={p.nome}><td className="font-semibold">{p.nome}</td><td>{p.prazo}</td><td className="text-ink-2">{p.base}</td></tr>)}</tbody></table>
-            <p className="border-t border-line-2 px-4 py-2.5 text-[12.5px] text-ink-3">Tabela de consulta. Confira a contagem no caso concreto (dias úteis ou corridos, feriados locais, prazo em dobro).</p>
+            <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Tabela de consulta. Confira a contagem no caso concreto (dias úteis ou corridos, feriados locais, prazo em dobro).</NotaInfo>
           </section>
         )}
       </div>
