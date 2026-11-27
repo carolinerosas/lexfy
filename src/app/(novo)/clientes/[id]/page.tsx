@@ -85,7 +85,7 @@ export default function PaginaCliente() {
           <OrcamentosDoCliente clienteId={c.id} />
           <MeusModelos clienteId={c.id} />
           <section className="painel">
-            <div className="painel-cab"><h2>Atendimentos</h2><span className="flex gap-2"><NovoAtendimento modo="agora" clienteId={c.id} classe="btn btn-p btn-sm" /><NovoAtendimento modo="agendar" clienteId={c.id} classe="btn btn-g btn-sm" /></span></div>
+            <div className="painel-cab"><h2>Atendimentos</h2><span className="flex flex-wrap gap-2"><NovoAtendimento modo="agora" clienteId={c.id} classe="btn btn-p btn-sm" /><NovoAtendimento modo="agendar" clienteId={c.id} classe="btn btn-g btn-sm" /></span></div>
             {atend.length === 0 ? <Vazio titulo="Nenhum atendimento registrado" /> : (
               <ul>{atend.map((a) => <li key={a.id} className="border-b border-line-2 px-4 py-2.5 last:border-0"><p><span className="font-semibold">{data(a.data_hora)} às {hora(a.data_hora)}</span> · {a.tipo} · <span className="text-ink-3">{a.status}</span></p>{a.notas && <p className="text-[13px] text-ink-2">{a.notas}</p>}</li>)}</ul>
             )}

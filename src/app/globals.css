@@ -187,7 +187,7 @@ button:disabled { cursor: not-allowed; }
   .inp::placeholder { color: var(--color-ink-3); }
 
   .painel { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; overflow: clip; }
-  .painel-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-line-2); }
+  .painel-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-line-2); }
   .painel-cab h2 { font-family: var(--font-titulo); font-size: 17px; font-weight: 500; letter-spacing: -0.005em; }
 
   /* Grade sem colunas definidas (celular) não pode crescer além da tela por causa do conteúdo. */
@@ -221,7 +221,7 @@ button:disabled { cursor: not-allowed; }
   .seg button:hover { color: var(--justio-tinta); }
   .seg button[aria-pressed="true"] { background: var(--justio-tinta); color: #fff; }
 
-  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--color-line); overflow-x: auto; }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--color-line); overflow-x: auto; padding-bottom: 1px; }
   .abas button { padding: 10px 12px; font-size: 13.5px; font-weight: 600; color: var(--color-ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
   .abas button:hover { color: var(--justio-tinta); }
   .abas button[aria-selected="true"] { color: var(--justio-tinta); border-bottom-color: var(--justio-ambar); }
