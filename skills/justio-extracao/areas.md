@@ -30,6 +30,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -69,6 +70,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -136,6 +138,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -169,6 +172,13 @@ Seção "Imposto e encerramento":
 ### `criminal`: Criminal (judicial)
 Fases (use o nome exato em processo.fase): "Flagrante e custódia", "Denúncia", "Resposta à acusação", "Instrução", "Alegações finais", "Sentença", "Recurso", "Trânsito em julgado", "Encerrado"
 Tipos de processo (processo.tipos, pode mais de um): "Crime contra a pessoa", "Violência doméstica (Lei Maria da Penha)", "Crime contra o patrimônio", "Tráfico e drogas (Lei 11.343/06)", "Crime contra a dignidade sexual", "Armas (Lei 10.826/03)", "Crime de trânsito", "Crime contra a administração pública", "Organização criminosa", "Outro"
+Seção "Inquérito policial":
+- `numero_ip` (texto): Nº do inquérito
+- `delegacia` (texto): Delegacia
+- `autoridade` (texto): Autoridade policial
+- `instauracao` (data AAAA-MM-DD): Instauração
+- `indiciamento` (data AAAA-MM-DD): Indiciamento
+- `relatorio_ip` (data AAAA-MM-DD): Relatório final
 Seção "Fato":
 - `tipo_penal` (lista (array de textos, um item por elemento)): Tipos penais
 - `fato_data` (data AAAA-MM-DD): Data do fato
@@ -224,6 +234,7 @@ Seção "Sentença e pena":
 - `recorrer_liberdade` (uma das opções): Recorrer em liberdade. Opções: "Concedido" | "Negado" | "Mantida a prisão preventiva" | "Decretada a prisão na sentença"
 - `reparacao_minima` (valor em reais (número, ex.: 1500.5)): Reparação mínima à vítima (CPP, art. 387, IV)
 - `transito_acusacao` (data AAAA-MM-DD): Trânsito em julgado para a acusação
+Seção "Recurso e trânsito":
 - `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP"
 - `apelacao_resultado` (uma das opções): Resultado da apelação. Opções: "Pendente" | "Provida" | "Parcialmente provida" | "Desprovida" | "Não conhecida"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
@@ -255,6 +266,13 @@ Seção "Violência doméstica" (só para os tipos: Violência doméstica (Lei M
 
 ### `juri`: Tribunal do Júri (judicial)
 Fases (use o nome exato em processo.fase): "Inquérito", "Denúncia", "Sumário da culpa", "Pronúncia", "Recurso da pronúncia", "Preparação do plenário", "Plenário", "Apelação", "Encerrado"
+Seção "Inquérito policial":
+- `numero_ip` (texto): Nº do inquérito
+- `delegacia` (texto): Delegacia
+- `autoridade` (texto): Autoridade policial
+- `instauracao` (data AAAA-MM-DD): Instauração
+- `indiciamento` (data AAAA-MM-DD): Indiciamento
+- `relatorio_ip` (data AAAA-MM-DD): Relatório final
 Seção "Imputação":
 - `imputacao` (texto): Imputação
 - `tipo_penal` (lista (array de textos, um item por elemento)): Tipos penais
@@ -273,7 +291,7 @@ Seção "Prisão e liberdade":
 - `revisao` (data AAAA-MM-DD): Última revisão da preventiva
 - `cautelares` (lista (array de textos, um item por elemento)): Cautelares impostas
 - `hc` (uma das opções): Habeas corpus (situação). Opções: "Não impetrado" | "Impetrado no TJ" | "Impetrado no STJ" | "Impetrado no STF" | "Concedido" | "Denegado"
-Seção "Primeira fase (sumário da culpa)":
+Seção "Primeira fase: sumário da culpa":
 - `recebimento` (data AAAA-MM-DD): Recebimento da denúncia
 - `citacao` (data AAAA-MM-DD): Citação
 - `resposta` (data AAAA-MM-DD): Resposta à acusação (data)
@@ -283,9 +301,11 @@ Seção "Primeira fase (sumário da culpa)":
 - `instrucao` (data AAAA-MM-DD): Audiência de instrução
 - `alegacoes` (data AAAA-MM-DD): Alegações finais (data)
 - `tese_primeira_fase` (texto longo): Tese na primeira fase
+Seção "Pronúncia":
 - `pronuncia` (data AAAA-MM-DD): Data da decisão
 - `decisao` (uma das opções): Decisão. Opções: "Pendente" | "Pronúncia" | "Impronúncia" | "Desclassificação" | "Absolvição sumária"
 - `pronuncia_termos` (texto longo): Termos da pronúncia (qualificadoras mantidas ou afastadas)
+Seção "Recurso da pronúncia":
 - `rese` (uma das opções): Recurso em sentido estrito. Opções: "Não interposto" | "Interposto pela defesa" | "Interposto pelo MP"
 - `rese_resultado` (uma das opções): Resultado do recurso em sentido estrito. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 Seção "Plenário":
@@ -320,6 +340,7 @@ Seção "Sentença do plenário":
 - `recorrer_liberdade` (uma das opções): Recorrer em liberdade. Opções: "Concedido" | "Negado" | "Mantida a prisão preventiva" | "Decretada a prisão na sentença"
 - `reparacao_minima` (valor em reais (número, ex.: 1500.5)): Reparação mínima à vítima (CPP, art. 387, IV)
 - `transito_acusacao` (data AAAA-MM-DD): Trânsito em julgado para a acusação
+Seção "Recurso e trânsito":
 - `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP"
 - `apelacao_resultado` (uma das opções): Resultado da apelação. Opções: "Pendente" | "Provida" | "Parcialmente provida" | "Desprovida" | "Não conhecida"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
@@ -330,6 +351,12 @@ Seção "Sentença do plenário":
 
 ### `execucao_penal`: Execução penal (judicial)
 Fases (use o nome exato em processo.fase): "Guia expedida", "Cálculo homologado", "Cumprimento em regime fechado", "Semiaberto", "Aberto ou domiciliar", "Livramento condicional", "Pena extinta"
+Seção "Guia de execução":
+- `guia_tipo` (uma das opções): Tipo de guia. Opções: "Definitiva" | "Provisória"
+- `guia_numero` (texto): Número da guia
+- `guia_expedicao` (data AAAA-MM-DD): Expedição da guia
+- `juizo_execucao` (texto): Juízo da execução
+- `processo_origem` (texto): Processo de conhecimento
 Seção "Datas da execução":
 - `inicio_cumprimento` (data AAAA-MM-DD): Início do cumprimento (prisão)
 - `data_base` (data AAAA-MM-DD): Data-base para progressão
@@ -407,6 +434,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -451,6 +479,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -488,6 +517,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -538,6 +568,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -568,6 +599,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -602,6 +634,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -637,6 +670,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -668,6 +702,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -698,6 +733,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
@@ -730,6 +766,7 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
+Seção "Recurso e trânsito":
 - `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
 - `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
 - `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"

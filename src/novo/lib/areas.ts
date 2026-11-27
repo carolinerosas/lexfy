@@ -47,15 +47,19 @@ const secSo = (so: string[], titulo: string, ...campos: string[]): Secao => ({ .
 /** Resultado do processo judicial (fora do penal): núcleo comum e campos próprios de cada área. */
 const RESULTADO_CIVEL = "Pendente;Procedente;Parcialmente procedente;Improcedente;Extinto sem resolução do mérito;Acordo homologado;Desistência homologada";
 const RESULTADO_RECURSO = "Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido";
-const secResultado = (...proprios: string[]): Secao => sec("Sentença e resultado",
-  `resultado:Resultado|o|${RESULTADO_CIVEL}`, "sentenca_data:Data da sentença|d", ...proprios,
-  "condenacao_valor:Valor da condenação|v", "obrigacao:Obrigação de fazer ou não fazer imposta|l",
-  "honorarios_sucumbencia:Honorários de sucumbência (percentual ou valor)", "sucumbencia:Sucumbência a cargo de|o|Parte contrária;Cliente;Recíproca",
-  "custas:Custas|o|A cargo da parte contrária;A cargo do cliente;Rateadas;Gratuidade de justiça",
-  "recurso:Recurso|o|Não interposto;Interposto pelo cliente;Interposto pela parte contrária;Interposto por ambos", "recurso_tipo:Tipo de recurso (apelação, recurso ordinário, inominado...)",
-  `recurso_resultado:Resultado do recurso|o|${RESULTADO_RECURSO}`, "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou|l",
-  "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Recurso de revista;Especial e extraordinário;Agravo em recurso especial",
-  `recurso_superior_resultado:Resultado no tribunal superior|o|${RESULTADO_RECURSO}`, "transito:Trânsito em julgado|d", "cumprimento_valor:Valor em cumprimento de sentença|v");
+const secResultado = (...proprios: string[]): Secao[] => [
+  sec("Sentença e resultado",
+    `resultado:Resultado|o|${RESULTADO_CIVEL}`, "sentenca_data:Data da sentença|d", ...proprios,
+    "condenacao_valor:Valor da condenação|v", "obrigacao:Obrigação de fazer ou não fazer imposta|l",
+    "honorarios_sucumbencia:Honorários de sucumbência (percentual ou valor)", "sucumbencia:Sucumbência a cargo de|o|Parte contrária;Cliente;Recíproca",
+    "custas:Custas|o|A cargo da parte contrária;A cargo do cliente;Rateadas;Gratuidade de justiça"),
+  sec("Recurso e trânsito",
+    "recurso:Recurso|o|Não interposto;Interposto pelo cliente;Interposto pela parte contrária;Interposto por ambos", "recurso_tipo:Tipo de recurso (apelação, recurso ordinário, inominado...)",
+    `recurso_resultado:Resultado do recurso|o|${RESULTADO_RECURSO}`, "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou|l",
+    "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Recurso de revista;Especial e extraordinário;Agravo em recurso especial",
+    `recurso_superior_resultado:Resultado no tribunal superior|o|${RESULTADO_RECURSO}`,
+    "transito:Trânsito em julgado|d", "cumprimento_valor:Valor em cumprimento de sentença|v"),
+];
 const pz = (nome: string, prazo: string, base: string): PrazoRef => ({ nome, prazo, base });
 
 const FASES_CIVEL = ["A ajuizar", "Inicial distribuída", "Citação", "Contestação e réplica", "Saneamento", "Instrução", "Sentença", "Recurso", "Cumprimento de sentença", "Encerrado"];
@@ -70,7 +74,7 @@ export const AREAS: Area[] = [
       sec("Ação", "acao:Tipo de ação", "rito:Rito|o|Comum;Juizado Especial Cível;Procedimento especial;Execução de título;Monitória", "polo:Polo do cliente|o|Autor;Réu;Terceiro interessado", "tutela:Tutela de urgência|o|Não pedida;Pedida;Deferida;Indeferida;Revogada", "gratuidade:Justiça gratuita|s", "condenacao:Valor da condenação|v"),
       sec("Prova", "pericia:Perícia|s", "perito:Perito nomeado", "assistente:Assistente técnico", "testemunhas:Testemunhas|m"),
       sec("Cumprimento e execução", "executado:Valor em execução|v", "sisbajud:Sisbajud|o|Não pedido;Pedido;Positivo;Negativo", "penhora:Bens penhorados|m"),
-      secResultado(),
+      ...secResultado(),
     ],
     prazos: [
       pz("Contestação", "15 dias úteis", "CPC, art. 335"),
@@ -94,7 +98,7 @@ export const AREAS: Area[] = [
       sec("Relação de consumo", "fornecedor:Fornecedor", "produto:Produto ou serviço", "problema:Tipo de problema|o|Vício do produto;Acidente de consumo;Cobrança indevida;Negativação indevida;Atraso ou cancelamento;Recall;Assinatura não contratada", "compra:Data da compra|d", "reclamacao:Data da primeira reclamação|d", "protocolo:Protocolos de atendimento|m"),
       sec("Tentativa administrativa", "procon:Reclamação no Procon ou consumidor.gov|s", "resposta:Resposta do fornecedor|l"),
       sec("Pedidos", "negativacao:Há negativação|s", "orgao_neg:Órgão negativador", "dano_material:Dano material|v", "dano_moral:Dano moral pedido|v", "inversao:Inversão do ônus da prova|o|Não pedida;Pedida;Deferida;Indeferida"),
-      secResultado("dano_moral_fixado:Dano moral fixado|v", "dano_material_fixado:Dano material fixado|v", "repeticao_indebito:Repetição do indébito|v"),
+      ...secResultado("dano_moral_fixado:Dano moral fixado|v", "dano_material_fixado:Dano material fixado|v", "repeticao_indebito:Repetição do indébito|v"),
     ],
     prazos: [
       pz("Reclamar de vício aparente (não durável)", "30 dias da entrega", "CDC, art. 26, I"),
@@ -123,7 +127,7 @@ export const AREAS: Area[] = [
       secSo(["Investigação de paternidade"], "Paternidade", "suposto_pai:Suposto pai", "dna:Exame de DNA|o|Não requerido;Requerido;Agendado;Realizado: positivo;Realizado: negativo;Recusa do investigado"),
       secSo(["Interdição e curatela"], "Curatela", "curatelando:Pessoa a ser curatelada", "laudo_medico:Laudo médico e CID", "curador:Curador pretendido", "pericia_curatela:Perícia|o|Não marcada;Marcada;Realizada", "limites:Atos sujeitos à curatela|l"),
       sec("Partes", "renda_cliente:Renda do cliente", "renda_outra:Renda da outra parte", "protetiva:Medida protetiva em vigor|s", "acordo:Possibilidade de acordo|o|Provável;Possível;Improvável"),
-      secResultado("alimentos_fixados:Alimentos fixados", "guarda_definida:Guarda definida|o|Compartilhada;Unilateral para o cliente;Unilateral para a outra parte", "convivencia_fixada:Convivência fixada|l", "partilha_decidida:Partilha decidida|l"),
+      ...secResultado("alimentos_fixados:Alimentos fixados", "guarda_definida:Guarda definida|o|Compartilhada;Unilateral para o cliente;Unilateral para a outra parte", "convivencia_fixada:Convivência fixada|l", "partilha_decidida:Partilha decidida|l"),
     ],
     prazos: [
       pz("Contestação", "15 dias úteis da audiência de mediação", "CPC, arts. 335 e 697"),
@@ -165,12 +169,14 @@ export const AREAS: Area[] = [
     destaque: ["tipo_penal", "situacao", "revisao"],
     tipos: ["Crime contra a pessoa", "Violência doméstica (Lei Maria da Penha)", "Crime contra o patrimônio", "Tráfico e drogas (Lei 11.343/06)", "Crime contra a dignidade sexual", "Armas (Lei 10.826/03)", "Crime de trânsito", "Crime contra a administração pública", "Organização criminosa", "Outro"],
     secoes: [
+      sec("Inquérito policial", "numero_ip:Nº do inquérito", "delegacia:Delegacia", "autoridade:Autoridade policial", "instauracao:Instauração|d", "indiciamento:Indiciamento|d", "relatorio_ip:Relatório final|d"),
       sec("Fato", "tipo_penal:Tipos penais|m", "fato_data:Data do fato|d", "fato_local:Local do fato", "ro:Nº do registro de ocorrência", "flagrante:Houve flagrante|s", "correus:Corréus|m"),
       secSo(["Crime contra a pessoa", "Violência doméstica (Lei Maria da Penha)", "Crime contra o patrimônio", "Crime contra a dignidade sexual", "Crime de trânsito", "Outro"], "Vítima", "vitimas:Vítimas|m", "representacao:Representação da vítima|o|Não se aplica;Oferecida;Não oferecida;Retratada", "reparacao:Reparação do dano|o|Não discutida;Pedida pelo MP;Feita;Acordo com a vítima"),
       sec("Prisão e liberdade", "situacao:Situação|o|Solto;Preso em flagrante;Prisão preventiva;Prisão temporária;Prisão domiciliar;Monitoração eletrônica;Liberdade provisória com cautelares", "unidade:Unidade prisional", "prisao_data:Data da prisão|d", "revisao:Última revisão da preventiva|d", "fianca:Fiança arbitrada|v", "cautelares:Cautelares impostas|m", "hc:Habeas corpus (situação)|o|Não impetrado;Impetrado no TJ;Impetrado no STJ;Impetrado no STF;Concedido;Denegado"),
       sec("Processo", "recebimento:Recebimento da denúncia|d", "citacao:Citação|d", "anpp:Acordo de não persecução penal|o|Não cabe;Proposto;Aceito;Recusado;Homologado;Descumprido", "sursis:Suspensão condicional do processo|o|Não cabe;Proposta;Aceita;Em cumprimento;Revogada", "tese:Tese de defesa|l"),
       sec("Testemunhas", "testemunhas_acusacao:Testemunhas de acusação|m", "testemunhas:Testemunhas de defesa|m", "informantes:Informantes e declarantes|m"),
-      sec("Sentença e pena", "resultado:Resultado|o|Pendente;Absolvição;Absolvição sumária (CPP, art. 397);Condenação;Condenação parcial;Desclassificação;Extinção da punibilidade;Prescrição;Perdão judicial", "sentenca_data:Data da sentença|d", "fundamento_absolvicao:Fundamento da absolvição (CPP, art. 386)|o|I - inexistência do fato;II - não há prova da existência do fato;III - o fato não constitui infração penal;IV - o réu não concorreu para a infração;V - não há prova de que o réu concorreu;VI - excludente de ilicitude ou de culpabilidade;VII - prova insuficiente para a condenação", "pena_base:Pena-base (1ª fase, CP, art. 59)", "circunstancias_judiciais:Circunstâncias judiciais desfavoráveis|l", "agravantes:Agravantes reconhecidas|m", "atenuantes:Atenuantes reconhecidas|m", "reincidencia:Reincidência|o|Primário;Reincidente;Reincidente específico", "pena_intermediaria:Pena intermediária (2ª fase)", "causas_aumento:Causas de aumento (3ª fase)|m", "causas_diminuicao:Causas de diminuição (3ª fase)|m", "concurso:Concurso de crimes|o|Não houve;Concurso material;Concurso formal;Crime continuado", "pena:Pena definitiva (ex.: 5 anos e 4 meses)", "hediondo:Crime hediondo ou equiparado|s", "violencia:Com violência ou grave ameaça à pessoa|s", "pena_especie:Espécie da pena|o|Reclusão;Detenção;Prisão simples", "regime:Regime inicial|o|Fechado;Semiaberto;Aberto", "multa:Pena de multa (dias-multa e valor do dia)", "restritivas:Penas restritivas de direitos (CP, art. 44)|m", "prestacao_pecuniaria:Prestação pecuniária|v", "sursis_pena:Suspensão condicional da pena (CP, art. 77)|o|Não cabe;Concedida;Negada", "detracao:Detração (CPP, art. 387, § 2º)", "recorrer_liberdade:Recorrer em liberdade|o|Concedido;Negado;Mantida a prisão preventiva;Decretada a prisão na sentença", "reparacao_minima:Reparação mínima à vítima (CPP, art. 387, IV)|v", "transito_acusacao:Trânsito em julgado para a acusação|d", "apelacao:Apelação|o|Não interposta;Interposta pela defesa;Interposta pelo MP;Interposta pela defesa e pelo MP", "apelacao_resultado:Resultado da apelação|o|Pendente;Provida;Parcialmente provida;Desprovida;Não conhecida", "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou (pena, regime, absolvição, nulidade)|l", "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Especial e extraordinário;Agravo em recurso especial;Habeas corpus no STJ;Habeas corpus no STF", "recurso_superior_resultado:Resultado no tribunal superior|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido;Ordem concedida;Ordem concedida de ofício;Ordem denegada", "transito:Trânsito em julgado|d"),
+      sec("Sentença e pena", "resultado:Resultado|o|Pendente;Absolvição;Absolvição sumária (CPP, art. 397);Condenação;Condenação parcial;Desclassificação;Extinção da punibilidade;Prescrição;Perdão judicial", "sentenca_data:Data da sentença|d", "fundamento_absolvicao:Fundamento da absolvição (CPP, art. 386)|o|I - inexistência do fato;II - não há prova da existência do fato;III - o fato não constitui infração penal;IV - o réu não concorreu para a infração;V - não há prova de que o réu concorreu;VI - excludente de ilicitude ou de culpabilidade;VII - prova insuficiente para a condenação", "pena_base:Pena-base (1ª fase, CP, art. 59)", "circunstancias_judiciais:Circunstâncias judiciais desfavoráveis|l", "agravantes:Agravantes reconhecidas|m", "atenuantes:Atenuantes reconhecidas|m", "reincidencia:Reincidência|o|Primário;Reincidente;Reincidente específico", "pena_intermediaria:Pena intermediária (2ª fase)", "causas_aumento:Causas de aumento (3ª fase)|m", "causas_diminuicao:Causas de diminuição (3ª fase)|m", "concurso:Concurso de crimes|o|Não houve;Concurso material;Concurso formal;Crime continuado", "pena:Pena definitiva (ex.: 5 anos e 4 meses)", "hediondo:Crime hediondo ou equiparado|s", "violencia:Com violência ou grave ameaça à pessoa|s", "pena_especie:Espécie da pena|o|Reclusão;Detenção;Prisão simples", "regime:Regime inicial|o|Fechado;Semiaberto;Aberto", "multa:Pena de multa (dias-multa e valor do dia)", "restritivas:Penas restritivas de direitos (CP, art. 44)|m", "prestacao_pecuniaria:Prestação pecuniária|v", "sursis_pena:Suspensão condicional da pena (CP, art. 77)|o|Não cabe;Concedida;Negada", "detracao:Detração (CPP, art. 387, § 2º)", "recorrer_liberdade:Recorrer em liberdade|o|Concedido;Negado;Mantida a prisão preventiva;Decretada a prisão na sentença", "reparacao_minima:Reparação mínima à vítima (CPP, art. 387, IV)|v", "transito_acusacao:Trânsito em julgado para a acusação|d"),
+      sec("Recurso e trânsito", "apelacao:Apelação|o|Não interposta;Interposta pela defesa;Interposta pelo MP;Interposta pela defesa e pelo MP", "apelacao_resultado:Resultado da apelação|o|Pendente;Provida;Parcialmente provida;Desprovida;Não conhecida", "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou (pena, regime, absolvição, nulidade)|l", "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Especial e extraordinário;Agravo em recurso especial;Habeas corpus no STJ;Habeas corpus no STF", "recurso_superior_resultado:Resultado no tribunal superior|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido;Ordem concedida;Ordem concedida de ofício;Ordem denegada", "transito:Trânsito em julgado|d"),
       secSo(["Tráfico e drogas (Lei 11.343/06)"], "Drogas", "substancias:Substâncias e quantidades|m", "laudo_constatacao:Laudo de constatação|o|Não juntado;Juntado;Inconclusivo", "laudo_definitivo:Laudo definitivo|o|Pendente;Juntado;Inconclusivo", "busca_domiciliar:Ingresso em domicílio|o|Não houve;Com mandado;Sem mandado (alegado flagrante);Com autorização do morador", "privilegiado:Tráfico privilegiado (art. 33, § 4º)|o|Não analisado;Cabível;Afastado;Reconhecido", "defesa_previa:Notificação para defesa prévia (art. 55)|d", "associacao:Imputação de associação (art. 35)|s"),
       secSo(["Armas (Lei 10.826/03)"], "Arma", "arma:Arma e munições apreendidas|m", "laudo_arma:Laudo de eficiência|o|Pendente;Apta a disparar;Inapta;Inconclusivo", "uso:Uso|o|Permitido;Restrito;Proibido"),
       secSo(["Crime de trânsito"], "Trânsito", "etilometro:Teste do etilômetro|o|Não realizado;Recusado;Positivo;Negativo", "cnh:Situação da CNH|o|Regular;Suspensa;Cassada;Sem habilitação", "vitima_transito:Houve vítima|s"),
@@ -198,12 +204,16 @@ export const AREAS: Area[] = [
     fases: ["Inquérito", "Denúncia", "Sumário da culpa", "Pronúncia", "Recurso da pronúncia", "Preparação do plenário", "Plenário", "Apelação", "Encerrado"],
     destaque: ["imputacao", "plenario", "tese"],
     secoes: [
+      sec("Inquérito policial", "numero_ip:Nº do inquérito", "delegacia:Delegacia", "autoridade:Autoridade policial", "instauracao:Instauração|d", "indiciamento:Indiciamento|d", "relatorio_ip:Relatório final|d"),
       sec("Imputação", "imputacao:Imputação", "tipo_penal:Tipos penais|m", "vitimas:Vítimas|m", "qualificadoras:Qualificadoras|m", "correus:Corréus|m"),
       sec("Fato", "fato_data:Data do fato|d", "fato_local:Local do fato", "ro:Nº do registro de ocorrência", "flagrante:Houve flagrante|s"),
       sec("Prisão e liberdade", "situacao:Situação do acusado|o|Solto;Preso em flagrante;Prisão preventiva;Prisão temporária;Prisão domiciliar;Monitoração eletrônica;Liberdade provisória com cautelares", "unidade:Unidade prisional", "prisao_data:Data da prisão|d", "revisao:Última revisão da preventiva|d", "cautelares:Cautelares impostas|m", "hc:Habeas corpus (situação)|o|Não impetrado;Impetrado no TJ;Impetrado no STJ;Impetrado no STF;Concedido;Denegado"),
-      sec("Primeira fase (sumário da culpa)", "recebimento:Recebimento da denúncia|d", "citacao:Citação|d", "resposta:Resposta à acusação (data)|d", "testemunhas_acusacao:Testemunhas de acusação|m", "testemunhas:Testemunhas de defesa|m", "informantes:Informantes e declarantes|m", "instrucao:Audiência de instrução|d", "alegacoes:Alegações finais (data)|d", "tese_primeira_fase:Tese na primeira fase|l", "pronuncia:Data da decisão|d", "decisao:Decisão|o|Pendente;Pronúncia;Impronúncia;Desclassificação;Absolvição sumária", "pronuncia_termos:Termos da pronúncia (qualificadoras mantidas ou afastadas)|l", "rese:Recurso em sentido estrito|o|Não interposto;Interposto pela defesa;Interposto pelo MP", "rese_resultado:Resultado do recurso em sentido estrito|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido"),
+      sec("Primeira fase: sumário da culpa", "recebimento:Recebimento da denúncia|d", "citacao:Citação|d", "resposta:Resposta à acusação (data)|d", "testemunhas_acusacao:Testemunhas de acusação|m", "testemunhas:Testemunhas de defesa|m", "informantes:Informantes e declarantes|m", "instrucao:Audiência de instrução|d", "alegacoes:Alegações finais (data)|d", "tese_primeira_fase:Tese na primeira fase|l"),
+      sec("Pronúncia", "pronuncia:Data da decisão|d", "decisao:Decisão|o|Pendente;Pronúncia;Impronúncia;Desclassificação;Absolvição sumária", "pronuncia_termos:Termos da pronúncia (qualificadoras mantidas ou afastadas)|l"),
+      sec("Recurso da pronúncia", "rese:Recurso em sentido estrito|o|Não interposto;Interposto pela defesa;Interposto pelo MP", "rese_resultado:Resultado do recurso em sentido estrito|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido"),
       sec("Plenário", "plenario:Data do plenário|d", "rol_acusacao:Rol de testemunhas da acusação (art. 422)|m", "rol:Rol de testemunhas da defesa (art. 422)|m", "tese:Tese principal", "subsidiarias:Teses subsidiárias|m", "quesitos:Quesitos e pontos de atenção|l"),
-      sec("Sentença do plenário", "resultado:Resultado|o|Pendente;Absolvição;Condenação;Condenação parcial;Desclassificação (julgamento pelo juiz presidente);Dissolução do conselho;Extinção da punibilidade", "sentenca_data:Data da sentença|d", "pena_base:Pena-base (1ª fase, CP, art. 59)", "circunstancias_judiciais:Circunstâncias judiciais desfavoráveis|l", "agravantes:Agravantes reconhecidas|m", "atenuantes:Atenuantes reconhecidas|m", "reincidencia:Reincidência|o|Primário;Reincidente;Reincidente específico", "pena_intermediaria:Pena intermediária (2ª fase)", "causas_aumento:Causas de aumento (3ª fase)|m", "causas_diminuicao:Causas de diminuição (3ª fase)|m", "concurso:Concurso de crimes|o|Não houve;Concurso material;Concurso formal;Crime continuado", "pena:Pena definitiva (ex.: 5 anos e 4 meses)", "hediondo:Crime hediondo ou equiparado|s", "violencia:Com violência ou grave ameaça à pessoa|s", "pena_especie:Espécie da pena|o|Reclusão;Detenção;Prisão simples", "regime:Regime inicial|o|Fechado;Semiaberto;Aberto", "multa:Pena de multa (dias-multa e valor do dia)", "restritivas:Penas restritivas de direitos (CP, art. 44)|m", "prestacao_pecuniaria:Prestação pecuniária|v", "sursis_pena:Suspensão condicional da pena (CP, art. 77)|o|Não cabe;Concedida;Negada", "detracao:Detração (CPP, art. 387, § 2º)", "recorrer_liberdade:Recorrer em liberdade|o|Concedido;Negado;Mantida a prisão preventiva;Decretada a prisão na sentença", "reparacao_minima:Reparação mínima à vítima (CPP, art. 387, IV)|v", "transito_acusacao:Trânsito em julgado para a acusação|d", "apelacao:Apelação|o|Não interposta;Interposta pela defesa;Interposta pelo MP;Interposta pela defesa e pelo MP", "apelacao_resultado:Resultado da apelação|o|Pendente;Provida;Parcialmente provida;Desprovida;Não conhecida", "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou (pena, regime, absolvição, nulidade)|l", "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Especial e extraordinário;Agravo em recurso especial;Habeas corpus no STJ;Habeas corpus no STF", "recurso_superior_resultado:Resultado no tribunal superior|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido;Ordem concedida;Ordem concedida de ofício;Ordem denegada", "transito:Trânsito em julgado|d"),
+      sec("Sentença do plenário", "resultado:Resultado|o|Pendente;Absolvição;Condenação;Condenação parcial;Desclassificação (julgamento pelo juiz presidente);Dissolução do conselho;Extinção da punibilidade", "sentenca_data:Data da sentença|d", "pena_base:Pena-base (1ª fase, CP, art. 59)", "circunstancias_judiciais:Circunstâncias judiciais desfavoráveis|l", "agravantes:Agravantes reconhecidas|m", "atenuantes:Atenuantes reconhecidas|m", "reincidencia:Reincidência|o|Primário;Reincidente;Reincidente específico", "pena_intermediaria:Pena intermediária (2ª fase)", "causas_aumento:Causas de aumento (3ª fase)|m", "causas_diminuicao:Causas de diminuição (3ª fase)|m", "concurso:Concurso de crimes|o|Não houve;Concurso material;Concurso formal;Crime continuado", "pena:Pena definitiva (ex.: 5 anos e 4 meses)", "hediondo:Crime hediondo ou equiparado|s", "violencia:Com violência ou grave ameaça à pessoa|s", "pena_especie:Espécie da pena|o|Reclusão;Detenção;Prisão simples", "regime:Regime inicial|o|Fechado;Semiaberto;Aberto", "multa:Pena de multa (dias-multa e valor do dia)", "restritivas:Penas restritivas de direitos (CP, art. 44)|m", "prestacao_pecuniaria:Prestação pecuniária|v", "sursis_pena:Suspensão condicional da pena (CP, art. 77)|o|Não cabe;Concedida;Negada", "detracao:Detração (CPP, art. 387, § 2º)", "recorrer_liberdade:Recorrer em liberdade|o|Concedido;Negado;Mantida a prisão preventiva;Decretada a prisão na sentença", "reparacao_minima:Reparação mínima à vítima (CPP, art. 387, IV)|v", "transito_acusacao:Trânsito em julgado para a acusação|d"),
+      sec("Recurso e trânsito", "apelacao:Apelação|o|Não interposta;Interposta pela defesa;Interposta pelo MP;Interposta pela defesa e pelo MP", "apelacao_resultado:Resultado da apelação|o|Pendente;Provida;Parcialmente provida;Desprovida;Não conhecida", "acordao_data:Data do acórdão|d", "acordao_efeito:O que o acórdão mudou (pena, regime, absolvição, nulidade)|l", "recurso_superior:Recurso aos tribunais superiores|o|Não interposto;Recurso especial;Recurso extraordinário;Especial e extraordinário;Agravo em recurso especial;Habeas corpus no STJ;Habeas corpus no STF", "recurso_superior_resultado:Resultado no tribunal superior|o|Pendente;Provido;Parcialmente provido;Desprovido;Não conhecido;Ordem concedida;Ordem concedida de ofício;Ordem denegada", "transito:Trânsito em julgado|d"),
     ],
     prazos: [
       pz("Recurso em sentido estrito contra a pronúncia", "5 dias", "CPP, art. 581, IV, e art. 586"),
@@ -222,6 +232,7 @@ export const AREAS: Area[] = [
     fases: ["Guia expedida", "Cálculo homologado", "Cumprimento em regime fechado", "Semiaberto", "Aberto ou domiciliar", "Livramento condicional", "Pena extinta"],
     destaque: ["regime", "progressao", "unidade"],
     secoes: [
+      sec("Guia de execução", "guia_tipo:Tipo de guia|o|Definitiva;Provisória", "guia_numero:Número da guia", "guia_expedicao:Expedição da guia|d", "juizo_execucao:Juízo da execução", "processo_origem:Processo de conhecimento"),
       sec("Datas da execução", "inicio_cumprimento:Início do cumprimento (prisão)|d", "data_base:Data-base para progressão|d", "data_base_lc:Data-base para livramento condicional|d", "detracao:Detração (dias)|n", "pena:Pena total (como consta no cálculo)", "termino:Término da pena (como consta no cálculo)|d"),
       sec("Cumprimento", "regime:Regime atual|o|Fechado;Semiaberto;Aberto;Prisão domiciliar;Livramento condicional", "unidade:Unidade prisional", "trabalho:Trabalho ou estudo"),
       // Campos da versão anterior (um crime só). Aparecem apenas se já estiverem preenchidos.
@@ -272,7 +283,7 @@ export const AREAS: Area[] = [
       sec("Pedidos", "pedidos:Pedidos|m", "valor_pedidos:Valor dos pedidos|v", "rito:Rito|o|Sumaríssimo;Ordinário;Sumário", "pericia:Perícia|o|Não;Insalubridade;Periculosidade;Médica;Contábil"),
       sec("Audiência e prova", "preposto:Preposto", "testemunhas:Testemunhas|m"),
       sec("Recurso e execução", "deposito:Depósito recursal|v", "acordo:Acordo homologado|v", "liquidacao:Valor liquidado|v"),
-      secResultado("verbas_deferidas:Verbas deferidas|m", "valor_liquidado:Valor liquidado|v"),
+      ...secResultado("verbas_deferidas:Verbas deferidas|m", "valor_liquidado:Valor liquidado|v"),
     ],
     prazos: [
       pz("Ajuizar após o fim do contrato", "2 anos (alcança os últimos 5 anos)", "CF, art. 7º, XXIX"),
@@ -298,7 +309,7 @@ export const AREAS: Area[] = [
       sec("Tempo e carência", "tempo:Tempo de contribuição reconhecido", "carencia:Carência (contribuições)|n", "especiais:Períodos especiais|m", "ppp:PPP e LTCAT juntados|s", "cnis:CNIS conferido|s", "segurado:Qualidade de segurado|o|Mantida;Período de graça;Perdida;A comprovar"),
       sec("Incapacidade", "pericia:Perícia médica|d", "cid:CID", "laudo:Conclusão do laudo|l"),
       sec("Valores", "rmi:Renda mensal inicial estimada|v", "atrasados:Atrasados estimados|v"),
-      secResultado("beneficio_concedido:Benefício|o|Concedido;Negado;Restabelecido;Revisado", "dib_fixada:DIB fixada na sentença|d", "implantacao:Data da implantação|d"),
+      ...secResultado("beneficio_concedido:Benefício|o|Concedido;Negado;Restabelecido;Revisado", "dib_fixada:DIB fixada na sentença|d", "implantacao:Data da implantação|d"),
     ],
     prazos: [
       pz("Recurso ao Conselho de Recursos da Previdência", "30 dias da ciência", "Regimento do CRPS"),
@@ -321,7 +332,7 @@ export const AREAS: Area[] = [
       sec("Crédito", "tributo:Tributo", "ente:Ente|o|União;Estado;Município", "tipo:Medida|o|Execução fiscal;Ação anulatória;Mandado de segurança;Repetição de indébito;Defesa administrativa;Transação ou parcelamento;Exceção de pré-executividade", "cda:Certidão de dívida ativa", "periodo:Período de apuração", "constituicao:Constituição do crédito|d", "valor_atual:Valor atualizado|v"),
       sec("Garantia e exigibilidade", "garantia:Garantia do juízo|o|Não há;Penhora;Depósito integral;Seguro-garantia;Fiança bancária", "suspensa:Exigibilidade suspensa|s", "certidao:Certidão de regularidade|o|Negativa;Positiva com efeitos de negativa;Positiva", "parcelamento:Parcelamento ou transação|l"),
       sec("Tese", "tese:Tese|l", "prescricao:Prescrição prevista|d"),
-      secResultado("debito_situacao:Situação do débito|o|Extinto;Reduzido;Mantido;Suspenso"),
+      ...secResultado("debito_situacao:Situação do débito|o|Extinto;Reduzido;Mantido;Suspenso"),
     ],
     prazos: [
       pz("Pagar ou garantir a execução fiscal", "5 dias da citação", "Lei 6.830/80, art. 8º"),
@@ -365,7 +376,7 @@ export const AREAS: Area[] = [
       sec("Imóvel", "tipo:Ação|o|Despejo por falta de pagamento;Despejo por denúncia vazia;Renovatória;Revisional de aluguel;Usucapião;Reintegração ou manutenção de posse;Adjudicação compulsória;Rescisão de compra e venda;Cobrança de condomínio", "imovel:Imóvel", "matricula:Matrícula", "cartorio:Registro de imóveis"),
       sec("Contrato", "inicio:Início do contrato|d", "fim:Fim do contrato|d", "aluguel:Aluguel|v", "garantia:Garantia|o|Sem garantia;Caução;Fiador;Seguro-fiança;Título de capitalização", "debito:Débito|v"),
       sec("Posse e liminar", "posse:Posse desde|d", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Cumprida"),
-      secResultado("desocupacao:Prazo ou data da desocupação"),
+      ...secResultado("desocupacao:Prazo ou data da desocupação"),
     ],
     prazos: [
       pz("Ação renovatória", "De 1 ano a 6 meses antes do fim do contrato", "Lei 8.245/91, art. 51, § 5º"),
@@ -386,7 +397,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Ato e parte", "tipo:Tipo|o|Mandado de segurança;Ação contra ente público;Improbidade administrativa;Licitação e contrato;Concurso público;Servidor público;Processo disciplinar;Desapropriação;Responsabilidade civil do Estado", "ente:Ente ou órgão", "autoridade:Autoridade coatora", "ato:Ato impugnado|l", "ciencia:Ciência do ato|d"),
       sec("Andamento", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Suspensa", "pagamento:Forma de pagamento|o|Não se aplica;Requisição de pequeno valor;Precatório", "valor:Valor|v"),
-      secResultado(),
+      ...secResultado(),
     ],
     prazos: [
       pz("Mandado de segurança", "120 dias da ciência do ato", "Lei 12.016/09, art. 23"),
@@ -408,7 +419,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Pedido", "reu:Réu|o|Operadora de plano de saúde;União;Estado;Município;Estado e Município", "operadora:Operadora ou ente", "pedido:Procedimento ou medicamento", "anvisa:Registro na Anvisa|s", "rol:Previsto no rol da ANS|s", "negativa:Data da negativa|d", "protocolo:Protocolo da negativa"),
       sec("Urgência", "laudo:Laudo médico (médico e CRM)", "urgencia:Urgência ou emergência|s", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida", "multa:Multa diária|v", "cumprimento:Cumprimento|o|Não se aplica;Pendente;Cumprida;Descumprida;Bloqueio de valores"),
-      secResultado(),
+      ...secResultado(),
     ],
     prazos: [
       pz("Autorização de urgência e emergência", "Imediata", "Resolução ANS 566/2022"),
@@ -427,7 +438,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Contrato", "instituicao:Instituição financeira", "contrato:Nº do contrato", "tipo:Tipo|o|Revisional;Superendividamento;Fraude ou golpe;Consignado não contratado;Busca e apreensão;Execução de cédula", "financiado:Valor financiado|v", "taxa:Taxa contratada", "taxa_media:Taxa média do Banco Central", "parcelas:Parcelas pagas e totais"),
       sec("Situação", "negativacao:Há negativação|s", "bem:Bem dado em garantia", "apreendido:Bem apreendido|s", "plano:Plano de pagamento proposto|l"),
-      secResultado("taxa_fixada:Taxa de juros fixada", "valor_restituir:Valor a restituir ao cliente|v"),
+      ...secResultado("taxa_fixada:Taxa de juros fixada", "valor_restituir:Valor a restituir ao cliente|v"),
     ],
     prazos: [
       pz("Pagar a dívida na busca e apreensão", "5 dias da execução da liminar", "Decreto-Lei 911/69, art. 3º, § 2º"),
@@ -447,7 +458,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Autuação", "tipo:Tipo|o|Auto de infração;Ação civil pública;Crime ambiental;Licenciamento;Termo de ajustamento de conduta", "orgao:Órgão|o|Ibama;ICMBio;INEA;Secretaria municipal;Ministério Público", "auto:Nº do auto ou processo", "lavratura:Data da lavratura|d", "multa:Multa|v", "embargo:Área ou atividade embargada|s"),
       sec("Regularização", "licenca:Licença (tipo e validade)", "tac:Obrigações do termo de ajuste|l", "reparacao:Projeto de recuperação da área|o|Não exigido;Exigido;Protocolado;Em execução;Concluído"),
-      secResultado(),
+      ...secResultado(),
     ],
     prazos: [
       pz("Defesa contra auto de infração federal", "20 dias da ciência", "Decreto 6.514/08, art. 113"),
@@ -467,7 +478,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Feito", "tipo:Tipo|o|Registro de candidatura;Investigação judicial eleitoral;Impugnação de mandato eletivo;Representação por propaganda;Prestação de contas;Recurso contra expedição de diploma", "candidato:Candidato ou partido", "cargo:Cargo", "eleicao:Eleição (ano)", "zona:Zona eleitoral"),
       sec("Contas", "contas:Situação das contas|o|Não se aplica;A prestar;Prestadas;Aprovadas;Aprovadas com ressalvas;Desaprovadas;Não prestadas", "diligencias:Diligências|m"),
-      secResultado("sancao:Sanção aplicada|l"),
+      ...secResultado("sancao:Sanção aplicada|l"),
     ],
     prazos: [
       pz("Recurso eleitoral", "3 dias", "Código Eleitoral, art. 258"),
@@ -488,7 +499,7 @@ export const AREAS: Area[] = [
     secoes: [
       sec("Caso", "tipo:Tipo|o|Remoção de conteúdo;Vazamento de dados;Identificação de usuário;Crime contra a honra;Fraude ou golpe;Perfil falso", "plataforma:Plataforma ou controlador", "url:Endereços (URL)|m", "ata:Ata notarial ou captura certificada|s", "conhecimento:Data do conhecimento|d"),
       sec("Medidas", "preservacao:Preservação de registros pedida|s", "liminar:Liminar|o|Não pedida;Pedida;Deferida;Indeferida;Cumprida", "anpd:Comunicação à ANPD|o|Não se aplica;Pendente;Feita", "dano:Dano moral pedido|v"),
-      secResultado("remocao:Remoção de conteúdo|o|Determinada;Negada;Cumprida"),
+      ...secResultado("remocao:Remoção de conteúdo|o|Determinada;Negada;Cumprida"),
     ],
     prazos: [
       pz("Guarda de registros de conexão", "1 ano", "Marco Civil da Internet, art. 13"),

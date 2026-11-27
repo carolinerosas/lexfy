@@ -3,11 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, Pencil, Plus, Trash2, X } from "lucide-react";
 import { alterar, areaParaTipoAntigo, excluir, incluir, useDB } from "@/novo/lib/store";
 import { PecasPanel } from "@/components/ui/pecas-panel";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { AREAS, areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso } from "@/novo/lib/areas";
+import { AREAS, areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso, type Campo, type Secao } from "@/novo/lib/areas";
+import { etapaDe } from "@/novo/lib/etapas";
 import { execucaoDaSentenca } from "@/novo/lib/conversao";
 import { Execucao } from "@/novo/components/execucao";
 import { Orcamentos } from "@/novo/components/orcamento";
@@ -40,6 +41,7 @@ export default function PaginaCaso() {
   const db = useDB();
   const { pessoa } = useMapas(db);
   const [aba, setAba] = useState<Aba>("ficha");
+  const [faseVista, setFaseVista] = useState<number | null>(null);
   const caso = db.casos.find((c) => c.id === id);
   // a faixa de fases abre já mostrando a fase atual (rola só a faixa, não a página)
   const faixaFases = useRef<HTMLOListElement>(null);
@@ -64,7 +66,10 @@ export default function PaginaCaso() {
 
   return (
     <div style={estiloTinta(area.tinta)}>
-      <Link href={voltar} className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-cobalto"><ChevronLeft className="size-4" />{caso.natureza === "judicial" ? "Processos" : "Extrajudicial"}</Link>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Link href={voltar} className="inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-cobalto"><ChevronLeft className="size-4" />{caso.natureza === "judicial" ? "Processos" : "Extrajudicial"}</Link>
+        <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" comTexto />
+      </div>
 
       <header className="painel overflow-hidden">
         <div className="flex flex-wrap items-start gap-4 p-5 sm:p-6">
@@ -99,7 +104,6 @@ export default function PaginaCaso() {
             </select>
           </span>
           <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" />
             <MensagemCliente caso={caso} />
           </span>
         </div>
@@ -112,14 +116,15 @@ export default function PaginaCaso() {
         <ol ref={faixaFases} className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
           {area.fases.map((f, i) => (
             <li key={f} className="min-w-[104px] flex-1">
-              <button onClick={() => alterar("casos", caso.id, { fase: i })} aria-current={i === caso.fase ? "step" : undefined} title={`Mover para: ${f}`}
-                className={`flex h-full w-full flex-col gap-1 px-2.5 py-2 text-left text-[12px] leading-tight transition-colors ${i === caso.fase ? "bg-ink font-bold text-white" : i < caso.fase ? "bg-surface text-ink-2 hover:bg-porcelana" : "bg-porcelana text-ink-3 hover:bg-surface"}`}>
+              <button onClick={() => setFaseVista(faseVista === i ? null : i)} aria-current={i === caso.fase ? "step" : undefined} aria-expanded={faseVista === i} title={`Ver a fase: ${f}`}
+                className={`flex h-full w-full flex-col gap-1 px-2.5 py-2 text-left text-[12px] leading-tight transition-colors ${i === caso.fase ? "bg-ink font-bold text-white" : i < caso.fase ? "bg-surface text-ink-2 hover:bg-porcelana" : "bg-porcelana text-ink-3 hover:bg-surface"} ${faseVista === i ? "underline decoration-2 underline-offset-4 ring-2 ring-inset ring-[var(--justio-ambar)]" : ""}`}>
                 <span className="h-1 w-full rounded-full" style={{ background: i === caso.fase ? "var(--justio-ambar)" : i < caso.fase ? "var(--justio-tinta)" : "var(--color-line)" }} />
                 {f}
               </button>
             </li>
           ))}
         </ol>
+        {faseVista !== null && <PainelFase caso={caso} fase={faseVista} aoFechar={() => setFaseVista(null)} />}
       </header>
 
       <div className="mt-4">
@@ -270,6 +275,83 @@ export default function PaginaCaso() {
             <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Tabela de consulta. Confira a contagem no caso concreto (dias úteis ou corridos, feriados locais, prazo em dobro).</NotaInfo>
           </section>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Um quadro da ficha com lápis próprio: edita e grava só os campos dele. */
+function QuadroFicha({ caso, secao }: { caso: Caso; secao: Secao }) {
+  const db = useDB();
+  const [editando, setEditando] = useState(false);
+  const [dados, setDados] = useState(caso.dados);
+  const sugestoes = (c: Campo) => [...new Set([...valoresUsados(db.casos, caso.area, c), ...(SUGESTOES_FIXAS[c.k] ?? [])])].filter((x) => x);
+  function salvar() {
+    const chaves = new Set(secao.campos.map((c) => c.k));
+    alterar("casos", caso.id, { dados: { ...caso.dados, ...Object.fromEntries(Object.entries(dados).filter(([k]) => chaves.has(k))) } });
+    setEditando(false);
+  }
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>{secao.titulo}</h2>{!editando && <button className="btn btn-g btn-icone btn-sm" onClick={() => { setDados(caso.dados); setEditando(true); }} aria-label={`Editar ${secao.titulo}`} title={`Editar ${secao.titulo}`}><Pencil /></button>}</div>
+      {editando ? (<>
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">{secao.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+        <div className="flex justify-end gap-2 border-t border-line-2 px-4 py-3"><button className="btn btn-g btn-sm" onClick={() => setEditando(false)}>Cancelar</button><button className="btn btn-p btn-sm" onClick={salvar}>Salvar</button></div>
+      </>) : (
+        <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+          {secao.campos.map((c) => {
+            const v = valorCampo(c, caso.dados[c.k]);
+            return (
+              <div key={c.k} className={`min-w-0 border-b border-line-2 px-4 py-2.5 ${c.tipo === "l" || c.tipo === "m" ? "sm:col-span-2" : ""}`}>
+                <dt className="text-[12px] font-semibold text-ink-3">{c.rotulo}</dt>
+                {!v ? <dd className="text-ink-3">Não informado</dd> : c.tipo === "m"
+                  ? <dd><ul className="mt-0.5 space-y-0.5">{itensDe(caso.dados[c.k]).map((it, n) => <li key={n} className="break-words">• {it}</li>)}</ul></dd>
+                  : <dd className="flex items-start gap-1"><span className="min-w-0 flex-1 whitespace-pre-line break-words">{v}</span><Copiar texto={v} rotulo={`Copiar ${c.rotulo.toLowerCase()}`} /></dd>}
+              </div>
+            );
+          })}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+/** Execução penal ligada à ação penal: número (abre o caso e copia) e os dados da guia. */
+function ExecucaoLigada({ caso }: { caso: Caso }) {
+  const db = useDB();
+  const ex = db.casos.find((c) => c.id === caso.dados.execucao_caso_id) ?? db.casos.find((c) => c.area === "execucao_penal" && c.dados.origem_caso_id === caso.id);
+  if (!ex) return <><AbrirExecucao caso={caso} />{!/condena/i.test(String(caso.dados.resultado ?? "")) && <p className="painel px-4 py-3 text-[13.5px] text-ink-3">Execução penal: aparece aqui quando houver condenação. Registre o resultado na sentença.</p>}</>;
+  const d = ex.dados;
+  const linhas: [string, string][] = [["Guia", [d.guia_tipo, d.guia_numero && `nº ${d.guia_numero}`].filter(Boolean).join(" ")], ["Expedida em", d.guia_expedicao ? data(String(d.guia_expedicao)) : ""], ["Juízo da execução", String(d.juizo_execucao ?? ex.orgao ?? "")], ["Regime atual", String(d.regime ?? "")], ["Pena", String(d.pena ?? "")], ["Término previsto", d.termino ? data(String(d.termino)) : ""]];
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>Execução penal</h2><Link href={`/casos/${ex.id}`} className="btn btn-g btn-sm">Abrir a execução</Link></div>
+      <dl className="divide-y divide-line-2 text-[13.5px]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"><dt className="text-ink-3">Número da execução</dt>
+          <dd className="flex min-w-0 items-center gap-1">{ex.numero ? <><Link href={`/casos/${ex.id}`} className="break-all font-mono font-semibold text-cobalto underline">{ex.numero}</Link><Copiar texto={ex.numero} rotulo="Copiar número da execução" /></> : <Link href={`/casos/${ex.id}`} className="text-cobalto underline">Ainda sem número: cadastre na execução</Link>}</dd></div>
+        {linhas.filter(([, v]) => v).map(([k, v]) => <div key={k} className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-ink-3">{k}</dt><dd className="text-right">{v}</dd></div>)}
+        {d.guia_numero && <div className="flex justify-end px-4 py-2"><Copiar texto={String(d.guia_numero)} rotulo="Copiar número da guia" comTexto /></div>}
+      </dl>
+    </section>
+  );
+}
+
+/** O que a fase tocada na faixa mostra: os quadros daquela etapa, cada um com seu lápis. */
+function PainelFase({ caso, fase, aoFechar }: { caso: Caso; fase: number; aoFechar: () => void }) {
+  const area = areaDe(caso.area);
+  const etapa = etapaDe(area, fase);
+  return (
+    <div className="border-t border-line-2 bg-porcelana p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h2 className="titulo mr-auto text-[19px]">{area.fases[fase]}</h2>
+        {fase === caso.fase ? <span className="tag tag-ok">Fase atual</span> : <button className="btn btn-g btn-sm" onClick={() => alterar("casos", caso.id, { fase })}>Marcar como fase atual</button>}
+        <button className="btn btn-g btn-icone btn-sm" onClick={aoFechar} aria-label="Fechar a fase"><X /></button>
+      </div>
+      <div className="space-y-3">
+        {etapa.secoes.map((s) => <QuadroFicha key={s.titulo} caso={caso} secao={s} />)}
+        {etapa.execucao && <ExecucaoLigada caso={caso} />}
+        {etapa.calculo && <Execucao caso={caso} />}
+        {!etapa.secoes.length && !etapa.execucao && !etapa.calculo && <p className="text-[13.5px] text-ink-3">Esta fase não tem quadro próprio na ficha.</p>}
       </div>
     </div>
   );
