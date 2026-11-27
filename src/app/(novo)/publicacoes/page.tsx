@@ -80,7 +80,7 @@ function Publicacoes() {
 
       <section className="painel mb-4 flex items-start gap-3 p-4">
         <Server className="mt-0.5 size-5 shrink-0" />
-        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ, com o computador desligado. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</p></div>
+        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</p></div>
       </section>
 
       <div className="painel">

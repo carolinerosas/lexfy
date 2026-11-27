@@ -223,7 +223,7 @@ export function PecasPanel({ processoId, tipoProcesso }: { processoId: string; t
           <details className="rounded-lg border border-gray-100 px-3 py-2">
             <summary className="cursor-pointer text-xs font-medium text-gray-600">Instruções do meu projeto (opcional)</summary>
             <p className="mt-2 text-xs text-gray-500">
-              Cole aqui as instruções de um projeto do Cowork (por exemplo, da Advogada Criminalista). Ficam guardadas neste computador.
+              Cole aqui as instruções de um projeto do Cowork (por exemplo, da Advogada Criminalista). Ficam guardadas neste navegador.
             </p>
             <textarea
               className={`${campo} mt-2 h-32`}

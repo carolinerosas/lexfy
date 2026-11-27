@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
-import { Check, Copy, ListPlus, Plus, X } from "lucide-react";
+import { Check, Copy, Info, ListPlus, Plus, X } from "lucide-react";
 import { guardarNaLista, useDB } from "@/novo/lib/store";
 import { SelectLista } from "./form-rapido";
 import { copiarTexto } from "@/novo/lib/whatsapp";
@@ -11,12 +11,32 @@ import { Azulejo } from "./azulejo";
 import { brl, data, iniciais } from "@/novo/lib/format";
 import type { Caso, Colaborador, DB } from "@/novo/lib/types";
 
+/** Botão "i" pequeno: ao tocar, mostra o texto numa caixinha. Fecha ao tocar fora ou com Esc. */
+export function BotaoInfo({ children, rotulo = "Mais informações" }: { children: ReactNode; rotulo?: string }) {
+  const [aberto, setAberto] = useState(false);
+  const raiz = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: Event) => { if (raiz.current && !raiz.current.contains(e.target as Node)) setAberto(false); };
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") setAberto(false); };
+    document.addEventListener("pointerdown", fora);
+    document.addEventListener("keydown", tecla);
+    return () => { document.removeEventListener("pointerdown", fora); document.removeEventListener("keydown", tecla); };
+  }, [aberto]);
+  return (
+    <span ref={raiz} className="inline-flex align-middle">
+      <button type="button" aria-label={rotulo} aria-expanded={aberto} onClick={() => setAberto(!aberto)}
+        className="inline-flex size-6 items-center justify-center rounded-full border border-line text-ink-3 hover:border-ink-3 hover:text-ink"><Info className="size-3.5" /></button>
+      {aberto && <span role="note" className="absolute left-0 top-full z-30 mt-2 block w-[min(340px,100%)] rounded-[12px] border border-line bg-white p-3 text-left font-sans text-[13px] font-normal leading-snug tracking-normal text-ink-2 shadow-[var(--shadow-flutua)]">{children}</span>}
+    </span>
+  );
+}
+
 export function Cabecalho({ titulo, sub, children }: { titulo: string; sub?: ReactNode; children?: ReactNode }) {
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0">
-        <h1 className="titulo text-[34px]">{titulo}</h1>
-        {sub && <p className="mt-1 max-w-[70ch] text-ink-2">{sub}</p>}
+      <div className="relative min-w-0">
+        <h1 className="titulo flex flex-wrap items-center gap-x-3 text-[34px]">{titulo}{sub && <BotaoInfo rotulo={`Sobre ${titulo}`}>{sub}</BotaoInfo>}</h1>
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>

@@ -74,7 +74,7 @@ export function AutosPanel({ processoId }: { processoId: string }) {
               <p className="mt-1 text-xs text-gray-500">
                 {arquivos.length
                   ? `${arquivos.length} arquivo(s), ${totalPaginas} páginas. A audiência ao vivo pesquisa aqui.`
-                  : "Envie o PDF do processo ou os volumes. O Justio guarda só o texto (o PDF fica no seu computador): dá para pesquisar aqui e a audiência ao vivo consulta os autos."}
+                  : "Envie o PDF do processo ou os volumes. O Justio guarda só o texto (o PDF não é guardado): dá para pesquisar aqui e a audiência ao vivo consulta os autos."}
               </p>
             </div>
             <label className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-tinta px-4 py-2 text-sm font-medium text-white hover:bg-[#2b2027] ${progresso ? "pointer-events-none opacity-50" : ""}`}>
