@@ -85,17 +85,17 @@ export function AbaAcordo({ caso }: { caso: Caso }) {
         </div>
       ))}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-4">
           {secoes.map((s) => (
             <section key={s.titulo} className="painel">
               <div className="painel-cab"><h2>{s.titulo}</h2></div>
               {edit ? (
-                <div className="grid gap-3 p-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
                   {s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}
                 </div>
               ) : (
-                <dl className="grid gap-x-6 sm:grid-cols-2">
+                <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
                   {s.campos.map((c) => {
                     const v = valorCampo(c, caso.dados[c.k]);
                     const largo = c.tipo === "l" || c.tipo === "m";

@@ -7,7 +7,7 @@ import { BotaoNovo } from "@/novo/components/form-rapido";
 import type { Procuracao } from "@/novo/lib/types";
 import { AREAS } from "@/novo/lib/areas";
 import { brl, brlCurto, data, diasAte, hojeISO, quando, semAcento } from "@/novo/lib/format";
-import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Vazio, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 
 type Aba = "indicadores" | "conflito" | "procuracoes" | "correspondentes";
 const RISCO = { provavel: "Êxito provável", possivel: "Êxito possível", remoto: "Êxito remoto" } as const;
@@ -44,7 +44,7 @@ export default function Gestao() {
       <Abas valor={aba} aoMudar={setAba} abas={[["indicadores", "Indicadores"], ["conflito", "Conflito de interesses"], ["procuracoes", "Procurações"], ["correspondentes", "Correspondentes"]] as const} />
       <div className="mt-5">
         {aba === "indicadores" && (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <section className="painel"><div className="painel-cab"><h2>Casos em andamento por área</h2><span className="text-[12.5px] text-ink-3">{ativos.length} no total</span></div><div className="p-5"><Barras itens={porArea} /></div></section>
             <section className="painel">
               <div className="painel-cab"><h2>Carga por responsável</h2></div>
@@ -62,7 +62,7 @@ export default function Gestao() {
               <dl className="grid grid-cols-3 gap-px bg-line-2">{provisao.map((p) => (
                 <div key={p.r} className="bg-surface p-5"><dt className="text-[12.5px] font-semibold text-ink-3">{RISCO[p.r]}</dt><dd className="titulo mt-1 text-[22px]">{brlCurto(p.v)}</dd><dd className="text-[12.5px] text-ink-3">{p.n} casos</dd></div>
               ))}</dl>
-              <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">A chance de êxito é marcada na ficha de cada caso e serve para relatórios a clientes empresariais.</p>
+              <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">A chance de êxito é marcada na ficha de cada caso e serve para relatórios a clientes empresariais.</NotaInfo>
             </section>
             <section className="painel">
               <div className="painel-cab"><h2>Prazos</h2></div>
@@ -77,7 +77,7 @@ export default function Gestao() {
 
         {aba === "conflito" && (
           <div className="max-w-[820px]">
-            <p className="mb-3 text-ink-2">Antes de aceitar um cliente, confira se o nome dele ou da parte contrária já aparece no escritório, de um lado ou de outro (Código de Ética da OAB, arts. 19 a 22).</p>
+            <NotaInfo className="mb-3">Antes de aceitar um cliente, confira se o nome dele ou da parte contrária já aparece no escritório, de um lado ou de outro (Código de Ética da OAB, arts. 19 a 22).</NotaInfo>
             <label className="relative block"><Search className="pointer-events-none absolute left-3.5 top-3 size-4 text-ink-3" /><input className="inp h-11 pl-10 text-[15px]" placeholder="Nome, CPF ou CNPJ (mínimo de 3 letras)" aria-label="Nome para checar conflito" value={q} onChange={(e) => setQ(e.target.value)} /></label>
             {!achados ? <p className="mt-4 text-ink-3">Digite o nome da pessoa ou da empresa para checar.</p> : (achados.clientes.length + achados.contrarios.length + achados.mencoes.length + achados.contatos.length === 0) ? (
               <div className="painel mt-4"><Vazio titulo="Nenhuma ocorrência">“{q}” não aparece como cliente, parte contrária, contato de captação nem nas fichas dos casos.</Vazio></div>

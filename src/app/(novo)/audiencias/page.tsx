@@ -62,7 +62,7 @@ export default function Audiencias() {
       </div>
 
       <Dialogo aberto={novo} aoFechar={() => setNovo(false)} titulo="Marcar audiência" rodape={<><button className="btn btn-g" onClick={() => setNovo(false)}>Cancelar</button><button className="btn btn-p" disabled={!f.caso_id || !f.data} onClick={salvar}>Marcar</button></>}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Rotulado rotulo="Caso" className="sm:col-span-2"><select className="inp" value={f.caso_id} onChange={(e) => setF({ ...f, caso_id: e.target.value })}><option value="">Escolha o caso</option>{db.casos.filter((c) => c.status === "ativo").map((c) => <option key={c.id} value={c.id}>{c.cliente_nome}: {c.titulo}</option>)}</select></Rotulado>
           <Rotulado rotulo="Tipo" className="sm:col-span-2"><input className="inp" list="tipos-aud" value={f.titulo} onChange={(e) => setF({ ...f, titulo: e.target.value })} />
             <datalist id="tipos-aud">{["Audiência de custódia", "Audiência de conciliação", "Audiência de mediação", "Audiência de instrução e julgamento", "Audiência inicial", "Audiência una", "Sessão plenária do júri", "Sessão de julgamento (sustentação oral)", "Perícia"].map((t) => <option key={t} value={t} />)}</datalist></Rotulado>

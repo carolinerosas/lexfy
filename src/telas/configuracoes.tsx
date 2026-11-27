@@ -1,13 +1,13 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
+import { BotaoInfo } from "@/novo/components/ui";
 import { Settings, Key, CheckCircle2, ExternalLink, Download, Upload, HardDrive, UserRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { getPerfilAdvogado, loadPerfilAdvogado, savePerfilAdvogadoCloud, type PerfilAdvogado } from "@/lib/perfil";
-import { getSyncLocalKey, getSyncLocalUrl, setSyncLocalKey, setSyncLocalUrl, testarSyncLocal } from "@/lib/syncLocal";
 
 const DATA_KEYS = [
   "jur_processos",
@@ -84,11 +84,6 @@ export default function ConfiguracoesPage() {
   const [perfilSaved, setPerfilSaved] = useState(false);
   const [perfilSynced, setPerfilSynced] = useState(true);
   const [perfilSaveMsg, setPerfilSaveMsg] = useState("");
-  const [syncLocalUrl, setSyncLocalUrlState] = useState("http://127.0.0.1:4477");
-  const [syncLocalKey, setSyncLocalKeyState] = useState("");
-  const [syncLocalSaved, setSyncLocalSaved] = useState(false);
-  const [syncLocalStatus, setSyncLocalStatus] = useState<"idle" | "ok" | "erro">("idle");
-  const [syncLocalMsg, setSyncLocalMsg] = useState("");
 
   useEffect(() => {
     setApiKey(getDatajudApiKey());
@@ -98,8 +93,6 @@ export default function ConfiguracoesPage() {
       .catch(() => {
         /* perfil local ja foi carregado */
       });
-    setSyncLocalUrlState(getSyncLocalUrl());
-    setSyncLocalKeyState(getSyncLocalKey());
   }, []);
 
   async function handleSavePerfil() {
@@ -133,29 +126,14 @@ export default function ConfiguracoesPage() {
     setTimeout(() => setSaved(false), 3000);
   }
 
-  function handleSaveSyncLocal() {
-    setSyncLocalUrl(syncLocalUrl);
-    setSyncLocalKey(syncLocalKey);
-    setSyncLocalSaved(true);
-    setTimeout(() => setSyncLocalSaved(false), 3000);
-  }
-
-  async function handleTestSyncLocal() {
-    setSyncLocalStatus("idle");
-    setSyncLocalMsg("Testando conexao...");
-    const result = await testarSyncLocal(syncLocalUrl);
-    setSyncLocalStatus(result.ok ? "ok" : "erro");
-    setSyncLocalMsg(result.ok ? `Conectado: ${result.message}` : `Nao conectou: ${result.message}`);
-  }
-
   return (
     <div className="px-4 py-6 md:px-8 md:py-8 max-w-3xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-1">
           <Settings className="w-5 h-5 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configurações</h1>
+          <BotaoInfo>Integrações e preferências do sistema</BotaoInfo>
         </div>
-        <p className="text-gray-400 text-sm mt-1">Integrações e preferências do sistema</p>
       </div>
 
       {/* Perfil do Advogado */}
@@ -282,74 +260,6 @@ export default function ConfiguracoesPage() {
             }`}>
               {importStatus === "ok" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : null}
               {importMsg}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <HardDrive className="w-4 h-4 text-gray-500" />
-            <CardTitle>Sincronizador local com certificado</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <p className="text-sm text-gray-600">
-            Use esta integração para consultar tribunais a partir do seu computador, com Chrome e certificado digital físico conectados. O Justio tenta este agente antes de cair no DataJud.
-          </p>
-
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm text-gray-600">
-            <p className="font-semibold text-gray-800">Como iniciar no Windows:</p>
-            <ol className="list-decimal list-inside space-y-1">
-              <li>Abra o Prompt ou PowerShell em <code>C:\Users\carol\Documents\lexfy</code></li>
-              <li>Rode <code>npm run sync:local:install</code> uma vez</li>
-              <li>Depois rode <code>npm run sync:local</code> sempre que for sincronizar com certificado</li>
-            </ol>
-            <p className="text-xs text-gray-500">
-              O certificado A3 continua no seu computador. A senha do token não é enviada ao site.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="URL do agente local"
-              value={syncLocalUrl}
-              onChange={(e) => {
-                setSyncLocalUrlState(e.target.value);
-                setSyncLocalSaved(false);
-              }}
-            />
-            <Input
-              label="Chave local opcional"
-              type="password"
-              placeholder="Só use se configurar JUSTIO_SYNC_KEY"
-              value={syncLocalKey}
-              onChange={(e) => {
-                setSyncLocalKeyState(e.target.value);
-                setSyncLocalSaved(false);
-              }}
-            />
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <Button onClick={handleSaveSyncLocal}>Salvar sincronizador</Button>
-            <Button variant="secondary" onClick={handleTestSyncLocal}>Testar conexão</Button>
-            {syncLocalSaved && (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-                <CheckCircle2 className="w-4 h-4" /> Salvo com sucesso
-              </span>
-            )}
-          </div>
-
-          {syncLocalMsg && (
-            <div className={`flex items-center gap-2 text-sm font-medium rounded-lg px-4 py-2.5 ${
-              syncLocalStatus === "ok" ? "bg-green-50 text-green-700" :
-              syncLocalStatus === "erro" ? "bg-red-50 text-red-600" :
-              "bg-gray-50 text-gray-600"
-            }`}>
-              {syncLocalStatus === "ok" ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : null}
-              {syncLocalMsg}
             </div>
           )}
         </CardContent>

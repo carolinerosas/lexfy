@@ -63,7 +63,7 @@ export default function Captacao() {
       </Cabecalho>
       <p className="mb-4 text-ink-2">{ativos.length} contatos em aberto · {brl(propostas)} em propostas aguardando resposta · {decididos ? Math.round((fechados / decididos) * 100) : 0}% dos contatos decididos viraram contrato.</p>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {ETAPAS.map((etapa, i) => {
           const itens = db.leads.filter((l) => l.etapa === etapa);
           return (

@@ -1,13 +1,14 @@
 "use client";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarPlus, Check, Loader2, Plus, Search, Server } from "lucide-react";
+import { CalendarPlus, Check, Gavel, ListTodo, Loader2, Plus, Search } from "lucide-react";
+import { gravarBusca, useBusca } from "@/novo/lib/buscas";
 import { aguardarGravacoes, alterar, incluir, lerDB, recarregar, useDB } from "@/novo/lib/store";
 import { data, hojeISO, quando } from "@/novo/lib/format";
 import { areaDe } from "@/novo/lib/areas";
 import { dadosDaPublicacao, detectarAudiencia, detectarPrazo, ePenal, extrairCNJ, soDigitos, vencimentoDaPublicacao, type DadosPublicacao } from "@/lib/prazo-publicacao";
 import { semAcento } from "@/novo/lib/format";
-import { Cabecalho, Copiar, Dialogo, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Cabecalho, Copiar, Dialogo, LinkCaso, Seg, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { NovoCaso } from "@/novo/components/novo-caso";
 import type { Caso, DB, Publicacao } from "@/novo/lib/types";
@@ -70,17 +71,13 @@ function Publicacoes() {
 
   return (
     <>
-      <Cabecalho titulo="Publicações" sub="Intimações dos diários eletrônicos em nome da advogada. Quando o processo está cadastrado, o prazo entra sozinho na agenda e você recebe aviso no celular.">
+      <Cabecalho titulo="Publicações" sub={<><span className="block">Intimações dos diários eletrônicos em nome da advogada. Quando o processo está cadastrado, o prazo entra sozinho na agenda e você recebe aviso no celular.</span><span className="mt-2 block"><strong className="font-semibold text-ink">Busca diária no servidor, pela OAB.</strong> Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</span></>}>
         <BuscarPublicacoes />
         <BotaoNovo rotulo="Registrar à mão" classe="btn btn-g" aoSalvar={(v) => incluir("publicacoes", { caso_id: v.caso_id ? String(v.caso_id) : undefined, data: String(v.data ?? hojeISO()), diario: String(v.diario ?? "DJEN"), orgao: String(v.orgao ?? ""), texto: String(v.texto), lida: false, prazo_sugerido: v.prazo ? String(v.prazo) : undefined })}
           campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, opcoes: judiciais.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "data", rotulo: "Disponibilizada em", tipo: "data", inicial: hojeISO() }, { k: "diario", rotulo: "Diário", tipo: "opcoes", inicial: "DJEN", opcoes: ["DJEN", "DEJT", "DJe estadual", "DOU"] }, { k: "orgao", rotulo: "Vara ou órgão", largo: true }, { k: "texto", rotulo: "Texto da publicação", tipo: "longo", obrig: true }, { k: "prazo", rotulo: "Prazo (ex.: Réplica: 15 dias úteis)", largo: true, dica: "Se o texto já disser o prazo, não precisa preencher." }]} />
       </Cabecalho>
       <div className="mb-4"><Seg rotulo="Filtro" valor={ver} aoMudar={setVer} opcoes={[["novas", `Não lidas (${db.publicacoes.filter((p) => !p.lida).length})`], ["sem", `Sem caso (${db.publicacoes.filter((p) => !p.caso_id).length})`], ["todas", "Todas"]] as const} /></div>
 
-      <section className="painel mb-4 flex items-start gap-3 p-4">
-        <Server className="mt-0.5 size-5 shrink-0" />
-        <div className="text-[13.5px] text-ink-2"><p className="font-semibold text-ink">Busca diária no servidor, pela OAB</p><p>Roda todo dia de manhã no DJEN (todos os tribunais integrados) e no diário do TJRJ, com o computador desligado. Use “Buscar agora” para consultar na hora e escolher o que entra no JUSTIO.</p></div>
-      </section>
 
       <div className="painel">
         {lista.length === 0 ? <Vazio titulo={ver === "novas" ? "Nenhuma publicação por ler" : "Nenhuma publicação neste filtro"}>Quando a busca encontrar algo em nome da OAB cadastrada, a publicação aparece aqui.</Vazio> : (
@@ -114,6 +111,7 @@ function Publicacoes() {
                   )}
                   <div className="flex flex-wrap gap-2">
                     {c && !ja && !feito[p.id] && (lido || p.prazo_sugerido) && <button className="btn btn-p btn-sm" onClick={() => lancar(p, c)}><CalendarPlus />Lançar prazo</button>}
+                    <LancarAMao p={p} c={c} judiciais={judiciais} aviso={(m) => setFeito((x) => ({ ...x, [p.id]: m }))} />
                     {!p.lida && <button className="btn btn-g btn-sm" onClick={() => alterar("publicacoes", p.id, { lida: true })}><Check />Marcar lida</button>}
                   </div>
                 </div>
@@ -134,6 +132,37 @@ function Publicacoes() {
   );
 }
 
+/** Prazo, audiência e tarefa lançados à mão a partir da publicação (com ou sem leitura automática). */
+function LancarAMao({ p, c, judiciais, aviso }: { p: Publicacao; c?: Caso; judiciais: Caso[]; aviso: (m: string) => void }) {
+  const db = useDB();
+  const casoOpcoes = judiciais.map((x) => [x.id, `${x.cliente_nome}: ${x.titulo}`] as const);
+  const resp = (id: string) => db.casos.find((x) => x.id === id)?.responsavel_id ?? db.equipe[0]?.id ?? "e1";
+  const origem = `Publicação de ${data(p.data)} (${p.diario})`;
+  const prio = [["alta", "Alta"], ["media", "Média"], ["baixa", "Baixa"]] as const;
+  const inicialCaso = c?.id ?? "";
+  return (
+    <>
+      <BotaoNovo rotulo="Prazo" titulo="Lançar prazo" classe="btn btn-g btn-sm" icone={<CalendarPlus />} botao="Lançar prazo" inicial={{ caso_id: inicialCaso }}
+        aoSalvar={(v) => { const id = String(v.caso_id); if (!v.caso_id) return;
+          if (!p.caso_id) alterar("publicacoes", p.id, { caso_id: id });
+          incluir("prazos", { caso_id: id, titulo: String(v.titulo), data: String(v.data), fatal: !!v.fatal, concluido: false, prioridade: (v.prioridade as "alta" | "media" | "baixa") || "alta", responsavel_id: resp(id), base: `${origem}: lançado à mão.` });
+          alterar("publicacoes", p.id, { lida: true }); aviso(`Prazo lançado: ${String(v.titulo)}, vence ${data(String(v.data))}.`); }}
+        campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, obrig: true, opcoes: casoOpcoes }, { k: "titulo", rotulo: "Prazo (ex.: Resposta à acusação)", largo: true, obrig: true, lista: "prazos_titulos" }, { k: "data", rotulo: "Vence em", tipo: "data", obrig: true }, { k: "prioridade", rotulo: "Prioridade", tipo: "opcoes", inicial: "alta", opcoes: prio }, { k: "fatal", rotulo: "Prazo fatal", tipo: "check", inicial: true }]} />
+      <BotaoNovo rotulo="Audiência" titulo="Marcar audiência" classe="btn btn-g btn-sm" icone={<Gavel />} botao="Marcar audiência" inicial={{ caso_id: inicialCaso }}
+        aoSalvar={(v) => { const id = String(v.caso_id); if (!v.caso_id) return;
+          if (!p.caso_id) alterar("publicacoes", p.id, { caso_id: id });
+          incluir("audiencias", { caso_id: id, titulo: String(v.titulo || "Audiência"), data_hora: `${String(v.data)}T${String(v.hora || "09:00")}:00`, local: v.local ? String(v.local) : undefined, modalidade: (v.modalidade as "presencial" | "virtual" | "híbrida") || "presencial", realizada: false, responsavel_id: resp(id), observacoes: `${origem}: marcada à mão.` });
+          alterar("publicacoes", p.id, { lida: true }); aviso(`Audiência de ${data(String(v.data))} na agenda.`); }}
+        campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, obrig: true, opcoes: casoOpcoes }, { k: "titulo", rotulo: "Tipo da audiência", largo: true, inicial: "Audiência", lista: "audiencias_titulos" }, { k: "data", rotulo: "Data", tipo: "data", obrig: true }, { k: "hora", rotulo: "Hora", tipo: "hora", inicial: "09:00" }, { k: "modalidade", rotulo: "Modalidade", tipo: "opcoes", inicial: "presencial", opcoes: ["presencial", "virtual", "híbrida"] }, { k: "local", rotulo: "Local" }]} />
+      <BotaoNovo rotulo="Tarefa" titulo="Criar tarefa" classe="btn btn-g btn-sm" icone={<ListTodo />} botao="Criar tarefa" inicial={{ caso_id: inicialCaso, titulo: "" }}
+        aoSalvar={(v) => { const id = v.caso_id ? String(v.caso_id) : undefined;
+          incluir("tarefas", { caso_id: id, titulo: String(v.titulo), estado: "a fazer", prioridade: (v.prioridade as "alta" | "media" | "baixa") || "media", responsavel_id: id ? resp(id) : db.equipe[0]?.id ?? "e1", limite: v.limite ? String(v.limite) : undefined });
+          aviso(`Tarefa criada: ${String(v.titulo)}.`); }}
+        campos={[{ k: "titulo", rotulo: "Tarefa", largo: true, obrig: true }, { k: "caso_id", rotulo: "Caso", tipo: "opcoes", largo: true, opcoes: casoOpcoes }, { k: "limite", rotulo: "Fazer até", tipo: "data" }, { k: "prioridade", rotulo: "Prioridade", tipo: "opcoes", inicial: "media", opcoes: prio }]} />
+    </>
+  );
+}
+
 // ───────────── busca na hora, com escolha ─────────────
 
 interface Achada {
@@ -141,15 +170,35 @@ interface Achada {
   numero_processo?: string; classe?: string; orgao?: string; ja_salva: boolean; processo_id?: string; partes?: { nome: string; polo: string }[];
 }
 
+interface JobPub { rodando: boolean; achadas: Achada[] | null; erros: string[]; marcadas: Set<string>; procMarcados: Set<string>; aviso: string }
+const JOB_PUB: JobPub = { rodando: false, achadas: null, erros: [], marcadas: new Set(), procMarcados: new Set(), aviso: "" };
+const CHAVE_PUB = "publicacoes";
+const mexerPub = (f: (j: JobPub) => Partial<JobPub>) => gravarBusca<JobPub>(CHAVE_PUB, (j) => ({ ...j, ...f(j) }), JOB_PUB);
+
+/** Roda fora do componente: a consulta aos diários segue com a janela fechada ou em outra página. */
+async function rodarBuscaPublicacoes() {
+  mexerPub(() => ({ rodando: true, aviso: "", erros: [], achadas: null }));
+  try {
+    const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apenasBuscar: true }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
+    const lista = (j.resultados ?? []) as Achada[];
+    mexerPub(() => ({ achadas: lista, erros: j.erros ?? [], marcadas: new Set(lista.filter((a) => !a.ja_salva).map((a) => a.hash)), procMarcados: new Set() }));
+  } catch (e) {
+    mexerPub(() => ({ erros: [e instanceof Error ? e.message : "A busca falhou."] }));
+  } finally { mexerPub(() => ({ rodando: false })); }
+}
+
 function BuscarPublicacoes() {
   const db = useDB();
   const [aberto, setAberto] = useState(false);
-  const [rodando, setRodando] = useState(false);
-  const [achadas, setAchadas] = useState<Achada[] | null>(null);
-  const [erros, setErros] = useState<string[]>([]);
-  const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
-  const [procMarcados, setProcMarcados] = useState<Set<string>>(new Set());
-  const [aviso, setAviso] = useState("");
+  const [gravando, setGravando] = useState(false);
+  const job = useBusca(CHAVE_PUB, JOB_PUB);
+  const { achadas, erros, marcadas, procMarcados, aviso } = job;
+  const rodando = job.rodando || gravando;
+  const setMarcadas = (m: Set<string>) => mexerPub(() => ({ marcadas: m }));
+  const setProcMarcados = (m: Set<string>) => mexerPub(() => ({ procMarcados: m }));
+  const setAviso = (a: string) => mexerPub(() => ({ aviso: a }));
   const [detalhar, setDetalhar] = useState<DadosPublicacao | null>(null);
 
   const casoPeloNumero = (n?: string) => (n ? db.casos.find((c) => c.numero && soDigitos(c.numero) === soDigitos(n)) : undefined);
@@ -167,38 +216,23 @@ function BuscarPublicacoes() {
     return [...m.values()];
   }, [achadas, db.casos]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function buscar() {
-    setRodando(true); setAviso(""); setErros([]); setAchadas(null);
-    try {
-      const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apenasBuscar: true }) });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
-      const lista = (j.resultados ?? []) as Achada[];
-      setAchadas(lista);
-      setErros(j.erros ?? []);
-      setMarcadas(new Set(lista.filter((a) => !a.ja_salva).map((a) => a.hash)));
-      setProcMarcados(new Set());
-    } catch (e) {
-      setErros([e instanceof Error ? e.message : "A busca falhou."]);
-    } finally { setRodando(false); }
-  }
+  const buscar = () => { if (!job.rodando) rodarBuscaPublicacoes(); };
 
   async function gravar() {
     const sel = novas.filter((a) => marcadas.has(a.hash));
     if (!sel.length) return;
-    setRodando(true);
+    setGravando(true);
     try {
       await aguardarGravacoes(); // casos recém-cadastrados precisam estar no banco para a publicação vincular
       const r = await fetch("/api/publicacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resultados: sel }) });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error ?? `erro ${r.status}`);
       setAviso(`${j.imported} publicação${j.imported === 1 ? "" : "ões"} gravada${j.imported === 1 ? "" : "s"}. Nas de processo cadastrado, o prazo já foi lançado e o aviso foi para o celular.`);
-      setAchadas((achadas ?? []).map((a) => (marcadas.has(a.hash) ? { ...a, ja_salva: true } : a)));
-      setMarcadas(new Set());
+      mexerPub((j) => ({ achadas: (j.achadas ?? []).map((a) => (marcadas.has(a.hash) ? { ...a, ja_salva: true } : a)), marcadas: new Set() }));
       recarregar();
     } catch (e) {
       setAviso(`Não gravou: ${e instanceof Error ? e.message : "erro"}`);
-    } finally { setRodando(false); }
+    } finally { setGravando(false); }
   }
 
   function cadastrarEmLote() {
@@ -227,14 +261,14 @@ function BuscarPublicacoes() {
 
   return (
     <>
-      <button className="btn btn-p" onClick={() => { setAberto(true); if (!achadas && !rodando) buscar(); }}><Search />Buscar agora</button>
-      <Dialogo aberto={aberto} aoFechar={() => { if (!rodando) setAberto(false); }} titulo="Buscar publicações pela OAB" largo
+      <button className="btn btn-p" onClick={() => { setAberto(true); if (!achadas && !rodando) buscar(); }}>{job.rodando ? <Loader2 className="animate-spin" /> : <Search />}{job.rodando ? "Buscando…" : novas.length > 0 ? `${novas.length} nova${novas.length > 1 ? "s" : ""} achada${novas.length > 1 ? "s" : ""}` : "Buscar agora"}</button>
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Buscar publicações pela OAB" largo
         rodape={<>
           {aviso && <p role="status" className="mr-auto self-center text-[13px] font-semibold">{aviso}</p>}
-          <button className="btn btn-g" disabled={rodando} onClick={buscar}>{rodando ? <Loader2 className="animate-spin" /> : <Search />}Buscar de novo</button>
+          <button className="btn btn-g" disabled={rodando} onClick={buscar}>{job.rodando ? <Loader2 className="animate-spin" /> : <Search />}Buscar de novo</button>
           <button className="btn btn-p" disabled={rodando || marcadas.size === 0} onClick={gravar}>Gravar {marcadas.size} selecionada{marcadas.size === 1 ? "" : "s"}</button>
         </>}>
-        {rodando && !achadas && <p className="flex items-center gap-2 py-6 text-ink-2"><Loader2 className="size-4 animate-spin" />Consultando os diários. Pode levar até um minuto.</p>}
+        {job.rodando && !achadas && <p className="flex items-center gap-2 py-6 text-ink-2"><Loader2 className="size-4 animate-spin" />Consultando os diários. Pode levar até um minuto. Pode fechar esta janela: a busca continua em segundo plano e o botão avisa quando terminar.</p>}
         {erros.length > 0 && <div role="alert" className="mb-3 rounded-[12px] bg-perigo-f p-3 text-[13px] text-perigo"><p className="font-semibold">Alguns diários não responderam:</p><ul className="mt-1 list-disc pl-5">{erros.map((e) => <li key={e} className="break-words">{e}</li>)}</ul></div>}
 
         {achadas && (
@@ -259,7 +293,7 @@ function BuscarPublicacoes() {
                     <button className="btn btn-g btn-sm shrink-0" onClick={() => setDetalhar(p.dados)}>Com detalhes</button>
                   </li>
                 ))}</ul>
-                <p className="border-t border-line-2 px-3 py-2 text-[12.5px] text-ink-3">“Cadastrar” cria o caso com o número, a classe e o órgão, e cliente a identificar. “Com detalhes” abre o formulário completo.</p>
+                <NotaInfo className="border-t border-line-2 px-3 px-3 py-1.5">“Cadastrar” cria o caso com o número, a classe e o órgão, e cliente a identificar. “Com detalhes” abre o formulário completo.</NotaInfo>
               </section>
             )}
 

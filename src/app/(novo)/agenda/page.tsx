@@ -49,7 +49,7 @@ export default function Agenda() {
           <button className="btn btn-g ml-1" onClick={() => { setMes(startOfMonth(new Date())); setSel(hoje); }}>Hoje</button>
         </div>
       </Cabecalho>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="painel overflow-hidden">
           <div className="grid grid-cols-7 border-b border-line bg-porcelana text-center text-[11.5px] font-semibold text-ink-3">{["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((d) => <span key={d} className="py-2">{d}</span>)}</div>
           <div className="grid grid-cols-7 gap-px bg-line-2">

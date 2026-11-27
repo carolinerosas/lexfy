@@ -8,7 +8,7 @@ import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
 import { brl, data, hojeISO } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { FormRapido, type Valores } from "./form-rapido";
-import { Dialogo, Rotulado } from "./ui";
+import { Dialogo, Rotulado, NotaInfo } from "./ui";
 import type { Honorario } from "@/novo/lib/types";
 
 /** Lança a entrada e as parcelas mensais do restante (a última absorve os centavos). */
@@ -99,7 +99,7 @@ export function Cobrar({ honorario }: { honorario: Honorario }) {
           <a className="btn btn-p btn-sm" target="_blank" rel="noreferrer" href={linkWhatsApp(msg, cliente?.celular)}><MessageCircle />{cliente?.celular ? "Abrir no WhatsApp" : "Escolher contato no WhatsApp"}</a>
         </div>
         {copiado === "erro" && <p role="alert" className="mt-2 text-[13px] text-perigo">O navegador bloqueou a cópia. Selecione o texto e copie à mão.</p>}
-        <p className="mt-4 text-[12.5px] text-ink-3">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Receber”.</p>
+        <NotaInfo className="mt-4">O código vale para a chave cadastrada e este valor. A baixa continua manual: quando o dinheiro cair, clique em “Receber”.</NotaInfo>
       </Dialogo>
     </>
   );
@@ -146,7 +146,7 @@ export function Receber({ honorario }: { honorario: Honorario }) {
         rodape={<><button className="btn btn-g" onClick={() => setAberto(false)}>Cancelar</button><button className="btn btn-p" disabled={valor <= 0} onClick={salvar}>Registrar</button></>}>
         <p className="text-ink-2">{honorario.descricao}</p>
         <p className="mt-0.5 text-[13px] text-ink-3">Em aberto: <strong className="text-ink">{brl(honorario.valor)}</strong> · vence em {data(honorario.vencimento)}</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Rotulado rotulo="Valor recebido (R$)"><input className="inp" inputMode="decimal" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} /></Rotulado>
           <Rotulado rotulo="Recebido em"><input className="inp" type="date" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} /></Rotulado>
           <Rotulado rotulo="A que se refere">

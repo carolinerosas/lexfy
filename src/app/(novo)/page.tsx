@@ -40,7 +40,7 @@ export default function Hoje() {
   return (
     <>
       <Cabecalho titulo="Hoje" sub={<span className="first-letter:uppercase">{dataLonga(new Date())}</span>} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_372px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_372px]">
         <div className="min-w-0 space-y-5">
           <section className="painel">
             <div className="painel-cab"><h2>Pauta do dia</h2><Link href="/agenda" className="btn btn-q btn-sm">Agenda completa <ArrowRight /></Link></div>

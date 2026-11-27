@@ -1,4 +1,5 @@
 "use client";
+import { NotaInfo } from "@/novo/components/ui";
 // Orçamentos na tela do cliente: os feitos nos casos e na captação (novo) e os feitos
 // pela própria tela do cliente (tabela orcamentos, a mesma do JUSTIO antigo).
 import { useEffect, useState } from "react";
@@ -52,7 +53,7 @@ export function OrcamentosDoCliente({ clienteId }: { clienteId: string }) {
         </ul>
       )}
       <div className="p-4">
-        {outros.length > 0 && <p className="mb-3 text-[12.5px] text-ink-3">Acima, os orçamentos feitos nos casos e na captação. Abaixo, os feitos por esta tela.</p>}
+        {outros.length > 0 && <NotaInfo className="mb-3">Acima, os orçamentos feitos nos casos e na captação. Abaixo, os feitos por esta tela.</NotaInfo>}
         {cliente ? <OrcamentosPanel cliente={cliente} processos={processos} /> : <p className="text-[13px] text-ink-3">Carregando orçamentos...</p>}
       </div>
     </section>

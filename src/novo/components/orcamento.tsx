@@ -89,7 +89,7 @@ export function EditorOrcamento({ aberto, aoFechar, inicial, aoSalvar }: { abert
             {o.acoes.filter((a) => !o.itens.some((i) => i.descricao === a)).map((a) => <button key={a} type="button" className="btn btn-q btn-sm" onClick={() => muda({ itens: [...o.itens, { id: uid(), descricao: a, valor: 0 }] })}><Plus />{a}</button>)}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Rotulado rotulo="Entrada (R$)"><input className="inp" type="number" step="0.01" value={o.entrada ?? ""} onChange={(e) => muda({ entrada: num(e.target.value) })} /></Rotulado>
           <Rotulado rotulo="Parcelas do restante"><input className="inp" type="number" min={1} value={o.parcelas ?? ""} onChange={(e) => muda({ parcelas: num(e.target.value) })} /></Rotulado>
           <Rotulado rotulo="Vencimento da primeira parcela"><input className="inp" type="date" value={o.primeiro_vencimento ?? ""} onChange={(e) => muda({ primeiro_vencimento: e.target.value || undefined })} /></Rotulado>

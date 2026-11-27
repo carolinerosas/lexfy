@@ -34,7 +34,9 @@ export interface CrimeExec {
 export interface Remicao { id: string; data: string; dias: number; motivo: string; homologada: boolean }
 /** Período em que a pena não correu (fuga, suspensão etc.). */
 export interface Interrupcao { id: string; inicio: string; fim?: string; motivo: string; tipo: "interrupção" | "suspensão" }
-export interface DadosExecucao { crimes: CrimeExec[]; remicoes: Remicao[]; interrupcoes: Interrupcao[] }
+/** Recurso contra a decisão de um pedido da execução (agravo em execução), guardado pelo id do pedido. */
+export interface RecursoPedido { interposto?: string; resultado?: string; data?: string; efeito?: string }
+export interface DadosExecucao { crimes: CrimeExec[]; remicoes: Remicao[]; interrupcoes: Interrupcao[]; recursos?: Record<string, RecursoPedido> }
 export interface ItemOrcamento { id: string; descricao: string; valor: number }
 export interface Orcamento {
   id: string; criado_em: string; acoes: string[]; itens: ItemOrcamento[];

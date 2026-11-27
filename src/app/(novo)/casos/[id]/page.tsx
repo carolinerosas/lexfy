@@ -1,20 +1,24 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Check, ChevronLeft, Pencil, Plus, Trash2, X } from "lucide-react";
 import { alterar, areaParaTipoAntigo, excluir, incluir, useDB } from "@/novo/lib/store";
 import { PecasPanel } from "@/components/ui/pecas-panel";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso } from "@/novo/lib/areas";
+import { AREAS, areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso, type Campo, type Secao } from "@/novo/lib/areas";
+import { etapaDe } from "@/novo/lib/etapas";
+import { execucaoDaSentenca } from "@/novo/lib/conversao";
 import { Execucao } from "@/novo/components/execucao";
 import { Orcamentos } from "@/novo/components/orcamento";
 import { BuscaNumero } from "@/novo/components/busca-numero";
 import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, CampoArea, CampoLista, Copiar, Dialogo, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas, NotaInfo } from "@/novo/components/ui";
+import { CampoCliente } from "@/novo/components/campo-cliente";
+import { crimeContraAVida } from "@/lib/prazo-publicacao";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
 import { semAcento } from "@/novo/lib/format";
 import type { Caso, Custa } from "@/novo/lib/types";
@@ -29,12 +33,24 @@ import { DocumentosPanel } from "@/components/ui/documentos-panel";
 
 type Aba = "ficha" | "andamentos" | "prazos" | "financeiro" | "acordo" | "incidentes" | "beneficios" | "arquivos" | "modelos" | "trabalho" | "docs" | "pecas" | "autos" | "referencia";
 
+/** Fase da área Criminal → fase equivalente na área do Júri. */
+const FASE_PARA_JURI = [0, 1, 2, 2, 2, 3, 4, 7, 8];
+
 export default function PaginaCaso() {
   const { id } = useParams<{ id: string }>();
   const db = useDB();
   const { pessoa } = useMapas(db);
   const [aba, setAba] = useState<Aba>("ficha");
+  const [faseVista, setFaseVista] = useState<number | null>(null);
   const caso = db.casos.find((c) => c.id === id);
+  // a faixa de fases abre já mostrando a fase atual (rola só a faixa, não a página)
+  const faixaFases = useRef<HTMLOListElement>(null);
+  const faseAtual = caso?.fase;
+  useEffect(() => {
+    const ol = faixaFases.current;
+    const li = ol?.querySelector('[aria-current="step"]')?.parentElement as HTMLElement | null | undefined;
+    if (ol && li) ol.scrollLeft = Math.max(0, li.offsetLeft - ol.clientWidth / 2 + li.offsetWidth / 2);
+  }, [id, faseAtual]);
   if (!caso) return <div className="painel"><Vazio titulo="Caso não encontrado">Ele pode ter sido excluído. <Link className="font-semibold text-cobalto underline" href="/processos">Voltar para os processos</Link></Vazio></div>;
 
   const area = areaDe(caso.area);
@@ -50,7 +66,10 @@ export default function PaginaCaso() {
 
   return (
     <div style={estiloTinta(area.tinta)}>
-      <Link href={voltar} className="mb-3 inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-cobalto"><ChevronLeft className="size-4" />{caso.natureza === "judicial" ? "Processos" : "Extrajudicial"}</Link>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <Link href={voltar} className="inline-flex items-center gap-1 text-[13px] font-semibold text-ink-2 hover:text-cobalto"><ChevronLeft className="size-4" />{caso.natureza === "judicial" ? "Processos" : "Extrajudicial"}</Link>
+        <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" comTexto />
+      </div>
 
       <header className="painel overflow-hidden">
         <div className="flex flex-wrap items-start gap-4 p-5 sm:p-6">
@@ -76,27 +95,43 @@ export default function PaginaCaso() {
               <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-ink-2">{caso.vinculados!.map((v) => <span key={v.id} className="inline-flex items-center gap-1"><span className="text-ink-3">{v.tipo}:</span><span className="break-all font-mono">{v.numero}</span><Copiar texto={v.numero} rotulo={`Copiar número do ${v.tipo.toLowerCase()}`} /></span>)}</p>
             )}
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <MensagemCliente caso={caso} />
-            <Copiar texto={resumoDoCaso(caso)} rotulo="Copiar dados do caso" comTexto />
-            <Link href={`/documentos?caso=${caso.id}`} className="btn btn-g">Gerar documento</Link>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line-2 bg-porcelana px-5 py-3">
+          <span className="flex items-center gap-2">
             <Avatar pessoa={pessoa(caso.responsavel_id)} tamanho={30} />
             <select className="inp w-auto" aria-label="Situação do caso" value={caso.status} onChange={(e) => alterar("casos", caso.id, { status: e.target.value as Caso["status"] })}>
               <option value="ativo">Em andamento</option><option value="suspenso">Suspenso</option><option value="arquivado">Arquivado</option><option value="encerrado">Encerrado</option>
             </select>
-          </div>
+          </span>
+          <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <MensagemCliente caso={caso} />
+          </span>
         </div>
-        <ol className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
+        {area.id === "criminal" && crimeContraAVida(`${caso.titulo} ${caso.dados.tipo_penal ?? ""}`) && (
+          <div role="note" className="flex flex-wrap items-center gap-3 border-t border-line-2 bg-porcelana px-5 py-3 text-[13.5px]">
+            <p className="min-w-[min(100%,260px)] flex-1"><span className="font-semibold">Crime doloso contra a vida: competência do Tribunal do Júri.</span> Este caso está na área Criminal. Na área do Júri as fases são sumário da culpa, pronúncia, recurso da pronúncia, plenário e apelação.</p>
+            <button className="btn btn-p btn-sm" onClick={() => alterar("casos", caso.id, { area: "juri", fase: FASE_PARA_JURI[caso.fase] ?? 0, dados: { ...caso.dados, imputacao: String(caso.dados.tipo_penal ?? caso.titulo) } })}>Mudar para Tribunal do Júri</button>
+          </div>
+        )}
+        <ol ref={faixaFases} className="flex gap-px overflow-x-auto border-t border-line-2 bg-line-2" aria-label="Fases do caso">
           {area.fases.map((f, i) => (
             <li key={f} className="min-w-[104px] flex-1">
-              <button onClick={() => alterar("casos", caso.id, { fase: i })} aria-current={i === caso.fase ? "step" : undefined} title={`Mover para: ${f}`}
-                className={`flex h-full w-full flex-col gap-1 px-2.5 py-2 text-left text-[12px] leading-tight transition-colors ${i === caso.fase ? "bg-ink font-bold text-white" : i < caso.fase ? "bg-surface text-ink-2 hover:bg-porcelana" : "bg-porcelana text-ink-3 hover:bg-surface"}`}>
+              <button onClick={() => setFaseVista(faseVista === i ? null : i)} aria-current={i === caso.fase ? "step" : undefined} aria-expanded={faseVista === i} title={`Ver a fase: ${f}`}
+                className={`flex h-full w-full flex-col gap-1 px-2.5 py-2 text-left text-[12px] leading-tight transition-colors ${i === caso.fase ? "bg-ink font-bold text-white" : i < caso.fase ? "bg-surface text-ink-2 hover:bg-porcelana" : "bg-porcelana text-ink-3 hover:bg-surface"} ${faseVista === i ? "underline decoration-2 underline-offset-4 ring-2 ring-inset ring-[var(--justio-ambar)]" : ""}`}>
                 <span className="h-1 w-full rounded-full" style={{ background: i === caso.fase ? "var(--justio-ambar)" : i < caso.fase ? "var(--justio-tinta)" : "var(--color-line)" }} />
                 {f}
               </button>
             </li>
           ))}
         </ol>
+        <div className="flex flex-wrap items-center gap-2 border-t border-line-2 px-4 py-2 text-[13px]">
+          <span className="text-ink-3">Fase atual: <strong className="text-ink">{area.fases[caso.fase]}</strong></span>
+          <span className="ml-auto flex gap-2">
+            {caso.fase > 0 && <button className="btn btn-g btn-sm" onClick={() => alterar("casos", caso.id, { fase: caso.fase - 1 })} title={`Voltar para ${area.fases[caso.fase - 1]}`}>Voltar</button>}
+            {caso.fase < area.fases.length - 1 && <button className="btn btn-p btn-sm" onClick={() => alterar("casos", caso.id, { fase: caso.fase + 1 })}>Avançar para {area.fases[caso.fase + 1]}</button>}
+          </span>
+        </div>
+        {faseVista !== null && <PainelFase caso={caso} fase={faseVista} aoFechar={() => setFaseVista(null)} />}
       </header>
 
       <div className="mt-4">
@@ -107,7 +142,7 @@ export default function PaginaCaso() {
         {aba === "ficha" && <Ficha caso={caso} />}
 
         {aba === "andamentos" && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <section className="painel">
               <div className="painel-cab"><h2>Andamentos</h2><span className="flex flex-wrap gap-2"><BuscarAndamentos casos={[caso]} rotulo="Buscar no tribunal" classe="btn btn-g btn-sm" /><MensagemCliente caso={caso} modeloInicial="andamento" rotulo="Avisar cliente" classe="btn btn-g btn-sm" /></span></div>
               {andamentos.length === 0 ? <Vazio titulo="Sem andamentos">Registre o primeiro ao lado. Os que vierem do tribunal aparecem aqui marcados como novos.</Vazio> : (
@@ -131,7 +166,7 @@ export default function PaginaCaso() {
         )}
 
         {aba === "prazos" && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               <section className="painel">
                 <div className="painel-cab"><h2>Prazos</h2></div>
@@ -176,7 +211,7 @@ export default function PaginaCaso() {
             {honorarios.some((h) => h.status === "pendente") && <MensagemCliente caso={caso} modeloInicial="honorarios" rotulo="Lembrar honorários" />}
             <BotaoNovo rotulo="Lançar custa ou repasse" classe="btn btn-g" aoSalvar={(v) => incluir("custas", { caso_id: caso.id, descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hojeISO()), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hojeISO() }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
-          </div>{(caso.orcamentos?.length || caso.fase === 0 || !caso.numero) && <div className="mb-4"><Orcamentos caso={caso} /></div>}<div className="grid gap-4 lg:grid-cols-2">
+          </div>{(caso.orcamentos?.length || caso.fase === 0 || !caso.numero) && <div className="mb-4"><Orcamentos caso={caso} /></div>}<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="painel overflow-x-auto">
               <div className="painel-cab"><h2>Honorários</h2><span className="text-[12.5px] text-ink-3">Recebido {brl(honorarios.filter((h) => h.status === "recebido").reduce((s, h) => s + h.valor, 0))} de {brl(honorarios.filter((h) => h.tipo !== "êxito").reduce((s, h) => s + h.valor, 0))}</span></div>
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
@@ -202,7 +237,7 @@ export default function PaginaCaso() {
         )}
 
         {aba === "trabalho" && (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="painel">
               <div className="painel-cab"><h2>Tarefas</h2></div>
               {tarefas.length === 0 && <Vazio titulo="Nenhuma tarefa neste caso" />}
@@ -244,7 +279,7 @@ export default function PaginaCaso() {
             <div className="painel-cab"><h2>Prazos de referência: {area.nome}</h2></div>
             <table className="tb"><thead><tr><th>Ato</th><th>Prazo</th><th>Base legal</th></tr></thead>
               <tbody>{area.prazos.map((p) => <tr key={p.nome}><td className="font-semibold">{p.nome}</td><td>{p.prazo}</td><td className="text-ink-2">{p.base}</td></tr>)}</tbody></table>
-            <p className="border-t border-line-2 px-4 py-2.5 text-[12.5px] text-ink-3">Tabela de consulta. Confira a contagem no caso concreto (dias úteis ou corridos, feriados locais, prazo em dobro).</p>
+            <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Tabela de consulta. Confira a contagem no caso concreto (dias úteis ou corridos, feriados locais, prazo em dobro).</NotaInfo>
           </section>
         )}
       </div>
@@ -252,23 +287,174 @@ export default function PaginaCaso() {
   );
 }
 
+/** Um quadro da ficha com lápis próprio: edita e grava só os campos dele. */
+function QuadroFicha({ caso, secao }: { caso: Caso; secao: Secao }) {
+  const db = useDB();
+  const [editando, setEditando] = useState(false);
+  const [dados, setDados] = useState(caso.dados);
+  const sugestoes = (c: Campo) => [...new Set([...valoresUsados(db.casos, caso.area, c), ...(SUGESTOES_FIXAS[c.k] ?? [])])].filter((x) => x);
+  function salvar() {
+    const chaves = new Set(secao.campos.map((c) => c.k));
+    alterar("casos", caso.id, { dados: { ...caso.dados, ...Object.fromEntries(Object.entries(dados).filter(([k]) => chaves.has(k))) } });
+    setEditando(false);
+  }
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>{secao.titulo}</h2>{!editando && <button className="btn btn-g btn-icone btn-sm" onClick={() => { setDados(caso.dados); setEditando(true); }} aria-label={`Editar ${secao.titulo}`} title={`Editar ${secao.titulo}`}><Pencil /></button>}</div>
+      {editando ? (<>
+        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">{secao.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+        <div className="flex justify-end gap-2 border-t border-line-2 px-4 py-3"><button className="btn btn-g btn-sm" onClick={() => setEditando(false)}>Cancelar</button><button className="btn btn-p btn-sm" onClick={salvar}>Salvar</button></div>
+      </>) : (
+        <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+          {secao.campos.map((c) => {
+            const v = valorCampo(c, caso.dados[c.k]);
+            return (
+              <div key={c.k} className={`min-w-0 border-b border-line-2 px-4 py-2.5 ${c.tipo === "l" || c.tipo === "m" ? "sm:col-span-2" : ""}`}>
+                <dt className="text-[12px] font-semibold text-ink-3">{c.rotulo}</dt>
+                {!v ? <dd className="text-ink-3">Não informado</dd> : c.tipo === "m"
+                  ? <dd><ul className="mt-0.5 space-y-0.5">{itensDe(caso.dados[c.k]).map((it, n) => <li key={n} className="break-words">• {it}</li>)}</ul></dd>
+                  : <dd className="flex items-start gap-1"><span className="min-w-0 flex-1 whitespace-pre-line break-words">{v}</span><Copiar texto={v} rotulo={`Copiar ${c.rotulo.toLowerCase()}`} /></dd>}
+              </div>
+            );
+          })}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+/** Execução penal ligada à ação penal: número (abre o caso e copia) e os dados da guia. */
+function ExecucaoLigada({ caso }: { caso: Caso }) {
+  const db = useDB();
+  const ex = db.casos.find((c) => c.id === caso.dados.execucao_caso_id) ?? db.casos.find((c) => c.area === "execucao_penal" && c.dados.origem_caso_id === caso.id);
+  if (!ex) return <><AbrirExecucao caso={caso} />{!/condena/i.test(String(caso.dados.resultado ?? "")) && <p className="painel px-4 py-3 text-[13.5px] text-ink-3">Execução penal: aparece aqui quando houver condenação. Registre o resultado na sentença.</p>}</>;
+  const d = ex.dados;
+  const linhas: [string, string][] = [["Guia", [d.guia_tipo, d.guia_numero && `nº ${d.guia_numero}`].filter(Boolean).join(" ")], ["Expedida em", d.guia_expedicao ? data(String(d.guia_expedicao)) : ""], ["Juízo da execução", String(d.juizo_execucao ?? ex.orgao ?? "")], ["Regime atual", String(d.regime ?? "")], ["Pena", String(d.pena ?? "")], ["Término previsto", d.termino ? data(String(d.termino)) : ""]];
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>Execução penal</h2><Link href={`/casos/${ex.id}`} className="btn btn-g btn-sm">Abrir a execução</Link></div>
+      <dl className="divide-y divide-line-2 text-[13.5px]">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5"><dt className="text-ink-3">Número da execução</dt>
+          <dd className="flex min-w-0 items-center gap-1">{ex.numero ? <><Link href={`/casos/${ex.id}`} className="break-all font-mono font-semibold text-cobalto underline">{ex.numero}</Link><Copiar texto={ex.numero} rotulo="Copiar número da execução" /></> : <Link href={`/casos/${ex.id}`} className="text-cobalto underline">Ainda sem número: cadastre na execução</Link>}</dd></div>
+        {linhas.filter(([, v]) => v).map(([k, v]) => <div key={k} className="flex justify-between gap-3 px-4 py-2.5"><dt className="text-ink-3">{k}</dt><dd className="text-right">{v}</dd></div>)}
+        {d.guia_numero && <div className="flex justify-end px-4 py-2"><Copiar texto={String(d.guia_numero)} rotulo="Copiar número da guia" comTexto /></div>}
+      </dl>
+    </section>
+  );
+}
+
+/** O que a fase tocada na faixa mostra: os quadros daquela etapa, cada um com seu lápis. */
+function PainelFase({ caso, fase, aoFechar }: { caso: Caso; fase: number; aoFechar: () => void }) {
+  const area = areaDe(caso.area);
+  const etapa = etapaDe(area, fase);
+  return (
+    <div className="border-t border-line-2 bg-porcelana p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h2 className="titulo mr-auto text-[19px]">{area.fases[fase]}</h2>
+        {fase === caso.fase ? <span className="tag tag-ok">Fase atual</span> : <button className="btn btn-g btn-sm" onClick={() => alterar("casos", caso.id, { fase })}>Marcar como fase atual</button>}
+        <button className="btn btn-g btn-icone btn-sm" onClick={aoFechar} aria-label="Fechar a fase"><X /></button>
+      </div>
+      <div className="space-y-3">
+        {etapa.secoes.map((s) => <QuadroFicha key={s.titulo} caso={caso} secao={s} />)}
+        {etapa.execucao && <ExecucaoLigada caso={caso} />}
+        {etapa.calculo && <Execucao caso={caso} />}
+        {!etapa.secoes.length && !etapa.execucao && !etapa.calculo && <p className="text-[13.5px] text-ink-3">Esta fase não tem quadro próprio na ficha.</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Chaves internas da ficha que não são campos para mostrar. */
+const CHAVES_INTERNAS = new Set(["tipo_caso", "origem_caso_id", "execucao_caso_id"]);
+/** Campos do JUSTIO antigo que não existem em nenhuma ficha nova. */
+const ROTULOS_ANTIGOS: Record<string, string> = { lmp: "Violência doméstica (Lei Maria da Penha)" };
+
+/** Dados preenchidos antes de o caso mudar de área (ex.: Criminal → Júri) e que a ficha atual não tem. */
+function DadosAnteriores({ caso }: { caso: Caso }) {
+  const area = areaDe(caso.area);
+  const daArea = new Set(area.secoes.flatMap((s) => s.campos.map((c) => c.k)));
+  const sobras = Object.entries(caso.dados).filter(([k, v]) => !CHAVES_INTERNAS.has(k) && !k.startsWith("doc_") && !daArea.has(k) && v !== undefined && v !== "");
+  if (!sobras.length) return null;
+  const campoDe = (k: string) => AREAS.flatMap((a) => a.secoes.flatMap((s) => s.campos)).find((c) => c.k === k);
+  const rotulo = (k: string) => campoDe(k)?.rotulo ?? ROTULOS_ANTIGOS[k] ?? k.replace(/_/g, " ").replace(/^./, (l) => l.toUpperCase());
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>Dados de antes da mudança de área</h2><NotaInfo>Foram preenchidos quando o caso estava em outra área e não têm caixa na ficha de {area.nome}. Continuam guardados.</NotaInfo></div>
+      <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        {sobras.map(([k, v]) => { const c = campoDe(k); const t = c ? valorCampo(c, v) : String(v); return (
+          <div key={k} className="min-w-0 border-b border-line-2 px-4 py-2.5"><dt className="text-[12px] font-semibold text-ink-3">{rotulo(k)}</dt><dd className="whitespace-pre-line break-words">{t}</dd></div>
+        ); })}
+      </dl>
+    </section>
+  );
+}
+
+/** Ação penal com condenação: abre a execução penal levando a dosimetria da sentença. */
+function AbrirExecucao({ caso }: { caso: Caso }) {
+  const db = useDB();
+  const router = useRouter();
+  const [aberto, setAberto] = useState(false);
+  if (!["criminal", "juri"].includes(caso.area) || !/condena/i.test(String(caso.dados.resultado ?? ""))) return null;
+  const ja = db.casos.find((c) => c.id === caso.dados.execucao_caso_id);
+  const previa = execucaoDaSentenca(caso);
+  const crime = previa.caso.execucao!.crimes[0];
+  function abrir() {
+    const id = incluir("casos", previa.caso);
+    alterar("casos", caso.id, { dados: { ...caso.dados, execucao_caso_id: id } });
+    setAberto(false);
+    router.push(`/casos/${id}`);
+  }
+  return (
+    <section className="painel flex flex-wrap items-center gap-3 p-4">
+      <p className="min-w-[min(100%,240px)] flex-1 text-[13.5px]"><span className="font-semibold">Execução penal.</span> {ja ? "Já aberta a partir desta condenação." : "Abra a execução com a pena, o regime, a detração e a dosimetria desta sentença."}</p>
+      {ja ? <Link href={`/casos/${ja.id}`} className="btn btn-g btn-sm">Abrir a execução</Link> : <button className="btn btn-p btn-sm" onClick={() => setAberto(true)}>Abrir execução penal</button>}
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Abrir execução penal"
+        rodape={<><button className="btn btn-g" onClick={() => setAberto(false)}>Cancelar</button><button className="btn btn-p" onClick={abrir}>Criar a execução</button></>}>
+        <p className="text-[13.5px] text-ink-2">Um caso novo de Execução penal será criado para {caso.cliente_nome}, ligado a este processo, com:</p>
+        <dl className="mt-3 divide-y divide-line-2 rounded-[12px] border border-line text-[13.5px]">
+          {([["Crime", crime.crime], ["Pena", `${crime.anos} anos, ${crime.meses} meses e ${crime.dias} dias`], ["Natureza", crime.natureza ?? "Não informada"], ["Condição", crime.condicao ?? "Não informada"], ["Regime inicial", String(previa.caso.dados.regime ?? "Não informado")], ["Detração", previa.caso.dados.detracao !== undefined ? `${previa.caso.dados.detracao} dias` : "Não informada"], ["Data do fato", crime.data_fato ? data(crime.data_fato) : "Não informada"], ["Trânsito em julgado", crime.transito ? data(crime.transito) : "Não informado"]] as const).map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-3 px-3 py-2"><dt className="text-ink-3">{k}</dt><dd className="text-right">{v}</dd></div>
+          ))}
+        </dl>
+        {crime.obs && <p className="mt-3 whitespace-pre-line rounded-[12px] bg-porcelana p-3 text-[12.5px] text-ink-2">{crime.obs}</p>}
+        {previa.avisos.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5 text-[12.5px] text-ocre">{previa.avisos.map((a) => <li key={a}>{a}</li>)}</ul>}
+      </Dialogo>
+    </section>
+  );
+}
+
 function Ficha({ caso }: { caso: Caso }) {
   const db = useDB();
   const area = areaDe(caso.area);
-  const [edit, setEdit] = useState(false);
+  /** null: leitura · "tudo": ficha inteira · "geral": só Dados gerais · "sec:Título": só aquele quadro. */
+  const [modo, setModo] = useState<string | null>(null);
+  const edit = modo === "tudo";
+  const editandoSec = (t: string) => modo === "tudo" || modo === `sec:${t}`;
+  const editandoGeral = modo === "tudo" || modo === "geral";
   const [dados, setDados] = useState(caso.dados);
   const geralDe = (c: Caso) => ({ titulo: c.titulo, numero: c.numero, orgao: c.orgao ?? "", comarca: c.comarca ?? "", uf: c.uf ?? "", parte_contraria: c.parte_contraria ?? "", valor: c.valor ?? "", cliente: c.cliente_nome ?? "" });
   const [geral, setGeral] = useState(geralDe(caso));
-  const base = edit ? dados : caso.dados;
+  const base = modo ? dados : caso.dados;
   const tipos = tiposDoCaso(area, base);
   const tipo = tipos.join(", ");
-  const secoes = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
-  const campos = secoes.flatMap((s) => s.campos);
+  const nasFases = new Set(area.fases.flatMap((_, i) => etapaDe(area, i).secoes.map((x) => x.titulo)));
+  const todas = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
+  // a ficha completa (editar tudo) mostra todos; na leitura, só o que não está em nenhuma fase da faixa
+  const secoes = modo === "tudo" ? todas : todas.filter((s) => !nasFases.has(s.titulo));
+  const campos = todas.flatMap((s) => s.campos);
   const preenchidos = campos.filter((c) => caso.dados[c.k] !== undefined && caso.dados[c.k] !== "").length;
   const sugestoes = (k: string) => { const c = campos.find((x) => x.k === k)!; return [...new Set([...valoresUsados(db.casos, area.id, c), ...(SUGESTOES_FIXAS[k] ?? [])])].filter((x) => x); };
   const distintos = (f: (c: Caso) => string | undefined) => [...new Set(db.casos.map(f).filter((x): x is string => !!x))].sort();
 
   function salvar() {
+    // só um quadro da ficha: grava apenas os campos dele
+    if (modo?.startsWith("sec:")) {
+      const sec = area.secoes.find((x) => `sec:${x.titulo}` === modo);
+      const chaves = new Set(sec?.campos.map((c) => c.k) ?? []);
+      alterar("casos", caso.id, { dados: { ...caso.dados, ...Object.fromEntries(Object.entries(dados).filter(([k]) => chaves.has(k))) } });
+      setModo(null);
+      return;
+    }
     const nomeCli = geral.cliente.trim();
     let cliente_id = caso.cliente_id, cliente_nome = caso.cliente_nome;
     if (nomeCli && semAcento(nomeCli) !== semAcento(caso.cliente_nome ?? "")) {
@@ -277,11 +463,15 @@ function Ficha({ caso }: { caso: Caso }) {
       cliente_nome = achado?.nome ?? nomeCli;
     }
     const { cliente: _c, ...resto } = geral; // eslint-disable-line @typescript-eslint/no-unused-vars
-    alterar("casos", caso.id, { ...resto, uf: resto.uf || undefined, valor: geral.valor === "" ? undefined : Number(geral.valor), dados, cliente_id, cliente_nome });
-    setEdit(false);
+    alterar("casos", caso.id, { ...resto, uf: resto.uf || undefined, valor: geral.valor === "" ? undefined : Number(geral.valor), ...(modo === "tudo" ? { dados } : {}), cliente_id, cliente_nome });
+    setModo(null);
   }
+  const abrir = (m: string) => { setDados(caso.dados); setGeral(geralDe(caso)); setModo(m); };
+  const cancelar = () => { setDados(caso.dados); setModo(null); };
+  const lapis = (m: string, rotulo: string) => !modo && <button className="btn btn-g btn-icone btn-sm" onClick={() => abrir(m)} aria-label={`Editar ${rotulo}`} title={`Editar ${rotulo}`}><Pencil /></button>;
+  const rodapeQuadro = <div className="flex justify-end gap-2 border-t border-line-2 px-4 py-3"><button className="btn btn-g btn-sm" onClick={cancelar}>Cancelar</button><button className="btn btn-p btn-sm" onClick={salvar}>Salvar</button></div>;
   const mudarTipo = (t: string) => {
-    if (edit) setDados({ ...dados, tipo_caso: t });
+    if (modo) setDados({ ...dados, tipo_caso: t });
     else alterar("casos", caso.id, { dados: { ...caso.dados, tipo_caso: t } });
   };
   /** Completa com a capa do processo no CNJ só o que ainda está em branco; assuntos entram nos tipos. */
@@ -296,22 +486,25 @@ function Ficha({ caso }: { caso: Caso }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-4">
         <section className="painel p-4">
           <span className="rotulo">{area.tipos ? `Tipos de processo ou assuntos em ${area.nome}` : `Assuntos do processo em ${area.nome}`}</span>
-          <CampoLista valor={(edit ? dados : caso.dados).tipo_caso ?? (tipos.length ? tipos.join("\n") : "")} aoMudar={mudarTipo} rotulo="Tipos de processo"
+          <CampoLista valor={(modo ? dados : caso.dados).tipo_caso ?? (tipos.length ? tipos.join("\n") : "")} aoMudar={mudarTipo} rotulo="Tipos de processo"
             sugestoes={[...(area.tipos ?? []), ...valoresUsados(db.casos, area.id, { k: "tipo_caso", rotulo: "", tipo: "m" })]} lista={`tipo_caso.${area.id}`} />
           <p className="mt-1.5 text-[12.5px] text-ink-3">Pode incluir mais de um.{area.tipos ? (tipos.length ? " A ficha mostra os campos de todos os tipos escolhidos." : " Escolha ao menos um para a ficha mostrar os campos próprios.") : ""}</p>
         </section>
         <Vinculados caso={caso} />
+        {modo !== "tudo" && nasFases.size > 0 && <p className="px-1 text-[12.5px] text-ink-3">Os quadros de cada fase (inquérito, sentença, recurso...) ficam na faixa de fases, no alto. Aqui aparece só o que não pertence a uma fase.</p>}
         {secoes.map((s) => (
           <section key={s.titulo} className="painel">
-            <div className="painel-cab"><h2>{s.titulo}</h2></div>
-            {edit ? (
-              <div className="grid gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+            <div className="painel-cab"><h2>{s.titulo}</h2>{lapis(`sec:${s.titulo}`, s.titulo)}</div>
+            {editandoSec(s.titulo) ? (<>
+              <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+              {modo !== "tudo" && rodapeQuadro}
+            </>
             ) : (
-              <dl className="grid gap-x-6 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
                 {s.campos.map((c) => {
                   const v = valorCampo(c, caso.dados[c.k]);
                   const largo = c.tipo === "l" || c.tipo === "m";
@@ -330,6 +523,8 @@ function Ficha({ caso }: { caso: Caso }) {
             )}
           </section>
         ))}
+        <AbrirExecucao caso={caso} />
+        <DadosAnteriores caso={caso} />
         {area.id === "execucao_penal" && <Execucao caso={caso} />}
         {!caso.numero && caso.natureza === "judicial" && !(caso.orcamentos ?? []).length && (
           <p className="painel px-4 py-3 text-[13px] text-ink-2">Processo ainda não proposto. Faça o orçamento na aba Financeiro.</p>
@@ -340,16 +535,16 @@ function Ficha({ caso }: { caso: Caso }) {
           <p className="text-[12.5px] text-ink-2">Ficha de {area.nome}{tipo ? ` (${tipo})` : ""}: {preenchidos} de {campos.length} campos preenchidos.</p>
           <div className="mt-2 h-1.5 rounded-full bg-cobalto-f"><div className="h-1.5 rounded-full bg-ink" style={{ width: `${campos.length ? (preenchidos / campos.length) * 100 : 0}%` }} /></div>
           {edit ? (
-            <div className="mt-3 flex gap-2"><button className="btn btn-p flex-1" onClick={salvar}>Salvar ficha</button><button className="btn btn-g" onClick={() => { setDados(caso.dados); setEdit(false); }}>Cancelar</button></div>
-          ) : <button className="btn btn-g mt-3 w-full" onClick={() => { setDados(caso.dados); setGeral(geralDe(caso)); setEdit(true); }}><Pencil />Editar ficha</button>}
+            <div className="mt-3 flex gap-2"><button className="btn btn-p flex-1" onClick={salvar}>Salvar ficha</button><button className="btn btn-g" onClick={cancelar}>Cancelar</button></div>
+          ) : modo ? <p className="mt-3 text-[12.5px] text-ink-3">Salve ou cancele o quadro em edição para editar outro.</p>
+            : <button className="btn btn-g mt-3 w-full" onClick={() => abrir("tudo")}><Pencil />Editar ficha completa</button>}
         </section>
         <section className="painel">
-          <div className="painel-cab"><h2>Dados gerais</h2></div>
-          {edit ? (
+          <div className="painel-cab"><h2>Dados gerais</h2>{lapis("geral", "dados gerais")}</div>
+          {editandoGeral ? (<>
             <div className="space-y-3 p-4">
               <Rotulado rotulo="Título"><input className="inp" value={geral.titulo} onChange={(e) => setGeral({ ...geral, titulo: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Cliente"><input className="inp" list="ficha-clientes" value={geral.cliente} onChange={(e) => setGeral({ ...geral, cliente: e.target.value })} /></Rotulado>
-              <datalist id="ficha-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
+              <Rotulado rotulo="Cliente"><CampoCliente valor={geral.cliente} aoMudar={(nome) => setGeral({ ...geral, cliente: nome })} /></Rotulado>
               <div><Rotulado rotulo="Número"><input className="inp" inputMode="numeric" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
                 <BuscaNumero numero={geral.numero} aoAchar={completarComCapa} auto={geral.numero.replace(/\D/g, "") !== caso.numero.replace(/\D/g, "")} /></div>
               <Rotulado rotulo="Vara ou órgão"><input className="inp" list="ficha-orgaos" value={geral.orgao} onChange={(e) => setGeral({ ...geral, orgao: e.target.value })} /></Rotulado>
@@ -363,7 +558,8 @@ function Ficha({ caso }: { caso: Caso }) {
               <datalist id="ficha-contrarias">{distintos((c) => c.parte_contraria).map((x) => <option key={x} value={x} />)}</datalist>
               <Rotulado rotulo="Valor (R$)"><input className="inp" type="number" value={geral.valor} onChange={(e) => setGeral({ ...geral, valor: e.target.value })} /></Rotulado>
             </div>
-          ) : (
+            {modo === "geral" && rodapeQuadro}
+          </>) : (
             <dl className="divide-y divide-line-2 text-[13.5px]">
               {caso.numero && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Número</dt><dd className="flex min-w-0 items-center gap-1"><span className="break-all font-mono text-[12.5px]">{caso.numero}</span><Copiar texto={caso.numero} rotulo="Copiar número do processo" /></dd></div>}
               {caso.orgao && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Juízo</dt><dd className="flex min-w-0 items-center gap-1 text-right"><span className="break-words">{caso.orgao}{caso.comarca ? `, ${caso.comarca}` : ""}</span><Copiar texto={`${caso.orgao}${caso.comarca ? `, ${caso.comarca}` : ""}${caso.uf ? `/${caso.uf}` : ""}`} rotulo="Copiar juízo" /></dd></div>}

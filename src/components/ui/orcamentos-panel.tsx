@@ -96,7 +96,7 @@ export function OrcamentosPanel({ cliente, processos }: { cliente: Cliente; proc
             )}
           </div>
           {form && (
-            <form onSubmit={salvar} className="mt-4 grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-3">
+            <form onSubmit={salvar} className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-3">
               <input className={`${campo} sm:col-span-3`} placeholder="Serviço (ex.: Divórcio com partilha, guarda e alimentos)" value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
               <input className={campo} placeholder="Valor total (R$)" inputMode="decimal" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} />
               <input className={campo} placeholder="Entrada (R$)" inputMode="decimal" value={form.entrada} onChange={(e) => setForm({ ...form, entrada: e.target.value })} />

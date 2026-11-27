@@ -91,6 +91,13 @@ export function extrairCNJ(...textos: (string | null | undefined)[]): string | n
   return null;
 }
 
+/** Crime doloso contra a vida (competência do Tribunal do Júri): homicídio doloso, infanticídio, aborto, induzimento ao suicídio. */
+export function crimeContraAVida(texto?: string | null): boolean {
+  const t = String(texto ?? "");
+  if (/homic[íi]dio\s+culposo|art\.?\s*121\s*,?\s*(?:§|par[áa]grafo)\s*3/i.test(t)) return false;
+  return /homic[íi]dio|infantic[íi]dio|aborto|instiga[çc][ãa]o,?\s+ao\s+suic[íi]dio|art\.?\s*(?:121|122|123|124|125|126)\b/i.test(t);
+}
+
 /** Área provável a partir da classe processual informada pelo diário. */
 export function areaPelaClasse(classe?: string | null, numero?: string | null): string {
   const c = String(classe ?? "").toLowerCase();
@@ -154,7 +161,8 @@ export function dadosDaPublicacao(texto: string, extra?: { titulo?: string; clas
     incluir(m[2], papel, PAPEIS_ATIVO.includes(papel) ? "ativo" : "passivo");
   }
 
-  const area = areaPelaClasse(classe || t.slice(0, 600), numero);
+  let area = areaPelaClasse(classe || t.slice(0, 600), numero);
+  if (area === "criminal" && crimeContraAVida(`${extra?.titulo ?? ""} ${classe} ${texto.slice(0, 1500)}`)) area = "juri";
   const penal = ePenal(area);
   // impetrante costuma ser a própria advogada; no penal o cliente é quem está sendo processado ou preso
   const pessoas = partes.filter((p) => !ORGAO_PUBLICO.test(p.nome) && !(penal && p.papel === "impetrante"));

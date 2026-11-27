@@ -62,7 +62,7 @@ export default function Clientes() {
       </div>
 
       <Dialogo aberto={novo} aoFechar={() => setNovo(false)} titulo="Novo cliente" rodape={<><button className="btn btn-g" onClick={() => setNovo(false)}>Cancelar</button><button className="btn btn-p" disabled={!f.nome.trim()} onClick={() => { incluir("clientes", { ...f, nome: f.nome.trim(), uf: "RJ", criado_em: hoje }); setNovo(false); setF({ nome: "", tipo: "pf", documento: "", celular: "", email: "", cidade: "", origem: "" }); }}>Cadastrar</button></>}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Rotulado rotulo="Nome ou razão social" className="sm:col-span-2"><input className="inp" value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} /></Rotulado>
           <Rotulado rotulo="Tipo"><select className="inp" value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as "pf" | "pj" })}><option value="pf">Pessoa física</option><option value="pj">Empresa</option></select></Rotulado>
           <Rotulado rotulo={f.tipo === "pj" ? "CNPJ" : "CPF"}><input className="inp" value={f.documento} onChange={(e) => setF({ ...f, documento: e.target.value })} /></Rotulado>

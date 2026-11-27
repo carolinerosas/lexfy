@@ -49,7 +49,7 @@ export default function Relatorio() {
             <section key={x.id} className="mt-8 break-inside-avoid border-t border-line pt-5">
               <h2 className="titulo text-[18px]">{n + 1}. {x.titulo}</h2>
               <p className="mt-1 text-[13px] text-ink-2">{[a.nome, x.numero && `nº ${x.numero}`, x.orgao, x.comarca, x.parte_contraria && `contra ${x.parte_contraria}`].filter(Boolean).join(" · ")}</p>
-              <dl className="mt-3 grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-3">
+              <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-3">
                 <div><dt className="text-[12px] font-semibold text-ink-3">Fase</dt><dd>{a.fases[x.fase]}</dd></div>
                 <div><dt className="text-[12px] font-semibold text-ink-3">Chance de êxito</dt><dd>{x.risco ? RISCO[x.risco] : "Não avaliada"}</dd></div>
                 <div><dt className="text-[12px] font-semibold text-ink-3">Valor</dt><dd>{x.valor ? brl(x.valor) : "-"}</dd></div>

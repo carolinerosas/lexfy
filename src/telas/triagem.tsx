@@ -1261,7 +1261,7 @@ function ImportacaoAssistida({
                   placeholder="Criar novo cliente / sem vínculo"
                 />
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <Input label="Nome" value={draft.cliente?.nome ?? draft.processos[0]?.cliente_nome ?? ""} onChange={(e) => setClienteField("nome", e.target.value)} />
                 <Input label="CPF" value={draft.cliente?.cpf ?? ""} onChange={(e) => setClienteField("cpf", e.target.value)} />
                 <Input label="RG" value={draft.cliente?.rg ?? ""} onChange={(e) => setClienteField("rg", e.target.value)} />
@@ -1285,7 +1285,7 @@ function ImportacaoAssistida({
                     Não criar
                   </button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <Input label="Título" value={draft.caso_novo.titulo} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, titulo: e.target.value } })} />
                   <Input label="Tipo" value={draft.caso_novo.tipo ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, tipo: e.target.value } })} />
                   <Input label="Parte contrária" value={draft.caso_novo.parte_contraria ?? ""} onChange={(e) => onDraftChange({ ...draft, caso_novo: { ...draft.caso_novo!, parte_contraria: e.target.value } })} />
@@ -1326,7 +1326,7 @@ function ImportacaoAssistida({
                     ? "Vai para a aba Orçamentos do cliente. Quando ele fechar, um clique lança os honorários."
                     : "Entrada e parcelas viram cobranças em Honorários do processo."}
                 </p>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <Input label="Descrição" value={draft.honorarios.descricao} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, descricao: e.target.value } })} />
                   <Input label="Valor total (R$)" inputMode="decimal" value={String(draft.honorarios.valor_total ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, valor_total: Number(e.target.value.replace(",", ".")) || 0 } })} />
                   <Input label="Entrada (R$)" inputMode="decimal" value={String(draft.honorarios.entrada ?? "")} onChange={(e) => onDraftChange({ ...draft, honorarios: { ...draft.honorarios!, entrada: Number(e.target.value.replace(",", ".")) || undefined } })} />
@@ -1401,7 +1401,7 @@ function ImportacaoAssistida({
                           />
                         </div>
                       )}
-                      <div className="grid gap-3 md:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
                           <Input label="Número CNJ" value={proc.numero ?? ""} onChange={(e) => setProcessoField(index, "numero", e.target.value)} />
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -1528,7 +1528,7 @@ function ImportacaoAssistida({
                                       </button>
                                     </div>
                                   </div>
-                                  <div className="grid gap-3 md:grid-cols-2">
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     <Input label="Nome" value={parte.nome ?? ""} onChange={(e) => setParteField(index, j, "nome", e.target.value)} />
                                     <Input label="CPF/CNPJ" value={parte.cpf_cnpj ?? ""} onChange={(e) => setParteField(index, j, "cpf_cnpj", e.target.value)} />
                                     <Input label="RG" value={parte.rg ?? ""} onChange={(e) => setParteField(index, j, "rg", e.target.value)} />
@@ -1560,7 +1560,7 @@ function ImportacaoAssistida({
                 <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-400">Movimentações detectadas</p>
                 <div className="space-y-4">
                   {draft.movimentacoes.map((mov, index) => (
-                    <div key={index} className="grid gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 md:grid-cols-2">
+                    <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 md:grid-cols-2">
                       <Input label="Processo vinculado" value={mov.processo_numero ?? ""} onChange={(e) => setMovimentacaoField(index, "processo_numero", e.target.value)} />
                       <Input label="Data" type="date" value={mov.data_movimentacao ?? ""} onChange={(e) => setMovimentacaoField(index, "data_movimentacao", e.target.value)} />
                       <Input label="Tipo" value={mov.tipo ?? ""} onChange={(e) => setMovimentacaoField(index, "tipo", e.target.value)} />

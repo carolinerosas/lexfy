@@ -11,7 +11,7 @@ import { SUGESTOES_FIXAS } from "@/novo/lib/areas";
 import type { Caso, CrimeExec, DadosExecucao, Interrupcao, Remicao } from "@/novo/lib/types";
 import { Acoes } from "./acoes";
 import { BotaoNovo, type CampoF, type Valores } from "./form-rapido";
-import { Vazio } from "./ui";
+import { Vazio, NotaInfo } from "./ui";
 
 const camposCrime: CampoF[] = [
   { k: "crime", rotulo: "Crime", obrig: true, largo: true, lista: "exec_crime", sugestoes: SUGESTOES_FIXAS.tipo_penal },
@@ -85,7 +85,7 @@ export function Execucao({ caso }: { caso: Caso }) {
             );
           })}</ul>
         )}
-        <p className="border-t border-line-2 px-4 py-2.5 text-[12px] text-ink-3">Frações sugeridas: LEP, art. 112 (Lei 13.964/2019 para fatos a partir de 23/01/2020; antes, 1/6, ou 2/5 e 3/5 para hediondos) e CP, art. 83. Ajuste quando o caso pedir outra (maus antecedentes, reincidência genérica em hediondo, decisão do juízo).</p>
+        <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Frações sugeridas: LEP, art. 112 (Lei 13.964/2019 para fatos a partir de 23/01/2020; antes, 1/6, ou 2/5 e 3/5 para hediondos) e CP, art. 83. Ajuste quando o caso pedir outra (maus antecedentes, reincidência genérica em hediondo, decisão do juízo).</NotaInfo>
       </section>
 
       <section className="painel">
@@ -94,7 +94,7 @@ export function Execucao({ caso }: { caso: Caso }) {
           <div className="p-4">
             <div className="h-2 rounded-full bg-cobalto-f"><div className="h-2 rounded-full bg-ink" style={{ width: `${k.pctCumprido}%` }} /></div>
             <p className="mt-1 text-[12.5px] text-ink-3">{k.pctCumprido.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da pena cumprida</p>
-            <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
               <Linha rotulo="Pena total" valor={`${diasTexto(k.totalDias)} (${k.totalDias} dias)`} />
               <Linha rotulo="Dias cumpridos" valor={`${diasTexto(k.cumpridos)} (${k.cumpridos} dias)`} dica={`inclui ${k.remidos} remidos${k.remidosPendentes ? ` (${k.remidosPendentes} sem homologação)` : ""} e ${k.detracao} de detração${k.interrompidos ? `; descontados ${k.interrompidos} dias em que a pena não correu` : ""}`} />
               <Linha rotulo="Pena restante" valor={`${diasTexto(k.restante)} (${k.restante} dias)`} />
@@ -113,7 +113,7 @@ export function Execucao({ caso }: { caso: Caso }) {
         )}
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="painel">
           <div className="painel-cab">
             <h2>Dias remidos ({ex.remicoes.reduce((s, r) => s + r.dias, 0)})</h2>
@@ -150,7 +150,7 @@ export function Execucao({ caso }: { caso: Caso }) {
               </li>
             ))}</ul>
           )}
-          <p className="border-t border-line-2 px-4 py-2.5 text-[12px] text-ink-3">Falta grave que interrompe a data-base da progressão: altere a data-base em Datas da execução. Ela não interrompe o livramento (Súmula 441 do STJ).</p>
+          <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Falta grave que interrompe a data-base da progressão: altere a data-base em Datas da execução. Ela não interrompe o livramento (Súmula 441 do STJ).</NotaInfo>
         </section>
       </div>
     </>

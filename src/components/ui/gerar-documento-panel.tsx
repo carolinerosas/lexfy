@@ -10,6 +10,7 @@ import { loadPerfilAdvogado, getPerfilAdvogado, type PerfilAdvogado } from "@/li
 import { MODELOS, getModelo, type ModeloId } from "@/lib/modelos-documentos";
 import { listarModelos, preencherModelo, inspecionarModelo, type ModeloCustom } from "@/lib/modelos-custom";
 import { montarDadosDocumento } from "@/lib/tokens-documento";
+import { rotuloMarcador } from "@/novo/lib/marcadores";
 import { getProcessosByCliente } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
 
@@ -44,7 +45,7 @@ const LABELS_TOKEN: Record<string, string> = {
 };
 
 function labelToken(t: string): string {
-  return LABELS_TOKEN[t] ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, " ");
+  return LABELS_TOKEN[t] ?? rotuloMarcador(t) ?? t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, " ");
 }
 
 /** Número do caso: para inquérito usa numero_inquerito; senão, o número do processo. */
@@ -57,6 +58,10 @@ interface GerarDocumentoPanelProps {
   cliente: Cliente;
   /** Aberto a partir de um processo: os modelos já saem com o número dele. */
   processoAtual?: Processo;
+  /** Valores que o caso oferece aos marcadores (ficha, processo e o que já foi digitado antes). */
+  dadosCaso?: Record<string, string>;
+  /** Guarda no caso os valores digitados na hora, para a próxima vez. */
+  aoGuardar?: (valores: Record<string, string>) => void;
 }
 
 /** Estilo do documento — usado no editor e no PDF dos modelos prontos. */
@@ -78,7 +83,7 @@ function nomeArquivo(modeloNome: string, clienteNome: string): string {
     .trim();
 }
 
-export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPanelProps) {
+export function GerarDocumentoPanel({ cliente, processoAtual, dadosCaso, aoGuardar }: GerarDocumentoPanelProps) {
   const [perfil, setPerfil] = useState<PerfilAdvogado>(() => getPerfilAdvogado());
   const [modeloId, setModeloId] = useState<ModeloId>("procuracao");
   const editorRef = useRef<HTMLDivElement>(null);
@@ -130,9 +135,11 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
       if (tokens.length === 0) {
         await baixarPreenchido(modelo, {});
       } else {
-        setValores(processoAtual
-          ? { processo: numeroProcesso(processoAtual), unidade_prisional: processoAtual.unidade_prisional ?? "" }
-          : {});
+        const doCaso = Object.fromEntries(tokens.filter((t) => dadosCaso?.[t]).map((t) => [t, dadosCaso![t]]));
+        setValores({
+          ...(processoAtual ? { processo: numeroProcesso(processoAtual), unidade_prisional: processoAtual.unidade_prisional ?? "" } : {}),
+          ...doCaso,
+        });
         setModalGerar({ modelo, tokens });
         if (tokens.includes("processo")) carregarProcessos();
       }
@@ -147,7 +154,10 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
     setGerandoId(modelo.id);
     setErroModelo("");
     try {
-      const dados = { ...montarDadosDocumento(cliente, perfil), ...extras };
+      // cadastro do cliente e da advogada têm prioridade; o que foi conferido na janela vale por último
+      const cheios = (o: Record<string, string>) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== ""));
+      const dados = { ...(dadosCaso ?? {}), ...cheios(montarDadosDocumento(cliente, perfil)), ...cheios(extras) };
+      if (aoGuardar && Object.keys(extras).length) aoGuardar(extras);
       const blob = await preencherModelo(modelo.caminho, dados);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -360,7 +370,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
         <Modal open onClose={() => setModalGerar(null)} title={`Gerar: ${modalGerar.modelo.nome}`} size="md">
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Complete os campos que não vêm do cadastro de {cliente.nome}:
+              Confira os campos. Os que vieram da ficha do caso já estão preenchidos; o que você digitar aqui fica guardado no caso para os próximos documentos.
             </p>
             {modalGerar.tokens.map((t) =>
               t === "processo" ? (
@@ -397,7 +407,7 @@ export function GerarDocumentoPanel({ cliente, processoAtual }: GerarDocumentoPa
               ) : (
                 <Input
                   key={t}
-                  label={labelToken(t)}
+                  label={`${labelToken(t)}${dadosCaso?.[t] ? " (da ficha do caso)" : ""}`}
                   value={valores[t] ?? ""}
                   onChange={(e) => setValores((v) => ({ ...v, [t]: e.target.value }))}
                 />

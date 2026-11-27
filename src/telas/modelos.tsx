@@ -1,5 +1,7 @@
 "use client";
 
+import { MARCADORES_PROCESSO, marcadoresPorArea } from "@/novo/lib/marcadores";
+import { BotaoInfo } from "@/novo/components/ui";
 import { useEffect, useRef, useState } from "react";
 import { FileText, Loader2, Trash2, Upload, FilePlus2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,10 +123,10 @@ export default function ModelosPage() {
         <div className="flex items-center gap-3 mb-1">
           <FileText className="w-5 h-5 text-gray-400" />
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Modelos de documentos</h1>
-        </div>
-        <p className="text-gray-400 text-sm mt-1">
+          <BotaoInfo>
           Suba seus modelos em Word com marcadores. Na página de cada cliente, o Justio preenche e baixa o documento pronto.
-        </p>
+                  </BotaoInfo>
+        </div>
       </div>
 
       <Card className="mb-6">
@@ -219,15 +221,37 @@ export default function ModelosPage() {
           <div className="rounded-lg bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
             <p className="font-semibold">E os campos que mudam por caso?</p>
             <p className="mt-1 text-blue-800">
-              Qualquer marcador <strong>fora desta lista</strong> - como <code className="rounded bg-white/70 px-1 text-xs">{`{{processo}}`}</code> ou{" "}
-              <code className="rounded bg-white/70 px-1 text-xs">{`{{acao}}`}</code> - o Justio <strong>pergunta na hora de gerar</strong>.
-              No caso do <code className="rounded bg-white/70 px-1 text-xs">{`{{processo}}`}</code>, ele ainda mostra os processos já cadastrados do cliente pra você só clicar.
+              Gerando pela aba <strong>Meus modelos</strong> de um caso, todo campo da ficha daquele caso entra sozinho (lista abaixo, por área).
+              Qualquer marcador <strong>fora das listas</strong> o Justio <strong>pergunta na hora de gerar</strong> e guarda no caso: na próxima declaração do mesmo caso ele já vem preenchido.
             </p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Do processo</p>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {MARCADORES_PROCESSO.map(([k, r]) => (
+                <div key={k} className="flex items-baseline gap-2 text-sm"><code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-800">{`{{${k}}}`}</code><span className="text-gray-500">{r}</span></div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Da ficha do caso, por área</p>
+            <div className="space-y-1.5">
+              {marcadoresPorArea().map((a) => (
+                <details key={a.area} className="rounded-lg border border-gray-200 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-semibold text-gray-800">{a.area} ({a.campos.length})</summary>
+                  <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {a.campos.map(([k, r]) => (
+                      <div key={k} className="flex items-baseline gap-2 text-sm"><code className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-800">{`{{${k}}}`}</code><span className="min-w-0 text-gray-500">{r}</span></div>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
           </div>
           {TOKENS.map((g) => (
             <div key={g.grupo}>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{g.grupo}</p>
-              <div className="grid gap-1.5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {g.itens.map((it) => (
                   <div key={it.token} className="flex items-baseline gap-2 text-sm">
                     <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-800">{it.token}</code>

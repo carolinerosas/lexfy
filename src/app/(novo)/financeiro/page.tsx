@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { areaDe, AREAS } from "@/novo/lib/areas";
 import { brl, brlCurto, data, hojeISO, horas } from "@/novo/lib/format";
-import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Rotulado, Seg, Vazio, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Barras, Cabecalho, LinkCaso, Rotulado, Seg, Vazio, useMapas, NotaInfo, BotaoInfo } from "@/novo/components/ui";
 import { Cobrar, Receber, NovoHonorario } from "@/novo/components/honorario";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import type { Custa } from "@/novo/lib/types";
@@ -66,7 +66,7 @@ export default function Financeiro() {
                 <div key={k} className="bg-surface p-5"><dt className="text-[12.5px] font-semibold text-ink-3">{k}</dt><dd className={`titulo mt-1 text-[26px] ${cor}`}>{v}</dd></div>
               ))}
             </dl>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <section className="painel">
                 <div className="painel-cab"><h2>Entradas e saídas por mês</h2><p className="flex gap-3 text-[12px] text-ink-2"><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-ink" />Recebido</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border border-ink bg-ocre-v" />Previsto</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#C3C8D0]" />Saídas</span></p></div>
                 <div className="flex h-[240px] items-end gap-3 px-5 pb-4 pt-6 sm:gap-6">
@@ -84,7 +84,7 @@ export default function Financeiro() {
                     </div>
                   ))}
                 </div>
-                <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Saídas somam as contas do escritório e a remuneração da equipe. Honorários de êxito ficam fora da previsão.</p>
+                <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Saídas somam as contas do escritório e a remuneração da equipe. Honorários de êxito ficam fora da previsão.</NotaInfo>
               </section>
               <section className="painel">
                 <div className="painel-cab"><h2>Honorários recebidos por área</h2></div>
@@ -111,7 +111,7 @@ export default function Financeiro() {
         )}
 
         {aba === "contas" && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="painel overflow-x-auto">
               <table className="tb min-w-[560px]"><thead><tr><th>Conta</th><th>Categoria</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
                 <tbody>{db.contas.filter((c) => c.vencimento >= format(addMonths(new Date(), -1), "yyyy-MM")).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).map((c) => (
@@ -133,7 +133,7 @@ export default function Financeiro() {
 
         {aba === "custas" && (
           <div className="space-y-5">
-            <p className="max-w-[75ch] text-ink-2">O dinheiro do cliente fica separado do dinheiro do escritório: alvarás levantados aparecem como valor a repassar, e as custas adiantadas ficam marcadas até o reembolso. {reembolsar.length > 0 && <>Há <strong className="text-ink">{brl(soma(reembolsar))}</strong> em custas a cobrar dos clientes.</>}</p>
+            <div className="flex flex-wrap items-center gap-2 text-ink-2"><BotaoInfo>O dinheiro do cliente fica separado do dinheiro do escritório: alvarás levantados aparecem como valor a repassar, e as custas adiantadas ficam marcadas até o reembolso.</BotaoInfo>{reembolsar.length > 0 && <p>Há <strong className="text-ink">{brl(soma(reembolsar))}</strong> em custas a cobrar dos clientes.</p>}</div>
             <BotaoNovo rotulo="Lançar custa ou repasse" aoSalvar={(v) => incluir("custas", { caso_id: String(v.caso_id), descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hoje), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "caso_id", rotulo: "Caso", tipo: "opcoes", obrig: true, largo: true, opcoes: db.casos.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hoje }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
             <div className="painel overflow-x-auto">
@@ -149,7 +149,7 @@ export default function Financeiro() {
         {aba === "horas" && (
           <><div className="mb-3"><BotaoNovo rotulo="Lançar horas" aoSalvar={(v) => incluir("horas", { colaborador_id: String(v.colaborador_id), caso_id: v.caso_id ? String(v.caso_id) : undefined, data: String(v.data ?? hoje), minutos: Math.round((Number(v.horas) || 0) * 60), atividade: String(v.atividade), faturavel: !!v.faturavel })}
             campos={[{ k: "colaborador_id", rotulo: "Quem", tipo: "opcoes", obrig: true, opcoes: db.equipe.map((e) => [e.id, e.nome] as const) }, { k: "data", rotulo: "Data", tipo: "data", inicial: hoje }, { k: "caso_id", rotulo: "Caso (em branco: trabalho interno)", tipo: "opcoes", largo: true, opcoes: db.casos.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "atividade", rotulo: "Atividade", obrig: true, largo: true }, { k: "horas", rotulo: "Horas (ex.: 1,5 = 1h30)", tipo: "numero", obrig: true }, { k: "faturavel", rotulo: "Faturável", tipo: "check", inicial: true }]} /></div>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <section className="painel">
               <div className="painel-cab"><h2>Horas do mês por pessoa</h2></div>
               <ul>{horasPessoa.map(({ e, total, fat }) => (

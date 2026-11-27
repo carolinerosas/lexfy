@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Download, LogIn, LogOut } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { data, diaSemana, hojeISO, horas } from "@/novo/lib/format";
-import { Avatar } from "./ui";
+import { Avatar, NotaInfo } from "./ui";
 import type { Ponto } from "@/novo/lib/types";
 
 const min = (hm?: string) => (hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : 0);
@@ -38,10 +38,10 @@ export function PontoAba() {
     URL.revokeObjectURL(url);
   }
 
-  if (controlados.length === 0) return <p className="text-ink-2">Ninguém da equipe tem jornada controlada. O ponto vale para vínculos CLT e de estágio.</p>;
+  if (controlados.length === 0) return <NotaInfo>Ninguém da equipe tem jornada controlada. O ponto vale para vínculos CLT e de estágio.</NotaInfo>;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <section className="painel h-fit">
         <div className="painel-cab"><h2>Hoje e saldo do mês</h2><button className="btn btn-g btn-sm" onClick={exportar}><Download />Planilha para o contador</button></div>
         <ul>{resumo.map(({ e, dias, feito, saldo, aberto, fechadoHoje }) => (
@@ -57,7 +57,7 @@ export function PontoAba() {
               : <button className="btn btn-g btn-sm" onClick={() => incluir("pontos", { colaborador_id: e.id, data: hoje, entrada: agora(), intervalo_min: e.vinculo === "estágio" ? 0 : 60 })}><LogIn />Entrada</button>}
           </li>
         ))}</ul>
-        <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Estágio: até 6 horas por dia e 30 por semana (Lei 11.788/08, art. 10). Para CLT, o banco de horas depende de acordo (CLT, art. 59).</p>
+        <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Estágio: até 6 horas por dia e 30 por semana (Lei 11.788/08, art. 10). Para CLT, o banco de horas depende de acordo (CLT, art. 59).</NotaInfo>
       </section>
       <section className="painel overflow-x-auto">
         <div className="painel-cab"><h2>Registros de {db.equipe.find((e) => e.id === sel)?.nome.split(" ")[0]}</h2></div>

@@ -1,13 +1,14 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Loader2, MessageCircle, RefreshCw, Share2 } from "lucide-react";
-import { alterar, incluir, useDB } from "@/novo/lib/store";
+import { alterar, incluir, lerDB, useDB } from "@/novo/lib/store";
+import { gravarBusca, useBusca } from "@/novo/lib/buscas";
 import { areaDe, tiposDoCaso, secaoVisivel } from "@/novo/lib/areas";
 import { resumoExecucao } from "@/novo/lib/execucao";
 import { brl, data, hojeISO, hora } from "@/novo/lib/format";
 import { pixCopiaECola } from "@/novo/lib/pix";
 import { copiarTexto, linkWhatsApp } from "@/novo/lib/whatsapp";
-import { Copiar, Dialogo, Rotulado, Vazio, valorCampo } from "./ui";
+import { Copiar, Dialogo, Rotulado, Vazio, valorCampo, NotaInfo } from "./ui";
 import { Acoes } from "./acoes";
 import { BotaoNovo, type CampoF } from "./form-rapido";
 import type { Caso, DB, Vinculado } from "@/novo/lib/types";
@@ -154,73 +155,78 @@ type Estado = { st: "fila" | "buscando" | "ok" | "erro"; msg?: string; novos?: n
 
 const paraISO = (d: string) => (/^\d{2}\/\d{2}\/\d{4}/.test(d) ? `${d.slice(6, 10)}-${d.slice(3, 5)}-${d.slice(0, 2)}` : d.slice(0, 10));
 
-/** Busca andamentos de vários processos e deixa escolher o que vai para o JUSTIO. */
-export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe = "btn btn-p" }: { casos: Caso[]; rotulo?: string; classe?: string }) {
-  const db = useDB();
-  const [aberto, setAberto] = useState(false);
-  const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
-  const [estado, setEstado] = useState<Record<string, Estado>>({});
-  const [achados, setAchados] = useState<Mov[]>([]);
-  const [marcados, setMarcados] = useState<Set<string>>(new Set());
-  const [rodando, setRodando] = useState(false);
-  const [salvos, setSalvos] = useState(0);
-  const comNumero = useMemo(() => casos.filter((c) => c.numero && c.numero.replace(/\D/g, "").length === 20), [casos]);
-  const semNumero = casos.length - comNumero.length;
-  const porId = new Map(casos.map((c) => [c.id, c]));
+interface JobAnd { escolhidos: Set<string> | null; estado: Record<string, Estado>; achados: Mov[]; marcados: Set<string>; rodando: boolean; salvos: number }
+const JOB_AND: JobAnd = { escolhidos: null, estado: {}, achados: [], marcados: new Set(), rodando: false, salvos: 0 };
 
-  function abrir() {
-    setEscolhidos(new Set(comNumero.filter((c) => c.status === "ativo").map((c) => c.id)));
-    setEstado({}); setAchados([]); setMarcados(new Set()); setSalvos(0); setAberto(true);
-  }
-
-  async function buscar() {
-    setRodando(true); setAchados([]); setMarcados(new Set()); setSalvos(0);
+/** Roda fora do componente: continua com a janela fechada ou em outra página. */
+async function rodarBuscaAndamentos(chave: string, fila: Caso[]) {
+  const mexer = (f: (j: JobAnd) => Partial<JobAnd>) => gravarBusca<JobAnd>(chave, (j) => ({ ...j, ...f(j) }), JOB_AND);
+  mexer(() => ({ rodando: true, achados: [], marcados: new Set(), salvos: 0, estado: Object.fromEntries(fila.map((c) => [c.id, { st: "fila" } as Estado])) }));
+  const todos: Mov[] = [];
+  try {
     const [{ parseCNJ }, { buscarMovimentosSistema }] = await Promise.all([import("@/lib/datajud"), import("@/lib/sistemas")]);
-    const fila = comNumero.filter((c) => escolhidos.has(c.id));
-    setEstado(Object.fromEntries(fila.map((c) => [c.id, { st: "fila" }])));
-    const todos: Mov[] = [];
     for (const c of fila) {
-      setEstado((e) => ({ ...e, [c.id]: { st: "buscando" } }));
+      mexer((j) => ({ estado: { ...j.estado, [c.id]: { st: "buscando" } } }));
       try {
         const { tribunal } = parseCNJ(c.numero);
         if (!tribunal) throw new Error("tribunal não reconhecido pelo número");
         const movs = await buscarMovimentosSistema(tribunal, c.numero);
-        const ja = new Set(db.andamentos.filter((a) => a.caso_id === c.id).map((a) => `${a.data}|${a.descricao.trim().toLowerCase()}`));
+        const ja = new Set(lerDB().andamentos.filter((a) => a.caso_id === c.id).map((a) => `${a.data}|${a.descricao.trim().toLowerCase()}`));
         const novos = movs.map((m) => ({ caso_id: c.id, data: paraISO(m.data), descricao: m.descricao.trim(), fonte: m.fonte }))
           .filter((m) => m.data && m.descricao && !ja.has(`${m.data}|${m.descricao.toLowerCase()}`))
           .map((m) => ({ ...m, chave: `${m.caso_id}|${m.data}|${m.descricao}` }));
         const unicos = [...new Map(novos.map((m) => [m.chave, m])).values()];
         todos.push(...unicos);
-        setEstado((e) => ({ ...e, [c.id]: { st: "ok", novos: unicos.length } }));
+        mexer((j) => ({ estado: { ...j.estado, [c.id]: { st: "ok", novos: unicos.length } } }));
       } catch (err) {
-        setEstado((e) => ({ ...e, [c.id]: { st: "erro", msg: err instanceof Error ? err.message : "erro na consulta" } }));
+        mexer((j) => ({ estado: { ...j.estado, [c.id]: { st: "erro", msg: err instanceof Error ? err.message : "erro na consulta" } } }));
       }
     }
+  } finally {
     todos.sort((a, b) => b.data.localeCompare(a.data));
-    setAchados(todos);
-    setMarcados(new Set(todos.map((m) => m.chave)));
-    setRodando(false);
+    mexer(() => ({ achados: todos, marcados: new Set(todos.map((m) => m.chave)), rodando: false }));
   }
+}
+
+/** Busca andamentos de vários processos e deixa escolher o que vai para o JUSTIO. A busca segue em segundo plano. */
+export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe = "btn btn-p" }: { casos: Caso[]; rotulo?: string; classe?: string }) {
+  const [aberto, setAberto] = useState(false);
+  const chave = `andamentos:${casos.length === 1 ? casos[0].id : "lote"}`;
+  const job = useBusca(chave, JOB_AND);
+  const { estado, achados, marcados, rodando, salvos } = job;
+  const mexer = (f: (j: JobAnd) => Partial<JobAnd>) => gravarBusca<JobAnd>(chave, (j) => ({ ...j, ...f(j) }), JOB_AND);
+  const comNumero = useMemo(() => casos.filter((c) => c.numero && c.numero.replace(/\D/g, "").length === 20), [casos]);
+  const escolhidos = job.escolhidos ?? new Set(comNumero.filter((c) => c.status === "ativo").map((c) => c.id));
+  const semNumero = casos.length - comNumero.length;
+  const porId = new Map(casos.map((c) => [c.id, c]));
+
+  function buscar() { rodarBuscaAndamentos(chave, comNumero.filter((c) => escolhidos.has(c.id))); }
+  const setEscolhidos = (e: Set<string>) => mexer(() => ({ escolhidos: e }));
+  const setMarcados = (m: Set<string>) => mexer(() => ({ marcados: m }));
 
   function salvar() {
     const lista = achados.filter((m) => marcados.has(m.chave));
     lista.forEach((m) => incluir("andamentos", { caso_id: m.caso_id, data: m.data, descricao: m.descricao, fonte: "tribunal", lido: false }));
-    setSalvos(lista.length);
-    setAchados(achados.filter((m) => !marcados.has(m.chave)));
-    setMarcados(new Set());
+    mexer(() => ({ salvos: lista.length, achados: achados.filter((m) => !marcados.has(m.chave)), marcados: new Set() }));
   }
 
   const alternar = (set: Set<string>, id: string) => { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); return n; };
   const buscou = Object.keys(estado).length > 0;
+  const feitos = Object.values(estado).filter((e) => e.st === "ok" || e.st === "erro").length;
+  const total = Object.keys(estado).length;
 
   return (
     <>
-      <button className={classe} onClick={abrir} disabled={comNumero.length === 0} title={comNumero.length === 0 ? "Nenhum processo com número CNJ completo" : undefined}><RefreshCw />{rotulo}</button>
-      <Dialogo aberto={aberto} aoFechar={() => { if (!rodando) setAberto(false); }} titulo="Buscar andamentos nos tribunais" largo
+      <button className={classe} onClick={() => setAberto(true)} disabled={comNumero.length === 0} title={comNumero.length === 0 ? "Nenhum processo com número CNJ completo" : undefined}>
+        {rodando ? <Loader2 className="animate-spin" /> : <RefreshCw />}{rodando ? `Buscando ${feitos}/${total}…` : achados.length > 0 ? `${achados.length} novo${achados.length > 1 ? "s" : ""} para gravar` : rotulo}
+      </button>
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Buscar andamentos nos tribunais" largo
         rodape={<>
+          {rodando && <p role="status" className="mr-auto self-center text-[13px] text-ink-2">Pode fechar: a busca continua em segundo plano e o botão avisa quando terminar.</p>}
           {salvos > 0 && <p role="status" className="mr-auto self-center font-semibold">{salvos} andamento{salvos > 1 ? "s" : ""} gravado{salvos > 1 ? "s" : ""} no JUSTIO.</p>}
-          {achados.length > 0 ? <button className="btn btn-p" disabled={marcados.size === 0} onClick={salvar}>Gravar {marcados.size} selecionado{marcados.size === 1 ? "" : "s"}</button>
-            : <button className="btn btn-p" disabled={rodando || escolhidos.size === 0} onClick={buscar}>{rodando ? <Loader2 className="animate-spin" /> : <RefreshCw />}{rodando ? "Buscando…" : `Buscar em ${escolhidos.size} processo${escolhidos.size === 1 ? "" : "s"}`}</button>}
+          {rodando ? <button className="btn btn-g" onClick={() => setAberto(false)}>Fechar e continuar em segundo plano</button>
+            : achados.length > 0 ? <button className="btn btn-p" disabled={marcados.size === 0} onClick={salvar}>Gravar {marcados.size} selecionado{marcados.size === 1 ? "" : "s"}</button>
+            : <button className="btn btn-p" disabled={escolhidos.size === 0} onClick={buscar}><RefreshCw />{`Buscar em ${escolhidos.size} processo${escolhidos.size === 1 ? "" : "s"}`}</button>}
         </>}>
         {achados.length === 0 && (
           <>
@@ -246,7 +252,7 @@ export function BuscarAndamentos({ casos, rotulo = "Buscar andamentos", classe =
               })}
             </ul>
             {buscou && !rodando && <p className="mt-3 text-[13px] text-ink-2">Nenhum andamento novo para gravar.{Object.values(estado).some((e) => e.st === "erro") ? " Alguns tribunais não responderam; passe o mouse em “não consultou” para ver o motivo." : ""}</p>}
-            <p className="mt-3 text-[12.5px] text-ink-3">A consulta usa o DataJud do CNJ e as consultas públicas dos tribunais. Nada é gravado antes de você escolher.</p>
+            <NotaInfo className="mt-3">A consulta usa o DataJud do CNJ e as consultas públicas dos tribunais. Nada é gravado antes de você escolher.</NotaInfo>
           </>
         )}
         {achados.length > 0 && (

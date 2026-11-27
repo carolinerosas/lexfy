@@ -4,7 +4,7 @@ import { CheckCheck } from "lucide-react";
 import { alterar, useDB } from "@/novo/lib/store";
 import { AREAS } from "@/novo/lib/areas";
 import { data, diasAte, quando } from "@/novo/lib/format";
-import { Cabecalho, LinkCaso, Seg, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Cabecalho, LinkCaso, Seg, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import { BuscarAndamentos } from "@/novo/components/caso-extras";
 
 export default function Andamentos() {
@@ -31,7 +31,7 @@ export default function Andamentos() {
         <BuscarAndamentos casos={db.casos.filter((c) => c.natureza === "judicial" && c.status !== "encerrado" && c.status !== "arquivado")} rotulo="Buscar andamentos em lote" />
         <button className="btn btn-g" disabled={novos.length === 0} onClick={() => novos.forEach((a) => alterar("andamentos", a.id, { lido: true }))}><CheckCheck />Marcar tudo como lido</button>
       </Cabecalho>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="painel">
           {lista.length === 0 ? <Vazio titulo="Nenhum andamento por ler">As movimentações capturadas nos tribunais e as registradas à mão aparecem aqui.</Vazio> : (
             <ul>{lista.map((a) => {
@@ -55,7 +55,7 @@ export default function Andamentos() {
                 <li key={c.id} className="border-b border-line-2 px-4 py-2.5 last:border-0"><LinkCaso caso={c} /><p className="mt-0.5 text-[12.5px] text-ocre">{dias === null ? "Nenhum andamento registrado" : `Sem movimentação há ${dias} dias`}</p></li>
               ))}</ul>
             )}
-            <p className="border-t border-line-2 px-4 py-2.5 text-[12.5px] text-ink-3">Processo parado em cartório costuma pedir despacho com o juízo ou petição de impulso.</p>
+            <NotaInfo className="border-t border-line-2 px-4 px-3 py-1.5">Processo parado em cartório costuma pedir despacho com o juízo ou petição de impulso.</NotaInfo>
           </section>
           <section className="painel p-4 text-[13px] text-ink-2">
             <p className="font-semibold text-ink">De onde vêm os andamentos</p>

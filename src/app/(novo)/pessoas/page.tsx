@@ -4,7 +4,7 @@ import { ArrowRight, Plus } from "lucide-react";
 import { alterar, incluir, useDB } from "@/novo/lib/store";
 import { areaDe } from "@/novo/lib/areas";
 import { brl, data, diasAte, hojeISO, horas, quando } from "@/novo/lib/format";
-import { Abas, Avatar, Cabecalho, Dialogo, Rotulado, TagArea, Vazio, useMapas } from "@/novo/components/ui";
+import { Abas, Avatar, Cabecalho, Dialogo, Rotulado, TagArea, Vazio, useMapas, NotaInfo } from "@/novo/components/ui";
 import type { Ausencia, Candidato, Colaborador, Treinamento } from "@/novo/lib/types";
 import { BotaoNovo } from "@/novo/components/form-rapido";
 import { PontoAba } from "@/novo/components/ponto";
@@ -46,7 +46,7 @@ export default function Pessoas() {
       <Abas valor={aba} aoMudar={setAba} abas={[["equipe", `Equipe (${db.equipe.length})`], ["ausencias", "Férias e ausências"], ["ponto", "Ponto e banco de horas"], ["folha", "Remuneração"], ["recrutamento", "Recrutamento"], ["avaliacoes", "Avaliações"], ["capacitacao", "Capacitação"]] as const} />
       <div className="mt-5">
         {aba === "equipe" && (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
             <div className="painel overflow-x-auto">
               <table className="tb min-w-[760px]"><thead><tr><th>Pessoa</th><th>Vínculo</th><th>Áreas</th><th className="num">Casos</th><th className="num">Prazos</th><th>Horas no mês</th></tr></thead>
                 <tbody>{db.equipe.map((e) => { const l = linha(e); return (
@@ -67,13 +67,13 @@ export default function Pessoas() {
                   <span className={`tag ${v.n <= 15 ? "tag-perigo" : v.n <= 60 ? "tag-alerta" : ""}`}>{quando(v.d)}</span>
                 </li>
               ))}</ul>
-              <p className="border-t border-line-2 px-5 py-2.5 text-[12.5px] text-ink-3">Certificado digital vencido impede o protocolo. O estágio tem limite de 2 anos no mesmo escritório (Lei 11.788/08, art. 11).</p>
+              <NotaInfo className="border-t border-line-2 px-5 px-3 py-1.5">Certificado digital vencido impede o protocolo. O estágio tem limite de 2 anos no mesmo escritório (Lei 11.788/08, art. 11).</NotaInfo>
             </section>
           </div>
         )}
 
         {aba === "ausencias" && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="painel overflow-x-auto">
               {db.ausencias.length === 0 ? <Vazio titulo="Nenhuma ausência registrada" /> : (
                 <table className="tb min-w-[620px]"><thead><tr><th>Pessoa</th><th>Tipo</th><th>Período</th><th>Situação</th><th /></tr></thead>
@@ -92,7 +92,7 @@ export default function Pessoas() {
               <div className="grid grid-cols-2 gap-3"><Rotulado rotulo="De"><input type="date" className="inp" value={na.inicio} onChange={(e) => setNa({ ...na, inicio: e.target.value })} /></Rotulado><Rotulado rotulo="Até"><input type="date" className="inp" value={na.fim} onChange={(e) => setNa({ ...na, fim: e.target.value })} /></Rotulado></div>
               <Rotulado rotulo="Observação"><input className="inp" value={na.observacao} onChange={(e) => setNa({ ...na, observacao: e.target.value })} /></Rotulado>
               <button className="btn btn-p w-full" disabled={!na.colaborador_id || !na.inicio}><Plus />Registrar</button>
-              <p className="text-[12.5px] text-ink-3">O sistema avisa quando há prazo da pessoa vencendo dentro do período, para redistribuir antes de aprovar.</p>
+              <NotaInfo className="">O sistema avisa quando há prazo da pessoa vencendo dentro do período, para redistribuir antes de aprovar.</NotaInfo>
             </form>
           </div>
         )}
@@ -123,7 +123,7 @@ export default function Pessoas() {
             {db.vagas.map((v) => (
               <section key={v.id}>
                 <h2 className="titulo mb-3 flex flex-wrap items-center gap-2.5 text-[18px]">{v.titulo}<span className="tag">{v.vinculo}</span><span className="tag">{areaDe(v.area).nome}</span><span className="text-[12.5px] font-normal text-ink-3" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>aberta {quando(v.aberta_em)}</span></h2>
-                <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
                   {ETAPAS.map((etapa, i) => { const itens = db.candidatos.filter((c) => c.vaga_id === v.id && c.etapa === etapa); return (
                     <div key={etapa} className="rounded-[16px] bg-porcelana">
                       <h3 className="flex items-center justify-between px-4 pb-1 pt-3.5 text-[13px] font-semibold first-letter:uppercase">{etapa}<span className="tag bg-white">{itens.length}</span></h3>
@@ -144,7 +144,7 @@ export default function Pessoas() {
         {aba === "avaliacoes" && (
           <><div className="mb-4"><BotaoNovo rotulo="Nova avaliação" aoSalvar={(v) => incluir("avaliacoes", { colaborador_id: String(v.colaborador_id), ciclo: String(v.ciclo ?? ""), tecnica: Number(v.tecnica) || 3, prazos: Number(v.prazos) || 3, atendimento: Number(v.atendimento) || 3, equipe: Number(v.equipe) || 3, comentario: String(v.comentario ?? ""), metas: String(v.metas ?? "") })}
             campos={[{ k: "colaborador_id", rotulo: "Pessoa", tipo: "opcoes", obrig: true, opcoes: db.equipe.map((e) => [e.id, e.nome] as const) }, { k: "ciclo", rotulo: "Ciclo", inicial: `${new Date().getFullYear()}/2` }, ...(["tecnica:Técnica", "prazos:Prazos", "atendimento:Atendimento", "equipe:Trabalho em equipe"].map((x) => ({ k: x.split(":")[0], rotulo: `${x.split(":")[1]} (1 a 5)`, tipo: "opcoes" as const, inicial: "3", opcoes: ["1", "2", "3", "4", "5"] }))), { k: "comentario", rotulo: "Comentário", tipo: "longo" }, { k: "metas", rotulo: "Meta do próximo ciclo", tipo: "longo" }]} /></div>
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {db.avaliacoes.map((a) => { const p = pessoa(a.colaborador_id); const notas = [["Técnica", a.tecnica], ["Prazos", a.prazos], ["Atendimento", a.atendimento], ["Equipe", a.equipe]] as const; return (
               <section key={a.id} className="painel p-5">
                 <p className="flex items-center gap-3"><Avatar pessoa={p} tamanho={36} /><span className="flex-1"><span className="titulo block text-[16px]">{p?.nome}</span><span className="text-[12.5px] text-ink-3">{p?.cargo} · ciclo {a.ciclo}</span></span><span className="titulo text-[26px]">{(notas.reduce((s, [, n]) => s + n, 0) / 4).toFixed(1)}</span></p>
@@ -173,7 +173,7 @@ export default function Pessoas() {
 
       <Dialogo aberto={!!ficha} aoFechar={() => setFicha(null)} titulo={ficha?.nome ?? ""}>
         {ficha && (
-          <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
             {([["Cargo", ficha.cargo], ["Vínculo", ficha.vinculo], ["OAB", ficha.oab], ["E-mail", ficha.email], ["Celular", ficha.celular], ["No escritório desde", data(ficha.admissao)], ["Aniversário", data(ficha.nascimento).slice(0, 5)], ["Carga semanal", `${ficha.carga_semanal}h`], ["Meta de horas no mês", ficha.meta_horas ? `${ficha.meta_horas}h` : undefined], ["Instituição de ensino", ficha.instituicao_ensino], ["Certificado digital vence em", ficha.certificado_digital && data(ficha.certificado_digital)], ["Contrato de estágio termina em", ficha.fim_contrato_estagio && data(ficha.fim_contrato_estagio)]] as const).filter(([, v]) => v).map(([k, v]) => (
               <div key={k}><dt className="text-[12px] font-semibold text-ink-3">{k}</dt><dd className="break-words">{v}</dd></div>
             ))}

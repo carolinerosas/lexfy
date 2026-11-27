@@ -3,7 +3,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import { Plus } from "lucide-react";
 import { guardarNaLista, useDB } from "@/novo/lib/store";
-import { CampoLista, Dialogo, Rotulado } from "./ui";
+import { BotaoInfo, CampoLista, Dialogo, Rotulado } from "./ui";
 
 export type CampoF = {
   k: string; rotulo: string;
@@ -88,12 +88,12 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
   return (
     <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={titulo}
       rodape={<>{erro && <p role="alert" className="mr-auto self-center font-semibold text-perigo">{erro}</p>}<button className="btn btn-g" onClick={aoFechar}>Cancelar</button><button className="btn btn-p" onClick={salvar}>{botao}</button></>}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {campos.map((c) => c.tipo === "lista" ? (
           <div key={c.k} className="sm:col-span-2">
             <span className="rotulo">{c.rotulo + (c.obrig ? " *" : "")}</span>
             <CampoLista valor={String(v[c.k] ?? "")} aoMudar={(x) => setV({ ...v, [c.k]: x })} rotulo={c.rotulo} sugestoes={c.sugestoes ? [...c.sugestoes] : undefined} lista={c.lista} />
-            {c.dica && <span className="mt-1 block text-[12px] text-ink-3">{c.dica}</span>}
+            {c.dica && <span className="mt-1.5 flex"><BotaoInfo>{c.dica}</BotaoInfo></span>}
           </div>
         ) : c.tipo === "check" ? (
           <label key={c.k} className={`flex items-center gap-2 ${c.largo ? "sm:col-span-2" : ""}`}><input type="checkbox" className="size-4" checked={!!v[c.k]} onChange={(e) => setV({ ...v, [c.k]: e.target.checked })} />{c.rotulo}</label>
@@ -109,7 +109,7 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
               <input className="inp" type={c.tipo === "numero" ? "number" : c.tipo === "data" ? "date" : c.tipo === "hora" ? "time" : "text"} step={c.tipo === "numero" ? "0.01" : undefined}
                 value={String(v[c.k] ?? "")} onChange={(e) => setV({ ...v, [c.k]: e.target.value })} />
             )}
-            {c.dica && <span className="mt-1 block text-[12px] text-ink-3">{c.dica}</span>}
+            {c.dica && <span className="mt-1.5 flex"><BotaoInfo>{c.dica}</BotaoInfo></span>}
           </Rotulado>
         ))}
       </div>

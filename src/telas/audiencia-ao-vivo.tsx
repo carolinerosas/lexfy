@@ -447,7 +447,7 @@ export default function AudienciaAoVivoPage() {
       {erro && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{erro}</p>}
       {aviso && <p className="mb-4 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-700">{aviso}</p>}
 
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
         {/* Transcrição: ocupa a altura toda da linha, com os botões colados no fim da caixa */}
         <Card className="flex flex-col">
           <CardContent className="flex flex-1 flex-col py-4 px-5">

@@ -7,6 +7,7 @@ import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { incluir, useDB } from "@/novo/lib/store";
 import type { ParteLida } from "@/lib/prazo-publicacao";
 import { hojeISO, semAcento } from "@/novo/lib/format";
+import { CampoCliente } from "./campo-cliente";
 import { Azulejo } from "./azulejo";
 import { CampoArea, CampoLista, Dialogo, Rotulado, itensDe } from "./ui";
 
@@ -62,7 +63,7 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
           ))}</ul>
         </div>
       )}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Rotulado rotulo="Área de atuação" className="sm:col-span-2">
           <div className="flex items-center gap-2.5">
             {area && <Azulejo area={area} tamanho={34} />}
@@ -75,8 +76,7 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
         </Rotulado>
         <Rotulado rotulo="Título do caso" className="sm:col-span-2"><input className="inp" {...campo("titulo")} placeholder="Ex.: Divórcio litigioso com guarda e alimentos" /></Rotulado>
         <Rotulado rotulo="Cliente">
-          <input className="inp" list="lista-clientes" {...campo("cliente")} placeholder="Nome (novo ou já cadastrado)" />
-          <datalist id="lista-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
+          <CampoCliente valor={f.cliente} aoMudar={(nome) => setF({ ...f, cliente: nome })} placeholder="Nome (novo ou já cadastrado)" />
         </Rotulado>
         <Rotulado rotulo="Parte contrária"><input className="inp" {...campo("contraria")} /></Rotulado>
         {area?.grupo !== "extrajudicial" && <div><Rotulado rotulo="Número do processo (CNJ)"><input className="inp" {...campo("numero")} placeholder="Deixe em branco se ainda não foi ajuizado" /></Rotulado><BuscaNumero numero={f.numero} aoAchar={completarComCapa} /></div>}
@@ -99,7 +99,7 @@ export function NovoCaso({ aberto, aoFechar, areaInicial, preenchido, aoCriar, p
       {area && area.secoes.filter((s) => secaoVisivel(s, tiposDoCaso(area, dados), dados)).map((s, i) => (
         <details key={s.titulo} open={i === 0} className="mt-4 border-t border-line-2 pt-3">
           <summary className="cursor-pointer text-[13.5px] font-semibold">Ficha de {area.nome}: {s.titulo}</summary>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}
           </div>
         </details>
