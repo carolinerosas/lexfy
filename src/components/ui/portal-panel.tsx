@@ -190,7 +190,7 @@ export function PortalPanel({ cliente, processos }: { cliente: Cliente; processo
           </div>
 
           {form && (
-            <form onSubmit={salvarNovo} className="mt-4 grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-2">
+            <form onSubmit={salvarNovo} className="mt-4 grid grid-cols-1 gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-2">
               <input className={campo} placeholder="Nome completo" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
               <input className={campo} placeholder="CPF" inputMode="numeric" value={form.cpf} onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
               <input className={campo} placeholder="Celular com DDD (WhatsApp)" inputMode="tel" value={form.celular} onChange={(e) => setForm({ ...form, celular: e.target.value })} />

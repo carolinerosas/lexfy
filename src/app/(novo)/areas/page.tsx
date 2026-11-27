@@ -16,7 +16,7 @@ export default function Areas() {
       {(["judicial", "extrajudicial"] as const).map((g) => (
         <section key={g} className="mb-8">
           <h2 className="titulo mb-3 text-[20px]">{g === "judicial" ? "Judicial" : "Extrajudicial"} <span className="font-normal text-ink-3">· {grupo(g).length} áreas</span></h2>
-          <ul className="grid gap-px overflow-hidden rounded-[16px] border border-line bg-line md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-[16px] border border-line bg-line md:grid-cols-2">
             {grupo(g).map((a) => {
               const ativa = db.config.areasAtivas.includes(a.id); const n = conta(a.id);
               return (

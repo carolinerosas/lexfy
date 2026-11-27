@@ -29,7 +29,7 @@ export default function Tarefas() {
         <select className="inp w-auto" value={quem} onChange={(e) => setQuem(e.target.value)} aria-label="Atribuir a"><option value="">Atribuir a…</option>{db.equipe.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}</select>
         <button className="btn btn-p" disabled={!nova.trim()}><Plus />Incluir</button>
       </form>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {COLUNAS.map((col, ci) => {
           const itens = lista.filter((t) => t.estado === col).sort((a, b) => (a.limite ?? "9").localeCompare(b.limite ?? "9"));
           return (

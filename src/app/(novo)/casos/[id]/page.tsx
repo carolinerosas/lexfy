@@ -15,6 +15,7 @@ import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
 import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas } from "@/novo/components/ui";
+import { CampoCliente } from "@/novo/components/campo-cliente";
 import { crimeContraAVida } from "@/lib/prazo-publicacao";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
 import { semAcento } from "@/novo/lib/format";
@@ -117,7 +118,7 @@ export default function PaginaCaso() {
         {aba === "ficha" && <Ficha caso={caso} />}
 
         {aba === "andamentos" && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <section className="painel">
               <div className="painel-cab"><h2>Andamentos</h2><span className="flex flex-wrap gap-2"><BuscarAndamentos casos={[caso]} rotulo="Buscar no tribunal" classe="btn btn-g btn-sm" /><MensagemCliente caso={caso} modeloInicial="andamento" rotulo="Avisar cliente" classe="btn btn-g btn-sm" /></span></div>
               {andamentos.length === 0 ? <Vazio titulo="Sem andamentos">Registre o primeiro ao lado. Os que vierem do tribunal aparecem aqui marcados como novos.</Vazio> : (
@@ -141,7 +142,7 @@ export default function PaginaCaso() {
         )}
 
         {aba === "prazos" && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="space-y-4">
               <section className="painel">
                 <div className="painel-cab"><h2>Prazos</h2></div>
@@ -186,7 +187,7 @@ export default function PaginaCaso() {
             {honorarios.some((h) => h.status === "pendente") && <MensagemCliente caso={caso} modeloInicial="honorarios" rotulo="Lembrar honorários" />}
             <BotaoNovo rotulo="Lançar custa ou repasse" classe="btn btn-g" aoSalvar={(v) => incluir("custas", { caso_id: caso.id, descricao: String(v.descricao), tipo: (v.tipo ?? "custas") as Custa["tipo"], valor: Number(v.valor) || 0, data: String(v.data ?? hojeISO()), reembolsavel: !!v.reembolsavel, reembolsado: false })}
               campos={[{ k: "descricao", rotulo: "Descrição", obrig: true, largo: true }, { k: "tipo", rotulo: "Tipo", tipo: "opcoes", inicial: "custas", opcoes: ["custas", "depósito recursal", "depósito judicial", "perícia", "diligência", "emolumentos", "alvará a repassar"] }, { k: "valor", rotulo: "Valor (R$)", tipo: "numero", obrig: true }, { k: "data", rotulo: "Data", tipo: "data", inicial: hojeISO() }, { k: "reembolsavel", rotulo: "O cliente reembolsa", tipo: "check", inicial: true }]} />
-          </div>{(caso.orcamentos?.length || caso.fase === 0 || !caso.numero) && <div className="mb-4"><Orcamentos caso={caso} /></div>}<div className="grid gap-4 lg:grid-cols-2">
+          </div>{(caso.orcamentos?.length || caso.fase === 0 || !caso.numero) && <div className="mb-4"><Orcamentos caso={caso} /></div>}<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="painel overflow-x-auto">
               <div className="painel-cab"><h2>Honorários</h2><span className="text-[12.5px] text-ink-3">Recebido {brl(honorarios.filter((h) => h.status === "recebido").reduce((s, h) => s + h.valor, 0))} de {brl(honorarios.filter((h) => h.tipo !== "êxito").reduce((s, h) => s + h.valor, 0))}</span></div>
               <table className="tb"><thead><tr><th>Descrição</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
@@ -212,7 +213,7 @@ export default function PaginaCaso() {
         )}
 
         {aba === "trabalho" && (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <section className="painel">
               <div className="painel-cab"><h2>Tarefas</h2></div>
               {tarefas.length === 0 && <Vazio titulo="Nenhuma tarefa neste caso" />}
@@ -306,7 +307,7 @@ function Ficha({ caso }: { caso: Caso }) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <div className="min-w-0 space-y-4">
         <section className="painel p-4">
           <span className="rotulo">{area.tipos ? `Tipos de processo ou assuntos em ${area.nome}` : `Assuntos do processo em ${area.nome}`}</span>
@@ -319,9 +320,9 @@ function Ficha({ caso }: { caso: Caso }) {
           <section key={s.titulo} className="painel">
             <div className="painel-cab"><h2>{s.titulo}</h2></div>
             {edit ? (
-              <div className="grid gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+              <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
             ) : (
-              <dl className="grid gap-x-6 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
                 {s.campos.map((c) => {
                   const v = valorCampo(c, caso.dados[c.k]);
                   const largo = c.tipo === "l" || c.tipo === "m";
@@ -358,8 +359,7 @@ function Ficha({ caso }: { caso: Caso }) {
           {edit ? (
             <div className="space-y-3 p-4">
               <Rotulado rotulo="Título"><input className="inp" value={geral.titulo} onChange={(e) => setGeral({ ...geral, titulo: e.target.value })} /></Rotulado>
-              <Rotulado rotulo="Cliente"><input className="inp" list="ficha-clientes" value={geral.cliente} onChange={(e) => setGeral({ ...geral, cliente: e.target.value })} /></Rotulado>
-              <datalist id="ficha-clientes">{db.clientes.map((c) => <option key={c.id} value={c.nome} />)}</datalist>
+              <Rotulado rotulo="Cliente"><CampoCliente valor={geral.cliente} aoMudar={(nome) => setGeral({ ...geral, cliente: nome })} /></Rotulado>
               <div><Rotulado rotulo="Número"><input className="inp" inputMode="numeric" value={geral.numero} onChange={(e) => setGeral({ ...geral, numero: e.target.value })} /></Rotulado>
                 <BuscaNumero numero={geral.numero} aoAchar={completarComCapa} auto={geral.numero.replace(/\D/g, "") !== caso.numero.replace(/\D/g, "")} /></div>
               <Rotulado rotulo="Vara ou órgão"><input className="inp" list="ficha-orgaos" value={geral.orgao} onChange={(e) => setGeral({ ...geral, orgao: e.target.value })} /></Rotulado>

@@ -146,7 +146,7 @@ export function Receber({ honorario }: { honorario: Honorario }) {
         rodape={<><button className="btn btn-g" onClick={() => setAberto(false)}>Cancelar</button><button className="btn btn-p" disabled={valor <= 0} onClick={salvar}>Registrar</button></>}>
         <p className="text-ink-2">{honorario.descricao}</p>
         <p className="mt-0.5 text-[13px] text-ink-3">Em aberto: <strong className="text-ink">{brl(honorario.valor)}</strong> · vence em {data(honorario.vencimento)}</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Rotulado rotulo="Valor recebido (R$)"><input className="inp" inputMode="decimal" value={f.valor} onChange={(e) => setF({ ...f, valor: e.target.value })} /></Rotulado>
           <Rotulado rotulo="Recebido em"><input className="inp" type="date" value={f.data} onChange={(e) => setF({ ...f, data: e.target.value })} /></Rotulado>
           <Rotulado rotulo="A que se refere">

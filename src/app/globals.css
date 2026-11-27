@@ -170,10 +170,16 @@ button:disabled { cursor: not-allowed; }
 
   .rotulo { display: block; font-size: 12px; font-weight: 600; color: var(--color-ink-2); margin-bottom: 5px; }
   .inp {
-    width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: 10px;
+    width: 100%; min-width: 0; max-width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--color-line); border-radius: 10px;
     background: #fff; color: var(--color-ink); font: inherit; transition: border-color .16s, box-shadow .16s;
   }
   textarea.inp { height: auto; padding: 9px 12px; resize: vertical; min-height: 76px; }
+  /* iOS: date e time ignoram a largura e estouram a janela se não forem contidos */
+  input.inp[type="date"], input.inp[type="time"], input.inp[type="datetime-local"] { -webkit-appearance: none; appearance: none; display: block; min-height: 38px; text-align: left; }
+  input.inp[type="date"]::-webkit-date-and-time-value, input.inp[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+  .grid > *, dialog.dlg label { min-width: 0; }
+  /* iOS dá zoom ao focar campo com fonte menor que 16px, e a tela passa a "sambar" */
+  @media (max-width: 640px) { input.inp, select.inp, textarea.inp { font-size: 16px; } }
   .inp:hover { border-color: #B4BAC4; }
   .inp:focus { outline: none; border-color: var(--justio-tinta); box-shadow: 0 0 0 3px rgb(14 16 19 / 0.10); }
   .inp::placeholder { color: var(--color-ink-3); }
@@ -221,7 +227,7 @@ button:disabled { cursor: not-allowed; }
   /* Linha nova (andamento ou publicação não lida): fica marcada até ser lida */
   .nao-lido { box-shadow: inset 3px 0 0 var(--justio-ambar); background: #FBF7EE; }
 
-  dialog.dlg { border: 0; padding: 0; border-radius: 20px; box-shadow: var(--shadow-flutua); color: var(--color-ink); width: min(680px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); margin: auto; background: #fff; text-align: left; white-space: normal; font-weight: 400; }
+  dialog.dlg { overflow-x: hidden; border: 0; padding: 0; border-radius: 20px; box-shadow: var(--shadow-flutua); color: var(--color-ink); width: min(680px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); margin: auto; background: #fff; text-align: left; white-space: normal; font-weight: 400; }
   dialog.dlg::backdrop { background: rgb(14 16 19 / 0.5); }
   dialog.dlg[open] { animation: sobe .2s cubic-bezier(.16, 1, .3, 1); }
   @keyframes sobe { from { opacity: 0; transform: translateY(10px) scale(.985); } }

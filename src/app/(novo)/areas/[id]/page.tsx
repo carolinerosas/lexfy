@@ -82,7 +82,7 @@ export default function PaginaArea() {
         ))}
 
         {aba === "ficha" && (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {area.secoes.map((s) => (
               <section key={s.titulo} className="painel">
                 <div className="painel-cab"><h2>{s.titulo}</h2><span className="text-[12.5px] text-ink-3">{s.campos.length} campos</span></div>

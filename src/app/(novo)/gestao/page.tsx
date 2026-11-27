@@ -44,7 +44,7 @@ export default function Gestao() {
       <Abas valor={aba} aoMudar={setAba} abas={[["indicadores", "Indicadores"], ["conflito", "Conflito de interesses"], ["procuracoes", "Procurações"], ["correspondentes", "Correspondentes"]] as const} />
       <div className="mt-5">
         {aba === "indicadores" && (
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
             <section className="painel"><div className="painel-cab"><h2>Casos em andamento por área</h2><span className="text-[12.5px] text-ink-3">{ativos.length} no total</span></div><div className="p-5"><Barras itens={porArea} /></div></section>
             <section className="painel">
               <div className="painel-cab"><h2>Carga por responsável</h2></div>

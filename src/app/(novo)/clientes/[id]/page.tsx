@@ -44,7 +44,7 @@ export default function PaginaCliente() {
           <Link href={`/relatorio/${c.id}`} className="btn btn-g btn-sm">Relatório do cliente</Link>
         </p>
       </header>
-      <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <section className="painel">
             <div className="painel-cab"><h2>Contato</h2></div>

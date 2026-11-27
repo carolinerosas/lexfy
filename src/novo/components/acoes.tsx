@@ -34,7 +34,7 @@ export function DocsPendentes({ caso }: { caso: Caso }) {
   const livres = SUGESTOES.filter((s) => !docs.some((d) => d.nome === s));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="painel">
         <div className="painel-cab"><h2>Documentos pendentes</h2><span className={`tag ${faltam.length ? "tag-alerta" : docs.length ? "tag-ok" : ""}`}>{docs.length === 0 ? "Nenhum pedido" : faltam.length ? `${faltam.length} a receber` : "Tudo recebido"}</span></div>
         {docs.length === 0 && <p className="px-5 py-8 text-center text-ink-2">Liste aqui o que o cliente ainda precisa entregar. Cada item fica pendente até você marcar como recebido.</p>}

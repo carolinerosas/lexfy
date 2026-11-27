@@ -227,7 +227,7 @@ export default function ModelosPage() {
           {TOKENS.map((g) => (
             <div key={g.grupo}>
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">{g.grupo}</p>
-              <div className="grid gap-1.5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {g.itens.map((it) => (
                   <div key={it.token} className="flex items-baseline gap-2 text-sm">
                     <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-800">{it.token}</code>

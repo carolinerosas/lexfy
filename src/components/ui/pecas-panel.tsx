@@ -173,7 +173,7 @@ export function PecasPanel({ processoId, tipoProcesso }: { processoId: string; t
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="text-xs font-medium text-gray-600">
               Peça
               <select className={`${campo} mt-1`} value={tipo} onChange={(e) => setTipo(e.target.value)}>

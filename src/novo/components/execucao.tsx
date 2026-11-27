@@ -94,7 +94,7 @@ export function Execucao({ caso }: { caso: Caso }) {
           <div className="p-4">
             <div className="h-2 rounded-full bg-cobalto-f"><div className="h-2 rounded-full bg-ink" style={{ width: `${k.pctCumprido}%` }} /></div>
             <p className="mt-1 text-[12.5px] text-ink-3">{k.pctCumprido.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da pena cumprida</p>
-            <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+            <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
               <Linha rotulo="Pena total" valor={`${diasTexto(k.totalDias)} (${k.totalDias} dias)`} />
               <Linha rotulo="Dias cumpridos" valor={`${diasTexto(k.cumpridos)} (${k.cumpridos} dias)`} dica={`inclui ${k.remidos} remidos${k.remidosPendentes ? ` (${k.remidosPendentes} sem homologação)` : ""} e ${k.detracao} de detração${k.interrompidos ? `; descontados ${k.interrompidos} dias em que a pena não correu` : ""}`} />
               <Linha rotulo="Pena restante" valor={`${diasTexto(k.restante)} (${k.restante} dias)`} />
@@ -113,7 +113,7 @@ export function Execucao({ caso }: { caso: Caso }) {
         )}
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="painel">
           <div className="painel-cab">
             <h2>Dias remidos ({ex.remicoes.reduce((s, r) => s + r.dias, 0)})</h2>

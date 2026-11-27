@@ -31,7 +31,7 @@ export default function Andamentos() {
         <BuscarAndamentos casos={db.casos.filter((c) => c.natureza === "judicial" && c.status !== "encerrado" && c.status !== "arquivado")} rotulo="Buscar andamentos em lote" />
         <button className="btn btn-g" disabled={novos.length === 0} onClick={() => novos.forEach((a) => alterar("andamentos", a.id, { lido: true }))}><CheckCheck />Marcar tudo como lido</button>
       </Cabecalho>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="painel">
           {lista.length === 0 ? <Vazio titulo="Nenhum andamento por ler">As movimentações capturadas nos tribunais e as registradas à mão aparecem aqui.</Vazio> : (
             <ul>{lista.map((a) => {

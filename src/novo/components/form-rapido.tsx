@@ -88,7 +88,7 @@ export function FormRapido({ aberto, aoFechar, titulo, campos, aoSalvar, botao =
   return (
     <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={titulo}
       rodape={<>{erro && <p role="alert" className="mr-auto self-center font-semibold text-perigo">{erro}</p>}<button className="btn btn-g" onClick={aoFechar}>Cancelar</button><button className="btn btn-p" onClick={salvar}>{botao}</button></>}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {campos.map((c) => c.tipo === "lista" ? (
           <div key={c.k} className="sm:col-span-2">
             <span className="rotulo">{c.rotulo + (c.obrig ? " *" : "")}</span>

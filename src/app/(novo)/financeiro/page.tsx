@@ -66,7 +66,7 @@ export default function Financeiro() {
                 <div key={k} className="bg-surface p-5"><dt className="text-[12.5px] font-semibold text-ink-3">{k}</dt><dd className={`titulo mt-1 text-[26px] ${cor}`}>{v}</dd></div>
               ))}
             </dl>
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <section className="painel">
                 <div className="painel-cab"><h2>Entradas e saídas por mês</h2><p className="flex gap-3 text-[12px] text-ink-2"><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-ink" />Recebido</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full border border-ink bg-ocre-v" />Previsto</span><span className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full bg-[#C3C8D0]" />Saídas</span></p></div>
                 <div className="flex h-[240px] items-end gap-3 px-5 pb-4 pt-6 sm:gap-6">
@@ -111,7 +111,7 @@ export default function Financeiro() {
         )}
 
         {aba === "contas" && (
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="painel overflow-x-auto">
               <table className="tb min-w-[560px]"><thead><tr><th>Conta</th><th>Categoria</th><th>Vencimento</th><th className="num">Valor</th><th /></tr></thead>
                 <tbody>{db.contas.filter((c) => c.vencimento >= format(addMonths(new Date(), -1), "yyyy-MM")).sort((a, b) => a.vencimento.localeCompare(b.vencimento)).map((c) => (
@@ -149,7 +149,7 @@ export default function Financeiro() {
         {aba === "horas" && (
           <><div className="mb-3"><BotaoNovo rotulo="Lançar horas" aoSalvar={(v) => incluir("horas", { colaborador_id: String(v.colaborador_id), caso_id: v.caso_id ? String(v.caso_id) : undefined, data: String(v.data ?? hoje), minutos: Math.round((Number(v.horas) || 0) * 60), atividade: String(v.atividade), faturavel: !!v.faturavel })}
             campos={[{ k: "colaborador_id", rotulo: "Quem", tipo: "opcoes", obrig: true, opcoes: db.equipe.map((e) => [e.id, e.nome] as const) }, { k: "data", rotulo: "Data", tipo: "data", inicial: hoje }, { k: "caso_id", rotulo: "Caso (em branco: trabalho interno)", tipo: "opcoes", largo: true, opcoes: db.casos.map((c) => [c.id, `${c.cliente_nome}: ${c.titulo}`] as const) }, { k: "atividade", rotulo: "Atividade", obrig: true, largo: true }, { k: "horas", rotulo: "Horas (ex.: 1,5 = 1h30)", tipo: "numero", obrig: true }, { k: "faturavel", rotulo: "Faturável", tipo: "check", inicial: true }]} /></div>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <section className="painel">
               <div className="painel-cab"><h2>Horas do mês por pessoa</h2></div>
               <ul>{horasPessoa.map(({ e, total, fat }) => (

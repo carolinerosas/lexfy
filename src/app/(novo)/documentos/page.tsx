@@ -42,7 +42,7 @@ function Gerador() {
   return (
     <>
       <Cabecalho titulo="Documentos" sub="Procuração, contrato de honorários e declarações preenchidos com os dados do cliente e do caso. Revise o texto antes de imprimir ou enviar para assinatura." />
-      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <div className="space-y-3">
           <Rotulado rotulo="Caso"><select className="inp" value={casoId} onChange={(e) => setCasoId(e.target.value)}><option value="">Sem caso (só o cliente)</option>{casosDoCliente.map((c) => <option key={c.id} value={c.id}>{c.cliente_nome}: {c.titulo}</option>)}</select></Rotulado>
           {!casoId && <Rotulado rotulo="Cliente"><select className="inp" value={clienteId} onChange={(e) => setClienteId(e.target.value)}><option value="">Escolher</option>{[...db.clientes].sort((a, b) => a.nome.localeCompare(b.nome)).map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Rotulado>}

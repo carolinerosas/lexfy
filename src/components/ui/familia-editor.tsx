@@ -54,7 +54,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
   return (
     <div className="space-y-4">
       <Secao titulo="Ação e relação">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="md:col-span-2">
             <span className={rotulo}>Ação</span>
             <input className={campo} value={valor.acao ?? ""} onChange={(e) => set("acao", e.target.value)} placeholder="Divórcio litigioso com partilha, guarda e alimentos" />
@@ -98,7 +98,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
 
       <Secao titulo="Filhos">
         {(valor.filhos ?? []).map((f, i) => (
-          <div key={i} className="mb-2 grid gap-2 md:grid-cols-[2fr_1fr_80px_2fr_auto]">
+          <div key={i} className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-[2fr_1fr_80px_2fr_auto]">
             <input className={campo} placeholder="Nome" value={f.nome} onChange={(e) => linha("filhos", i, { nome: e.target.value })} />
             <input className={campo} type="date" title="Nascimento" value={f.nascimento ?? ""} onChange={(e) => linha("filhos", i, { nascimento: e.target.value || undefined })} />
             <input className={campo} placeholder="Idade" inputMode="numeric" value={f.idade ?? ""} onChange={(e) => linha("filhos", i, { idade: numero(e.target.value) })} />
@@ -119,7 +119,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
       ).map(([k, titulo, total]) => (
         <Secao key={k} titulo={`${titulo}${total ? ` · total ${reais(total)} (metade ${reais(total / 2)})` : ""}`}>
           {(valor[k] ?? []).map((b, i) => (
-            <div key={i} className="mb-2 grid gap-2 md:grid-cols-[2fr_1fr_2fr_auto]">
+            <div key={i} className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-[2fr_1fr_2fr_auto]">
               <input className={campo} placeholder="Descrição" value={b.descricao} onChange={(e) => linha(k, i, { descricao: e.target.value })} />
               <input className={campo} placeholder="Valor (R$)" inputMode="decimal" defaultValue={b.valor ?? ""} onBlur={(e) => linha(k, i, { valor: numero(e.target.value) })} />
               <input className={campo} placeholder="Observações" value={b.observacoes ?? ""} onChange={(e) => linha(k, i, { observacoes: e.target.value })} />
@@ -134,7 +134,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
 
       <Secao titulo={`Despesas dos filhos${totalDespesas ? ` · ${reais(totalDespesas)}/mês` : ""}`}>
         {(valor.despesas_filhos ?? []).map((d, i) => (
-          <div key={i} className="mb-2 grid gap-2 md:grid-cols-[2fr_1fr_auto]">
+          <div key={i} className="mb-2 grid grid-cols-1 gap-2 md:grid-cols-[2fr_1fr_auto]">
             <input className={campo} placeholder="Descrição (escola, mercado, roupas...)" value={d.descricao} onChange={(e) => linha("despesas_filhos", i, { descricao: e.target.value })} />
             <input className={campo} placeholder="Valor mensal (R$)" inputMode="decimal" defaultValue={d.valor ?? ""} onBlur={(e) => linha("despesas_filhos", i, { valor: numero(e.target.value) })} />
             <button type="button" onClick={() => remover("despesas_filhos", i)} className="text-gray-300 hover:text-red-500" title="Remover"><Trash2 className="h-4 w-4" /></button>
@@ -146,7 +146,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
       </Secao>
 
       <Secao titulo="Partes: profissão e renda">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className={rotulo}>Profissão do cliente</span><input className={campo} value={valor.cliente_profissao ?? ""} onChange={(e) => set("cliente_profissao", e.target.value)} /></label>
           <label><span className={rotulo}>Renda do cliente</span><input className={campo} value={valor.cliente_renda ?? ""} onChange={(e) => set("cliente_renda", e.target.value)} /></label>
           <label><span className={rotulo}>Outra parte</span><input className={campo} value={valor.outra_parte_nome ?? ""} onChange={(e) => set("outra_parte_nome", e.target.value)} /></label>
@@ -156,7 +156,7 @@ export function FamiliaEditor({ valor, onChange }: { valor: DadosFamilia; onChan
       </Secao>
 
       <Secao titulo="O que o cliente quer">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label><span className={rotulo}>Guarda</span><input className={campo} value={valor.pretensao?.guarda ?? ""} onChange={(e) => setPret("guarda", e.target.value)} placeholder="Compartilhada" /></label>
           <label><span className={rotulo}>Convivência</span><input className={campo} value={valor.pretensao?.convivencia ?? ""} onChange={(e) => setPret("convivencia", e.target.value)} placeholder="Fins de semana alternados" /></label>
           <label><span className={rotulo}>Alimentos</span><input className={campo} value={valor.pretensao?.alimentos ?? ""} onChange={(e) => setPret("alimentos", e.target.value)} placeholder="20% dos rendimentos" /></label>

@@ -41,7 +41,7 @@ export function PontoAba() {
   if (controlados.length === 0) return <p className="text-ink-2">Ninguém da equipe tem jornada controlada. O ponto vale para vínculos CLT e de estágio.</p>;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <section className="painel h-fit">
         <div className="painel-cab"><h2>Hoje e saldo do mês</h2><button className="btn btn-g btn-sm" onClick={exportar}><Download />Planilha para o contador</button></div>
         <ul>{resumo.map(({ e, dias, feito, saldo, aberto, fechadoHoje }) => (

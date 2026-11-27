@@ -69,7 +69,7 @@ function LinkAgenda() {
 export function ConfigConta() {
   return (
     <div className="mt-8 space-y-5">
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <TrocarSenha />
         <LinkAgenda />
       </div>

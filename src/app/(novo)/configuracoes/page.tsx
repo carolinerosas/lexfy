@@ -23,7 +23,7 @@ export default function Configuracoes() {
   return (
     <>
       <Cabecalho titulo="Configurações" sub="Escritório, áreas, senha, agenda, perfil da advogada e integrações." />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="space-y-5">
           <section className="painel">
             <div className="painel-cab"><h2>Escritório</h2></div>
@@ -50,7 +50,7 @@ export default function Configuracoes() {
           {(["judicial", "extrajudicial"] as const).map((g) => (
             <fieldset key={g} className="px-5 py-3">
               <legend className="pb-2 text-[12.5px] font-semibold text-ink-3">{g === "judicial" ? "Judicial" : "Extrajudicial"}</legend>
-              <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
                 {AREAS.filter((a) => a.grupo === g).map((a) => (
                   <label key={a.id} className="flex cursor-pointer items-center gap-2.5 rounded-[10px] px-2 py-1.5 hover:bg-porcelana">
                     <input type="checkbox" className="size-4" checked={cfg.areasAtivas.includes(a.id)} onChange={() => alternar(a.id)} />

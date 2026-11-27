@@ -171,7 +171,7 @@ function ReciboForm({
 
   return (
     <Modal open onClose={onClose} title="Emitir recibo" size="xl">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-3">
           <Input label="Recebi de *" value={nome} onChange={(e) => setNome(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
