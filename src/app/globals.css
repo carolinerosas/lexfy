@@ -238,3 +238,10 @@ button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* Caixas que rolam para o lado só rolam para o lado (abas, fases, tabelas largas): sem rolagem vertical interna. */
+.abas, .overflow-x-auto {
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
