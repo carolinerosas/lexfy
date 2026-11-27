@@ -373,6 +373,19 @@ Seção "Dados anteriores (um crime só)" (só para os tipos: __anterior):
 - `reincidencia` (uma das opções): Condição. Opções: "Primário" | "Reincidente" | "Reincidente específico"
 - `fracao` (texto): Fração para progressão
 - `remicao` (número): Dias remidos
+Seção "Saída temporária e acolhida":
+- `saida_tipo` (uma das opções): Tipo de saída. Opções: "Visita à família" | "Frequência a curso" | "Atividades de ressocialização"
+- `saida_periodo` (texto): Período ou datas da saída
+- `acolhedor_nome` (texto): Quem recebe o apenado (nome completo)
+- `acolhedor_parentesco` (texto): Parentesco ou relação com o apenado
+- `acolhedor_cpf` (texto): CPF de quem recebe
+- `acolhedor_rg` (texto): RG de quem recebe
+- `acolhedor_nascimento` (data AAAA-MM-DD): Nascimento de quem recebe
+- `acolhedor_nacionalidade` (texto): Nacionalidade de quem recebe
+- `acolhedor_estado_civil` (texto): Estado civil de quem recebe
+- `acolhedor_profissao` (texto): Profissão de quem recebe
+- `acolhedor_endereco` (texto longo): Endereço onde o apenado ficará
+- `acolhedor_telefone` (texto): Telefone de quem recebe
 Seção "Benefícios":
 - `progressao` (data AAAA-MM-DD): Previsão de progressão
 - `livramento` (data AAAA-MM-DD): Previsão de livramento

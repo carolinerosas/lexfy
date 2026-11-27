@@ -373,7 +373,7 @@ const ROTULOS_ANTIGOS: Record<string, string> = { lmp: "Violência doméstica (L
 function DadosAnteriores({ caso }: { caso: Caso }) {
   const area = areaDe(caso.area);
   const daArea = new Set(area.secoes.flatMap((s) => s.campos.map((c) => c.k)));
-  const sobras = Object.entries(caso.dados).filter(([k, v]) => !CHAVES_INTERNAS.has(k) && !daArea.has(k) && v !== undefined && v !== "");
+  const sobras = Object.entries(caso.dados).filter(([k, v]) => !CHAVES_INTERNAS.has(k) && !k.startsWith("doc_") && !daArea.has(k) && v !== undefined && v !== "");
   if (!sobras.length) return null;
   const campoDe = (k: string) => AREAS.flatMap((a) => a.secoes.flatMap((s) => s.campos)).find((c) => c.k === k);
   const rotulo = (k: string) => campoDe(k)?.rotulo ?? ROTULOS_ANTIGOS[k] ?? k.replace(/_/g, " ").replace(/^./, (l) => l.toUpperCase());

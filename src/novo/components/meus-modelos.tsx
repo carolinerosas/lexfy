@@ -6,10 +6,25 @@ import Link from "next/link";
 import { GerarDocumentoPanel } from "@/components/ui/gerar-documento-panel";
 import { getCliente, getProcesso } from "@/lib/store";
 import type { Cliente, Processo } from "@/types";
+import { alterar, lerDB, useDB } from "@/novo/lib/store";
+import { marcadoresDoCaso, PREFIXO_DOC } from "@/novo/lib/marcadores";
+import { areaDe } from "@/novo/lib/areas";
 
 export function MeusModelos({ casoId, clienteId }: { casoId?: string; clienteId: string }) {
   const [cliente, setCliente] = useState<Cliente | null | undefined>(undefined);
   const [processo, setProcesso] = useState<Processo | undefined>(undefined);
+  const db = useDB();
+  const caso = casoId ? db.casos.find((c) => c.id === casoId) : undefined;
+  const dadosCaso = caso ? marcadoresDoCaso(caso) : undefined;
+  /** O que foi digitado e não é campo da ficha fica guardado no caso como doc_<marcador>. */
+  function guardar(valores: Record<string, string>) {
+    const atual = lerDB().casos.find((c) => c.id === casoId);
+    if (!atual) return;
+    const daFicha = new Set(areaDe(atual.area).secoes.flatMap((s) => s.campos.map((c) => c.k)));
+    const novos = Object.fromEntries(Object.entries(valores).filter(([k, v]) => v && k !== "processo" && !daFicha.has(k)).map(([k, v]) => [`${PREFIXO_DOC}${k}`, v]));
+    const daFichaMudados = Object.fromEntries(Object.entries(valores).filter(([k, v]) => v && daFicha.has(k) && !atual.dados[k]));
+    if (Object.keys(novos).length || Object.keys(daFichaMudados).length) alterar("casos", atual.id, { dados: { ...atual.dados, ...daFichaMudados, ...novos } });
+  }
 
   useEffect(() => {
     let vivo = true;
@@ -25,7 +40,7 @@ export function MeusModelos({ casoId, clienteId }: { casoId?: string; clienteId:
       <div className="p-4">
         {cliente === undefined ? <p className="text-[13px] text-ink-3">Carregando cadastro do cliente...</p>
           : cliente === null ? <p className="text-[13px] text-ink-3">Vincule um cliente cadastrado para gerar documentos com os dados dele.</p>
-          : <GerarDocumentoPanel key={cliente.id} cliente={cliente} processoAtual={processo} />}
+          : <GerarDocumentoPanel key={cliente.id} cliente={cliente} processoAtual={processo} dadosCaso={dadosCaso} aoGuardar={caso ? guardar : undefined} />}
       </div>
     </section>
   );

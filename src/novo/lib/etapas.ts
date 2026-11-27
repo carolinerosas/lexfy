@@ -28,7 +28,7 @@ const MAPA: Mapa = {
     ["Plenário"], ["Plenário", "Sentença do plenário"], ["Recurso e trânsito"], ["Sentença do plenário", "Recurso e trânsito", "@execucao"],
   ],
   execucao_penal: [
-    ["Guia de execução", "@calculo"], ["Datas da execução", "@calculo"], ["Cumprimento", "Benefícios"], ["Cumprimento", "Benefícios"], ["Cumprimento", "Benefícios"],
+    ["Guia de execução", "@calculo"], ["Datas da execução", "@calculo"], ["Cumprimento", "Benefícios"], ["Cumprimento", "Benefícios", "Saída temporária e acolhida"], ["Cumprimento", "Benefícios", "Saída temporária e acolhida"],
     ["Benefícios", "Cumprimento"], ["Datas da execução", "Benefícios"],
   ],
   inquerito: [["Inquérito"], ["Inquérito"], ["Diligências"], ["Inquérito", "Diligências"], ["Desfecho"], ["Desfecho"]],
