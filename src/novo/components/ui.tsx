@@ -40,7 +40,7 @@ export function Dialogo({ aberto, aoFechar, titulo, children, rodape, largo }: {
             <h2 className="titulo text-[20px]">{titulo}</h2>
             <button className="btn btn-g btn-icone btn-sm" onClick={aoFechar} aria-label="Fechar"><X /></button>
           </div>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
+          <div className="overflow-y-auto overscroll-x-none px-5 py-4" style={{ touchAction: "pan-y" }} onScroll={(e) => { if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0; }}>{children}</div>
           {rodape && <div className="flex flex-wrap justify-end gap-2 border-t border-line-2 bg-porcelana px-5 py-3">{rodape}</div>}
         </div>
       )}

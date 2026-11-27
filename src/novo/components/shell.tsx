@@ -234,6 +234,12 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", tecla);
   }, []);
   useEffect(() => { setGaveta(false); }, [pathname]);
+  // a tela só rola para cima e para baixo: se algo a empurrar para o lado (foco em campo, gesto), volta para a margem
+  useEffect(() => {
+    const prumo = () => { if (window.scrollX !== 0) window.scrollTo(0, window.scrollY); if (document.body.scrollLeft !== 0) document.body.scrollLeft = 0; };
+    window.addEventListener("scroll", prumo, { passive: true });
+    return () => window.removeEventListener("scroll", prumo);
+  }, []);
 
   // portal do cliente e relatório abrem sem o menu do escritório
   if (pathname.startsWith("/portal") || pathname.startsWith("/relatorio")) return <>{db.versao === 0 ? null : children}</>;
