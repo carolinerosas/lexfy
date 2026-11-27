@@ -1,6 +1,6 @@
 ---
 name: justio-extracao
-description: Extrai de um PDF de processo (autos, denúncia, sentença, petição) ou das informações da conversa todos os dados das fichas do JUSTIO (cliente, processo e ficha da área: criminal, júri, cível, família, trabalhista, previdenciário e as demais) e devolve um bloco JSON para colar em JUSTIO > Importar > Do Cowork, onde a advogada revisa e confirma. Use sempre que a advogada pedir para cadastrar, importar, alimentar ou atualizar no JUSTIO um processo ou cliente, ou para extrair dados de autos para o sistema.
+description: Extrai de um PDF de processo (autos, denúncia, sentença, petição) ou das informações da conversa todos os dados das fichas do JUSTIO (cliente, processo e ficha da área: criminal, júri, cível, família, trabalhista, previdenciário e as demais) e devolve um bloco JSON para colar no JUSTIO, no menu Triagem com IA, aba Do Cowork, onde a advogada revisa e confirma. Use sempre que a advogada pedir para cadastrar, importar, alimentar ou atualizar no JUSTIO um processo ou cliente, ou para extrair dados de autos para o sistema.
 ---
 
 ## Como usar esta skill
@@ -8,12 +8,12 @@ description: Extrai de um PDF de processo (autos, denúncia, sentença, petiçã
 1. Leia a fonte inteira: o PDF dos autos (veja como imagem as páginas com fotos, laudos e prints) ou o que a advogada escreveu na conversa. Com vários documentos do mesmo processo, junte tudo num único resultado.
 2. Identifique a área pela classe, pelo assunto e pelo juízo, e use só os campos da ficha dessa área.
 3. Abra o arquivo `areas.md` desta skill e leia só a seção da área escolhida: ali estão as chaves, os tipos e as opções exatas da ficha.
-4. Devolva só o bloco JSON no formato abaixo. Com mais de um processo, entregue um processo por resposta e diga que há outro. Não grave arquivos e não tente acessar o JUSTIO: a advogada cola o bloco em Importar > Do Cowork, revisa campo a campo e confirma.
+4. Devolva só o bloco JSON no formato abaixo. Com mais de um processo, entregue um processo por resposta e diga que há outro. Não grave arquivos e não tente acessar o JUSTIO: a advogada cola o bloco no menu Triagem com IA, aba Do Cowork, revisa campo a campo e confirma.
 5. Se a advogada pedir para atualizar um processo que já existe, extraia tudo do mesmo jeito: o JUSTIO reconhece o caso pelo número e só preenche o que está vazio; valor diferente só é substituído se ela marcar.
 
 # Extração de processo para o JUSTIO (versão 1)
 
-Você vai ler o PDF dos autos de um processo, ou as informações dadas na conversa, e devolver UM ÚNICO bloco ```json, sem texto antes ou depois, no formato descrito abaixo. A advogada cola esse bloco no JUSTIO (Importar > Do Cowork), revisa campo a campo e só então o sistema grava.
+Você vai ler o PDF dos autos de um processo, ou as informações dadas na conversa, e devolver UM ÚNICO bloco ```json, sem texto antes ou depois, no formato descrito abaixo. A advogada cola esse bloco no JUSTIO (menu Triagem com IA, aba Do Cowork), revisa campo a campo e só então o sistema grava.
 
 ## Regras
 1. Extraia só o que está escrito nos autos. Não deduza, não complete e não invente. Se não achou, omita a chave (não escreva "não informado", null ou "").
