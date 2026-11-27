@@ -2,19 +2,20 @@
 import { useEffect, useRef, useState } from "react";
 import { CaixaTexto } from "@/novo/components/ditado";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Check, ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { alterar, areaParaTipoAntigo, excluir, incluir, useDB } from "@/novo/lib/store";
 import { PecasPanel } from "@/components/ui/pecas-panel";
 import { AutosPanel } from "@/components/ui/autos-panel";
-import { areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso } from "@/novo/lib/areas";
+import { AREAS, areaDe, secaoVisivel, SUGESTOES_FIXAS, tiposDoCaso } from "@/novo/lib/areas";
+import { execucaoDaSentenca } from "@/novo/lib/conversao";
 import { Execucao } from "@/novo/components/execucao";
 import { Orcamentos } from "@/novo/components/orcamento";
 import { BuscaNumero } from "@/novo/components/busca-numero";
 import type { CapaProcesso } from "@/novo/lib/busca-processo";
 import { brl, data, diasAte, hojeISO, hora, horas, quando } from "@/novo/lib/format";
 import { Azulejo, estiloTinta } from "@/novo/components/azulejo";
-import { Abas, Avatar, CampoArea, CampoLista, Copiar, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas, NotaInfo } from "@/novo/components/ui";
+import { Abas, Avatar, CampoArea, CampoLista, Copiar, Dialogo, Rotulado, Vazio, itensDe, valorCampo, valoresUsados, useMapas, NotaInfo } from "@/novo/components/ui";
 import { CampoCliente } from "@/novo/components/campo-cliente";
 import { crimeContraAVida } from "@/lib/prazo-publicacao";
 import { BuscarAndamentos, MensagemCliente, Vinculados, resumoDoCaso } from "@/novo/components/caso-extras";
@@ -274,14 +275,77 @@ export default function PaginaCaso() {
   );
 }
 
+/** Chaves internas da ficha que não são campos para mostrar. */
+const CHAVES_INTERNAS = new Set(["tipo_caso", "origem_caso_id", "execucao_caso_id"]);
+/** Campos do JUSTIO antigo que não existem em nenhuma ficha nova. */
+const ROTULOS_ANTIGOS: Record<string, string> = { lmp: "Violência doméstica (Lei Maria da Penha)" };
+
+/** Dados preenchidos antes de o caso mudar de área (ex.: Criminal → Júri) e que a ficha atual não tem. */
+function DadosAnteriores({ caso }: { caso: Caso }) {
+  const area = areaDe(caso.area);
+  const daArea = new Set(area.secoes.flatMap((s) => s.campos.map((c) => c.k)));
+  const sobras = Object.entries(caso.dados).filter(([k, v]) => !CHAVES_INTERNAS.has(k) && !daArea.has(k) && v !== undefined && v !== "");
+  if (!sobras.length) return null;
+  const campoDe = (k: string) => AREAS.flatMap((a) => a.secoes.flatMap((s) => s.campos)).find((c) => c.k === k);
+  const rotulo = (k: string) => campoDe(k)?.rotulo ?? ROTULOS_ANTIGOS[k] ?? k.replace(/_/g, " ").replace(/^./, (l) => l.toUpperCase());
+  return (
+    <section className="painel">
+      <div className="painel-cab"><h2>Dados de antes da mudança de área</h2><NotaInfo>Foram preenchidos quando o caso estava em outra área e não têm caixa na ficha de {area.nome}. Continuam guardados.</NotaInfo></div>
+      <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        {sobras.map(([k, v]) => { const c = campoDe(k); const t = c ? valorCampo(c, v) : String(v); return (
+          <div key={k} className="min-w-0 border-b border-line-2 px-4 py-2.5"><dt className="text-[12px] font-semibold text-ink-3">{rotulo(k)}</dt><dd className="whitespace-pre-line break-words">{t}</dd></div>
+        ); })}
+      </dl>
+    </section>
+  );
+}
+
+/** Ação penal com condenação: abre a execução penal levando a dosimetria da sentença. */
+function AbrirExecucao({ caso }: { caso: Caso }) {
+  const db = useDB();
+  const router = useRouter();
+  const [aberto, setAberto] = useState(false);
+  if (!["criminal", "juri"].includes(caso.area) || !/condena/i.test(String(caso.dados.resultado ?? ""))) return null;
+  const ja = db.casos.find((c) => c.id === caso.dados.execucao_caso_id);
+  const previa = execucaoDaSentenca(caso);
+  const crime = previa.caso.execucao!.crimes[0];
+  function abrir() {
+    const id = incluir("casos", previa.caso);
+    alterar("casos", caso.id, { dados: { ...caso.dados, execucao_caso_id: id } });
+    setAberto(false);
+    router.push(`/casos/${id}`);
+  }
+  return (
+    <section className="painel flex flex-wrap items-center gap-3 p-4">
+      <p className="min-w-[min(100%,240px)] flex-1 text-[13.5px]"><span className="font-semibold">Execução penal.</span> {ja ? "Já aberta a partir desta condenação." : "Abra a execução com a pena, o regime, a detração e a dosimetria desta sentença."}</p>
+      {ja ? <Link href={`/casos/${ja.id}`} className="btn btn-g btn-sm">Abrir a execução</Link> : <button className="btn btn-p btn-sm" onClick={() => setAberto(true)}>Abrir execução penal</button>}
+      <Dialogo aberto={aberto} aoFechar={() => setAberto(false)} titulo="Abrir execução penal"
+        rodape={<><button className="btn btn-g" onClick={() => setAberto(false)}>Cancelar</button><button className="btn btn-p" onClick={abrir}>Criar a execução</button></>}>
+        <p className="text-[13.5px] text-ink-2">Um caso novo de Execução penal será criado para {caso.cliente_nome}, ligado a este processo, com:</p>
+        <dl className="mt-3 divide-y divide-line-2 rounded-[12px] border border-line text-[13.5px]">
+          {([["Crime", crime.crime], ["Pena", `${crime.anos} anos, ${crime.meses} meses e ${crime.dias} dias`], ["Natureza", crime.natureza ?? "Não informada"], ["Condição", crime.condicao ?? "Não informada"], ["Regime inicial", String(previa.caso.dados.regime ?? "Não informado")], ["Detração", previa.caso.dados.detracao !== undefined ? `${previa.caso.dados.detracao} dias` : "Não informada"], ["Data do fato", crime.data_fato ? data(crime.data_fato) : "Não informada"], ["Trânsito em julgado", crime.transito ? data(crime.transito) : "Não informado"]] as const).map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-3 px-3 py-2"><dt className="text-ink-3">{k}</dt><dd className="text-right">{v}</dd></div>
+          ))}
+        </dl>
+        {crime.obs && <p className="mt-3 whitespace-pre-line rounded-[12px] bg-porcelana p-3 text-[12.5px] text-ink-2">{crime.obs}</p>}
+        {previa.avisos.length > 0 && <ul className="mt-3 list-disc space-y-1 pl-5 text-[12.5px] text-ocre">{previa.avisos.map((a) => <li key={a}>{a}</li>)}</ul>}
+      </Dialogo>
+    </section>
+  );
+}
+
 function Ficha({ caso }: { caso: Caso }) {
   const db = useDB();
   const area = areaDe(caso.area);
-  const [edit, setEdit] = useState(false);
+  /** null: leitura · "tudo": ficha inteira · "geral": só Dados gerais · "sec:Título": só aquele quadro. */
+  const [modo, setModo] = useState<string | null>(null);
+  const edit = modo === "tudo";
+  const editandoSec = (t: string) => modo === "tudo" || modo === `sec:${t}`;
+  const editandoGeral = modo === "tudo" || modo === "geral";
   const [dados, setDados] = useState(caso.dados);
   const geralDe = (c: Caso) => ({ titulo: c.titulo, numero: c.numero, orgao: c.orgao ?? "", comarca: c.comarca ?? "", uf: c.uf ?? "", parte_contraria: c.parte_contraria ?? "", valor: c.valor ?? "", cliente: c.cliente_nome ?? "" });
   const [geral, setGeral] = useState(geralDe(caso));
-  const base = edit ? dados : caso.dados;
+  const base = modo ? dados : caso.dados;
   const tipos = tiposDoCaso(area, base);
   const tipo = tipos.join(", ");
   const secoes = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
@@ -291,6 +355,14 @@ function Ficha({ caso }: { caso: Caso }) {
   const distintos = (f: (c: Caso) => string | undefined) => [...new Set(db.casos.map(f).filter((x): x is string => !!x))].sort();
 
   function salvar() {
+    // só um quadro da ficha: grava apenas os campos dele
+    if (modo?.startsWith("sec:")) {
+      const sec = area.secoes.find((x) => `sec:${x.titulo}` === modo);
+      const chaves = new Set(sec?.campos.map((c) => c.k) ?? []);
+      alterar("casos", caso.id, { dados: { ...caso.dados, ...Object.fromEntries(Object.entries(dados).filter(([k]) => chaves.has(k))) } });
+      setModo(null);
+      return;
+    }
     const nomeCli = geral.cliente.trim();
     let cliente_id = caso.cliente_id, cliente_nome = caso.cliente_nome;
     if (nomeCli && semAcento(nomeCli) !== semAcento(caso.cliente_nome ?? "")) {
@@ -299,11 +371,15 @@ function Ficha({ caso }: { caso: Caso }) {
       cliente_nome = achado?.nome ?? nomeCli;
     }
     const { cliente: _c, ...resto } = geral; // eslint-disable-line @typescript-eslint/no-unused-vars
-    alterar("casos", caso.id, { ...resto, uf: resto.uf || undefined, valor: geral.valor === "" ? undefined : Number(geral.valor), dados, cliente_id, cliente_nome });
-    setEdit(false);
+    alterar("casos", caso.id, { ...resto, uf: resto.uf || undefined, valor: geral.valor === "" ? undefined : Number(geral.valor), ...(modo === "tudo" ? { dados } : {}), cliente_id, cliente_nome });
+    setModo(null);
   }
+  const abrir = (m: string) => { setDados(caso.dados); setGeral(geralDe(caso)); setModo(m); };
+  const cancelar = () => { setDados(caso.dados); setModo(null); };
+  const lapis = (m: string, rotulo: string) => !modo && <button className="btn btn-g btn-icone btn-sm" onClick={() => abrir(m)} aria-label={`Editar ${rotulo}`} title={`Editar ${rotulo}`}><Pencil /></button>;
+  const rodapeQuadro = <div className="flex justify-end gap-2 border-t border-line-2 px-4 py-3"><button className="btn btn-g btn-sm" onClick={cancelar}>Cancelar</button><button className="btn btn-p btn-sm" onClick={salvar}>Salvar</button></div>;
   const mudarTipo = (t: string) => {
-    if (edit) setDados({ ...dados, tipo_caso: t });
+    if (modo) setDados({ ...dados, tipo_caso: t });
     else alterar("casos", caso.id, { dados: { ...caso.dados, tipo_caso: t } });
   };
   /** Completa com a capa do processo no CNJ só o que ainda está em branco; assuntos entram nos tipos. */
@@ -322,16 +398,18 @@ function Ficha({ caso }: { caso: Caso }) {
       <div className="min-w-0 space-y-4">
         <section className="painel p-4">
           <span className="rotulo">{area.tipos ? `Tipos de processo ou assuntos em ${area.nome}` : `Assuntos do processo em ${area.nome}`}</span>
-          <CampoLista valor={(edit ? dados : caso.dados).tipo_caso ?? (tipos.length ? tipos.join("\n") : "")} aoMudar={mudarTipo} rotulo="Tipos de processo"
+          <CampoLista valor={(modo ? dados : caso.dados).tipo_caso ?? (tipos.length ? tipos.join("\n") : "")} aoMudar={mudarTipo} rotulo="Tipos de processo"
             sugestoes={[...(area.tipos ?? []), ...valoresUsados(db.casos, area.id, { k: "tipo_caso", rotulo: "", tipo: "m" })]} lista={`tipo_caso.${area.id}`} />
           <p className="mt-1.5 text-[12.5px] text-ink-3">Pode incluir mais de um.{area.tipos ? (tipos.length ? " A ficha mostra os campos de todos os tipos escolhidos." : " Escolha ao menos um para a ficha mostrar os campos próprios.") : ""}</p>
         </section>
         <Vinculados caso={caso} />
         {secoes.map((s) => (
           <section key={s.titulo} className="painel">
-            <div className="painel-cab"><h2>{s.titulo}</h2></div>
-            {edit ? (
+            <div className="painel-cab"><h2>{s.titulo}</h2>{lapis(`sec:${s.titulo}`, s.titulo)}</div>
+            {editandoSec(s.titulo) ? (<>
               <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">{s.campos.map((c) => <CampoArea key={c.k} campo={c} valor={dados[c.k]} sugestoes={c.tipo === "m" || c.tipo === "t" ? sugestoes(c.k) : undefined} aoMudar={(v) => setDados({ ...dados, [c.k]: v })} />)}</div>
+              {modo !== "tudo" && rodapeQuadro}
+            </>
             ) : (
               <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
                 {s.campos.map((c) => {
@@ -352,6 +430,8 @@ function Ficha({ caso }: { caso: Caso }) {
             )}
           </section>
         ))}
+        <AbrirExecucao caso={caso} />
+        <DadosAnteriores caso={caso} />
         {area.id === "execucao_penal" && <Execucao caso={caso} />}
         {!caso.numero && caso.natureza === "judicial" && !(caso.orcamentos ?? []).length && (
           <p className="painel px-4 py-3 text-[13px] text-ink-2">Processo ainda não proposto. Faça o orçamento na aba Financeiro.</p>
@@ -362,12 +442,13 @@ function Ficha({ caso }: { caso: Caso }) {
           <p className="text-[12.5px] text-ink-2">Ficha de {area.nome}{tipo ? ` (${tipo})` : ""}: {preenchidos} de {campos.length} campos preenchidos.</p>
           <div className="mt-2 h-1.5 rounded-full bg-cobalto-f"><div className="h-1.5 rounded-full bg-ink" style={{ width: `${campos.length ? (preenchidos / campos.length) * 100 : 0}%` }} /></div>
           {edit ? (
-            <div className="mt-3 flex gap-2"><button className="btn btn-p flex-1" onClick={salvar}>Salvar ficha</button><button className="btn btn-g" onClick={() => { setDados(caso.dados); setEdit(false); }}>Cancelar</button></div>
-          ) : <button className="btn btn-g mt-3 w-full" onClick={() => { setDados(caso.dados); setGeral(geralDe(caso)); setEdit(true); }}><Pencil />Editar ficha</button>}
+            <div className="mt-3 flex gap-2"><button className="btn btn-p flex-1" onClick={salvar}>Salvar ficha</button><button className="btn btn-g" onClick={cancelar}>Cancelar</button></div>
+          ) : modo ? <p className="mt-3 text-[12.5px] text-ink-3">Salve ou cancele o quadro em edição para editar outro.</p>
+            : <button className="btn btn-g mt-3 w-full" onClick={() => abrir("tudo")}><Pencil />Editar ficha completa</button>}
         </section>
         <section className="painel">
-          <div className="painel-cab"><h2>Dados gerais</h2></div>
-          {edit ? (
+          <div className="painel-cab"><h2>Dados gerais</h2>{lapis("geral", "dados gerais")}</div>
+          {editandoGeral ? (<>
             <div className="space-y-3 p-4">
               <Rotulado rotulo="Título"><input className="inp" value={geral.titulo} onChange={(e) => setGeral({ ...geral, titulo: e.target.value })} /></Rotulado>
               <Rotulado rotulo="Cliente"><CampoCliente valor={geral.cliente} aoMudar={(nome) => setGeral({ ...geral, cliente: nome })} /></Rotulado>
@@ -384,7 +465,8 @@ function Ficha({ caso }: { caso: Caso }) {
               <datalist id="ficha-contrarias">{distintos((c) => c.parte_contraria).map((x) => <option key={x} value={x} />)}</datalist>
               <Rotulado rotulo="Valor (R$)"><input className="inp" type="number" value={geral.valor} onChange={(e) => setGeral({ ...geral, valor: e.target.value })} /></Rotulado>
             </div>
-          ) : (
+            {modo === "geral" && rodapeQuadro}
+          </>) : (
             <dl className="divide-y divide-line-2 text-[13.5px]">
               {caso.numero && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Número</dt><dd className="flex min-w-0 items-center gap-1"><span className="break-all font-mono text-[12.5px]">{caso.numero}</span><Copiar texto={caso.numero} rotulo="Copiar número do processo" /></dd></div>}
               {caso.orgao && <div className="flex items-center justify-between gap-3 px-4 py-2"><dt className="text-ink-3">Juízo</dt><dd className="flex min-w-0 items-center gap-1 text-right"><span className="break-words">{caso.orgao}{caso.comarca ? `, ${caso.comarca}` : ""}</span><Copiar texto={`${caso.orgao}${caso.comarca ? `, ${caso.comarca}` : ""}${caso.uf ? `/${caso.uf}` : ""}`} rotulo="Copiar juízo" /></dd></div>}

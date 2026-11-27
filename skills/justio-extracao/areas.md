@@ -202,7 +202,18 @@ Seção "Sentença e pena":
 - `resultado` (uma das opções): Resultado. Opções: "Pendente" | "Absolvição" | "Absolvição sumária (CPP, art. 397)" | "Condenação" | "Condenação parcial" | "Desclassificação" | "Extinção da punibilidade" | "Prescrição" | "Perdão judicial"
 - `sentenca_data` (data AAAA-MM-DD): Data da sentença
 - `fundamento_absolvicao` (uma das opções): Fundamento da absolvição (CPP, art. 386). Opções: "I - inexistência do fato" | "II - não há prova da existência do fato" | "III - o fato não constitui infração penal" | "IV - o réu não concorreu para a infração" | "V - não há prova de que o réu concorreu" | "VI - excludente de ilicitude ou de culpabilidade" | "VII - prova insuficiente para a condenação"
-- `pena` (texto): Pena privativa de liberdade (ex.: 5 anos e 4 meses)
+- `pena_base` (texto): Pena-base (1ª fase, CP, art. 59)
+- `circunstancias_judiciais` (texto longo): Circunstâncias judiciais desfavoráveis
+- `agravantes` (lista (array de textos, um item por elemento)): Agravantes reconhecidas
+- `atenuantes` (lista (array de textos, um item por elemento)): Atenuantes reconhecidas
+- `reincidencia` (uma das opções): Reincidência. Opções: "Primário" | "Reincidente" | "Reincidente específico"
+- `pena_intermediaria` (texto): Pena intermediária (2ª fase)
+- `causas_aumento` (lista (array de textos, um item por elemento)): Causas de aumento (3ª fase)
+- `causas_diminuicao` (lista (array de textos, um item por elemento)): Causas de diminuição (3ª fase)
+- `concurso` (uma das opções): Concurso de crimes. Opções: "Não houve" | "Concurso material" | "Concurso formal" | "Crime continuado"
+- `pena` (texto): Pena definitiva (ex.: 5 anos e 4 meses)
+- `hediondo` ("Sim" ou "Não"): Crime hediondo ou equiparado
+- `violencia` ("Sim" ou "Não"): Com violência ou grave ameaça à pessoa
 - `pena_especie` (uma das opções): Espécie da pena. Opções: "Reclusão" | "Detenção" | "Prisão simples"
 - `regime` (uma das opções): Regime inicial. Opções: "Fechado" | "Semiaberto" | "Aberto"
 - `multa` (texto): Pena de multa (dias-multa e valor do dia)
@@ -246,18 +257,40 @@ Seção "Violência doméstica" (só para os tipos: Violência doméstica (Lei M
 Fases (use o nome exato em processo.fase): "Inquérito", "Denúncia", "Sumário da culpa", "Pronúncia", "Recurso da pronúncia", "Preparação do plenário", "Plenário", "Apelação", "Encerrado"
 Seção "Imputação":
 - `imputacao` (texto): Imputação
+- `tipo_penal` (lista (array de textos, um item por elemento)): Tipos penais
 - `vitimas` (lista (array de textos, um item por elemento)): Vítimas
 - `qualificadoras` (lista (array de textos, um item por elemento)): Qualificadoras
-- `situacao` (uma das opções): Situação do acusado. Opções: "Solto" | "Prisão preventiva" | "Prisão domiciliar" | "Monitoração eletrônica"
+- `correus` (lista (array de textos, um item por elemento)): Corréus
+Seção "Fato":
+- `fato_data` (data AAAA-MM-DD): Data do fato
+- `fato_local` (texto): Local do fato
+- `ro` (texto): Nº do registro de ocorrência
+- `flagrante` ("Sim" ou "Não"): Houve flagrante
+Seção "Prisão e liberdade":
+- `situacao` (uma das opções): Situação do acusado. Opções: "Solto" | "Preso em flagrante" | "Prisão preventiva" | "Prisão temporária" | "Prisão domiciliar" | "Monitoração eletrônica" | "Liberdade provisória com cautelares"
 - `unidade` (texto): Unidade prisional
-Seção "Primeira fase":
-- `pronuncia` (data AAAA-MM-DD): Data da pronúncia
+- `prisao_data` (data AAAA-MM-DD): Data da prisão
+- `revisao` (data AAAA-MM-DD): Última revisão da preventiva
+- `cautelares` (lista (array de textos, um item por elemento)): Cautelares impostas
+- `hc` (uma das opções): Habeas corpus (situação). Opções: "Não impetrado" | "Impetrado no TJ" | "Impetrado no STJ" | "Impetrado no STF" | "Concedido" | "Denegado"
+Seção "Primeira fase (sumário da culpa)":
+- `recebimento` (data AAAA-MM-DD): Recebimento da denúncia
+- `citacao` (data AAAA-MM-DD): Citação
+- `resposta` (data AAAA-MM-DD): Resposta à acusação (data)
+- `testemunhas_acusacao` (lista (array de textos, um item por elemento)): Testemunhas de acusação
+- `testemunhas` (lista (array de textos, um item por elemento)): Testemunhas de defesa
+- `informantes` (lista (array de textos, um item por elemento)): Informantes e declarantes
+- `instrucao` (data AAAA-MM-DD): Audiência de instrução
+- `alegacoes` (data AAAA-MM-DD): Alegações finais (data)
+- `tese_primeira_fase` (texto longo): Tese na primeira fase
+- `pronuncia` (data AAAA-MM-DD): Data da decisão
 - `decisao` (uma das opções): Decisão. Opções: "Pendente" | "Pronúncia" | "Impronúncia" | "Desclassificação" | "Absolvição sumária"
+- `pronuncia_termos` (texto longo): Termos da pronúncia (qualificadoras mantidas ou afastadas)
 - `rese` (uma das opções): Recurso em sentido estrito. Opções: "Não interposto" | "Interposto pela defesa" | "Interposto pelo MP"
 - `rese_resultado` (uma das opções): Resultado do recurso em sentido estrito. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 Seção "Plenário":
 - `plenario` (data AAAA-MM-DD): Data do plenário
-- `testemunhas_acusacao` (lista (array de textos, um item por elemento)): Testemunhas de acusação
+- `rol_acusacao` (lista (array de textos, um item por elemento)): Rol de testemunhas da acusação (art. 422)
 - `rol` (lista (array de textos, um item por elemento)): Rol de testemunhas da defesa (art. 422)
 - `tese` (texto): Tese principal
 - `subsidiarias` (lista (array de textos, um item por elemento)): Teses subsidiárias
@@ -265,7 +298,18 @@ Seção "Plenário":
 Seção "Sentença do plenário":
 - `resultado` (uma das opções): Resultado. Opções: "Pendente" | "Absolvição" | "Condenação" | "Condenação parcial" | "Desclassificação (julgamento pelo juiz presidente)" | "Dissolução do conselho" | "Extinção da punibilidade"
 - `sentenca_data` (data AAAA-MM-DD): Data da sentença
-- `pena` (texto): Pena privativa de liberdade (ex.: 5 anos e 4 meses)
+- `pena_base` (texto): Pena-base (1ª fase, CP, art. 59)
+- `circunstancias_judiciais` (texto longo): Circunstâncias judiciais desfavoráveis
+- `agravantes` (lista (array de textos, um item por elemento)): Agravantes reconhecidas
+- `atenuantes` (lista (array de textos, um item por elemento)): Atenuantes reconhecidas
+- `reincidencia` (uma das opções): Reincidência. Opções: "Primário" | "Reincidente" | "Reincidente específico"
+- `pena_intermediaria` (texto): Pena intermediária (2ª fase)
+- `causas_aumento` (lista (array de textos, um item por elemento)): Causas de aumento (3ª fase)
+- `causas_diminuicao` (lista (array de textos, um item por elemento)): Causas de diminuição (3ª fase)
+- `concurso` (uma das opções): Concurso de crimes. Opções: "Não houve" | "Concurso material" | "Concurso formal" | "Crime continuado"
+- `pena` (texto): Pena definitiva (ex.: 5 anos e 4 meses)
+- `hediondo` ("Sim" ou "Não"): Crime hediondo ou equiparado
+- `violencia` ("Sim" ou "Não"): Com violência ou grave ameaça à pessoa
 - `pena_especie` (uma das opções): Espécie da pena. Opções: "Reclusão" | "Detenção" | "Prisão simples"
 - `regime` (uma das opções): Regime inicial. Opções: "Fechado" | "Semiaberto" | "Aberto"
 - `multa` (texto): Pena de multa (dias-multa e valor do dia)
