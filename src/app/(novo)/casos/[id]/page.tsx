@@ -124,6 +124,13 @@ export default function PaginaCaso() {
             </li>
           ))}
         </ol>
+        <div className="flex flex-wrap items-center gap-2 border-t border-line-2 px-4 py-2 text-[13px]">
+          <span className="text-ink-3">Fase atual: <strong className="text-ink">{area.fases[caso.fase]}</strong></span>
+          <span className="ml-auto flex gap-2">
+            {caso.fase > 0 && <button className="btn btn-g btn-sm" onClick={() => alterar("casos", caso.id, { fase: caso.fase - 1 })} title={`Voltar para ${area.fases[caso.fase - 1]}`}>Voltar</button>}
+            {caso.fase < area.fases.length - 1 && <button className="btn btn-p btn-sm" onClick={() => alterar("casos", caso.id, { fase: caso.fase + 1 })}>Avançar para {area.fases[caso.fase + 1]}</button>}
+          </span>
+        </div>
         {faseVista !== null && <PainelFase caso={caso} fase={faseVista} aoFechar={() => setFaseVista(null)} />}
       </header>
 
@@ -430,8 +437,11 @@ function Ficha({ caso }: { caso: Caso }) {
   const base = modo ? dados : caso.dados;
   const tipos = tiposDoCaso(area, base);
   const tipo = tipos.join(", ");
-  const secoes = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
-  const campos = secoes.flatMap((s) => s.campos);
+  const nasFases = new Set(area.fases.flatMap((_, i) => etapaDe(area, i).secoes.map((x) => x.titulo)));
+  const todas = area.secoes.filter((s) => secaoVisivel(s, tipos, base));
+  // a ficha completa (editar tudo) mostra todos; na leitura, só o que não está em nenhuma fase da faixa
+  const secoes = modo === "tudo" ? todas : todas.filter((s) => !nasFases.has(s.titulo));
+  const campos = todas.flatMap((s) => s.campos);
   const preenchidos = campos.filter((c) => caso.dados[c.k] !== undefined && caso.dados[c.k] !== "").length;
   const sugestoes = (k: string) => { const c = campos.find((x) => x.k === k)!; return [...new Set([...valoresUsados(db.casos, area.id, c), ...(SUGESTOES_FIXAS[k] ?? [])])].filter((x) => x); };
   const distintos = (f: (c: Caso) => string | undefined) => [...new Set(db.casos.map(f).filter((x): x is string => !!x))].sort();
@@ -485,6 +495,7 @@ function Ficha({ caso }: { caso: Caso }) {
           <p className="mt-1.5 text-[12.5px] text-ink-3">Pode incluir mais de um.{area.tipos ? (tipos.length ? " A ficha mostra os campos de todos os tipos escolhidos." : " Escolha ao menos um para a ficha mostrar os campos próprios.") : ""}</p>
         </section>
         <Vinculados caso={caso} />
+        {modo !== "tudo" && nasFases.size > 0 && <p className="px-1 text-[12.5px] text-ink-3">Os quadros de cada fase (inquérito, sentença, recurso...) ficam na faixa de fases, no alto. Aqui aparece só o que não pertence a uma fase.</p>}
         {secoes.map((s) => (
           <section key={s.titulo} className="painel">
             <div className="painel-cab"><h2>{s.titulo}</h2>{lapis(`sec:${s.titulo}`, s.titulo)}</div>
