@@ -34,7 +34,7 @@ export const config = {
     "/extrajudicial",
     "/casos/:path*",
     "/clientes/:path*",
-    "/atendimentos",
+    "/atendimentos/:path*",
     "/captacao",
     "/importar",
     "/publicacoes",

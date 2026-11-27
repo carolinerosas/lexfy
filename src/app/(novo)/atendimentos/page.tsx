@@ -1,16 +1,22 @@
 "use client";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { alterar, useDB } from "@/novo/lib/store";
 import { brl, data, diaSemana, hora } from "@/novo/lib/format";
 import { Avatar, Cabecalho, LinkCaso, Seg, Vazio, useMapas } from "@/novo/components/ui";
-import { NovoAtendimento, SessaoAtendimento } from "@/novo/components/atendimento";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { NovoAtendimento } from "@/novo/components/atendimento";
 import type { Atendimento } from "@/novo/lib/types";
 
-export default function Atendimentos() {
+export default function PaginaAtendimentos() {
+  return <Suspense fallback={null}><Atendimentos /></Suspense>;
+}
+
+function Atendimentos() {
   const db = useDB();
+  const inicial = useSearchParams().get("ver");
   const { caso, pessoa } = useMapas(db);
-  const [ver, setVer] = useState<Atendimento["status"]>("agendado");
-  const [anotando, setAnotando] = useState<string | null>(null);
+  const [ver, setVer] = useState<Atendimento["status"]>(inicial === "realizado" || inicial === "cancelado" ? inicial : "agendado");
   const lista = useMemo(() => db.atendimentos.filter((a) => a.status === ver).sort((a, b) => (ver === "agendado" ? a.data_hora.localeCompare(b.data_hora) : b.data_hora.localeCompare(a.data_hora))), [db.atendimentos, ver]);
 
   return (
@@ -31,13 +37,12 @@ export default function Atendimentos() {
                 <td className="max-w-[240px]">{a.caso_id ? <LinkCaso caso={caso(a.caso_id)} /> : <span className="text-ink-3">-</span>}</td>
                 <td className="num">{a.valor ? brl(a.valor) : "-"}</td>
                 <td><Avatar pessoa={pessoa(a.responsavel_id)} /></td>
-                <td className="num whitespace-nowrap">{a.status === "agendado" && <><button className="btn btn-p btn-sm" onClick={() => setAnotando(a.id)}>Atender</button> <button className="btn btn-g btn-sm" onClick={() => alterar("atendimentos", a.id, { status: "realizado" })}>Realizado</button> <button className="btn btn-perigo btn-sm" onClick={() => alterar("atendimentos", a.id, { status: "cancelado" })}>Cancelar</button></>}</td>
+                <td className="num whitespace-nowrap">{a.status === "agendado" && <><Link href={`/atendimentos/${a.id}`} className="btn btn-p btn-sm">Atender</Link> <button className="btn btn-g btn-sm" onClick={() => alterar("atendimentos", a.id, { status: "realizado" })}>Realizado</button> <button className="btn btn-perigo btn-sm" onClick={() => alterar("atendimentos", a.id, { status: "cancelado" })}>Cancelar</button></>}</td>
               </tr>
             ))}</tbody>
           </table>
         )}
       </div>
-      {anotando && <SessaoAtendimento id={anotando} aoFechar={() => setAnotando(null)} />}
     </>
   );
 }
