@@ -30,8 +30,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -64,8 +69,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -126,8 +136,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -198,7 +213,12 @@ Seção "Sentença e pena":
 - `recorrer_liberdade` (uma das opções): Recorrer em liberdade. Opções: "Concedido" | "Negado" | "Mantida a prisão preventiva" | "Decretada a prisão na sentença"
 - `reparacao_minima` (valor em reais (número, ex.: 1500.5)): Reparação mínima à vítima (CPP, art. 387, IV)
 - `transito_acusacao` (data AAAA-MM-DD): Trânsito em julgado para a acusação
-- `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP" | "Provida" | "Parcialmente provida" | "Desprovida"
+- `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP"
+- `apelacao_resultado` (uma das opções): Resultado da apelação. Opções: "Pendente" | "Provida" | "Parcialmente provida" | "Desprovida" | "Não conhecida"
+- `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou (pena, regime, absolvição, nulidade)
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Especial e extraordinário" | "Agravo em recurso especial" | "Habeas corpus no STJ" | "Habeas corpus no STF"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido" | "Ordem concedida" | "Ordem concedida de ofício" | "Ordem denegada"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 Seção "Drogas" (só para os tipos: Tráfico e drogas (Lei 11.343/06)):
 - `substancias` (lista (array de textos, um item por elemento)): Substâncias e quantidades
@@ -233,7 +253,8 @@ Seção "Imputação":
 Seção "Primeira fase":
 - `pronuncia` (data AAAA-MM-DD): Data da pronúncia
 - `decisao` (uma das opções): Decisão. Opções: "Pendente" | "Pronúncia" | "Impronúncia" | "Desclassificação" | "Absolvição sumária"
-- `rese` (uma das opções): Recurso em sentido estrito. Opções: "Não interposto" | "Interposto" | "Provido" | "Desprovido"
+- `rese` (uma das opções): Recurso em sentido estrito. Opções: "Não interposto" | "Interposto pela defesa" | "Interposto pelo MP"
+- `rese_resultado` (uma das opções): Resultado do recurso em sentido estrito. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 Seção "Plenário":
 - `plenario` (data AAAA-MM-DD): Data do plenário
 - `testemunhas_acusacao` (lista (array de textos, um item por elemento)): Testemunhas de acusação
@@ -255,7 +276,12 @@ Seção "Sentença do plenário":
 - `recorrer_liberdade` (uma das opções): Recorrer em liberdade. Opções: "Concedido" | "Negado" | "Mantida a prisão preventiva" | "Decretada a prisão na sentença"
 - `reparacao_minima` (valor em reais (número, ex.: 1500.5)): Reparação mínima à vítima (CPP, art. 387, IV)
 - `transito_acusacao` (data AAAA-MM-DD): Trânsito em julgado para a acusação
-- `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP" | "Provida" | "Parcialmente provida" | "Desprovida"
+- `apelacao` (uma das opções): Apelação. Opções: "Não interposta" | "Interposta pela defesa" | "Interposta pelo MP" | "Interposta pela defesa e pelo MP"
+- `apelacao_resultado` (uma das opções): Resultado da apelação. Opções: "Pendente" | "Provida" | "Parcialmente provida" | "Desprovida" | "Não conhecida"
+- `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou (pena, regime, absolvição, nulidade)
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Especial e extraordinário" | "Agravo em recurso especial" | "Habeas corpus no STJ" | "Habeas corpus no STF"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido" | "Ordem concedida" | "Ordem concedida de ofício" | "Ordem denegada"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 
 ### `execucao_penal`: Execução penal (judicial)
@@ -337,8 +363,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -376,8 +407,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -408,8 +444,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -453,8 +494,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -478,8 +524,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -507,8 +558,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -537,8 +593,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -563,8 +624,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -588,8 +654,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 
@@ -615,8 +686,13 @@ Seção "Sentença e resultado":
 - `honorarios_sucumbencia` (texto): Honorários de sucumbência (percentual ou valor)
 - `sucumbencia` (uma das opções): Sucumbência a cargo de. Opções: "Parte contrária" | "Cliente" | "Recíproca"
 - `custas` (uma das opções): Custas. Opções: "A cargo da parte contrária" | "A cargo do cliente" | "Rateadas" | "Gratuidade de justiça"
-- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos" | "Provido" | "Parcialmente provido" | "Desprovido" | "Recurso especial ou extraordinário pendente"
+- `recurso` (uma das opções): Recurso. Opções: "Não interposto" | "Interposto pelo cliente" | "Interposto pela parte contrária" | "Interposto por ambos"
+- `recurso_tipo` (texto): Tipo de recurso (apelação, recurso ordinário, inominado...)
+- `recurso_resultado` (uma das opções): Resultado do recurso. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `acordao_data` (data AAAA-MM-DD): Data do acórdão
+- `acordao_efeito` (texto longo): O que o acórdão mudou
+- `recurso_superior` (uma das opções): Recurso aos tribunais superiores. Opções: "Não interposto" | "Recurso especial" | "Recurso extraordinário" | "Recurso de revista" | "Especial e extraordinário" | "Agravo em recurso especial"
+- `recurso_superior_resultado` (uma das opções): Resultado no tribunal superior. Opções: "Pendente" | "Provido" | "Parcialmente provido" | "Desprovido" | "Não conhecido"
 - `transito` (data AAAA-MM-DD): Trânsito em julgado
 - `cumprimento_valor` (valor em reais (número, ex.: 1500.5)): Valor em cumprimento de sentença
 

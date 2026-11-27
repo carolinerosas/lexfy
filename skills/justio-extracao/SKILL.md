@@ -49,9 +49,18 @@ Você vai ler o PDF dos autos de um processo, ou as informações dadas na conve
   "prazos": [{ "titulo": "", "data": "AAAA-MM-DD", "fatal": true, "fonte": "fls. 120" }],
   "audiencias": [{ "titulo": "", "data_hora": "AAAA-MM-DDTHH:MM", "local": "", "modalidade": "presencial, virtual ou híbrida" }],
   "andamentos": [{ "data": "AAAA-MM-DD", "descricao": "", "fonte": "evento 35" }],
+  "pedidos_execucao": [{
+    "tipo": "progressao_regime | livramento_condicional | remicao | saida_temporaria | trabalho_extramuros | regressao | unificacao_penas | detracao | indulto | comutacao | extincao_pena | outro",
+    "titulo": "", "data_pedido": "AAAA-MM-DD",
+    "status": "protocolado | em_andamento | deferido | parcialmente_deferido | indeferido | cumprido | arquivado",
+    "data_decisao": "AAAA-MM-DD", "resultado": "o que a decisão concedeu ou negou, e por quê",
+    "recurso": { "interposto": "Agravo em execução da defesa | Agravo em execução do MP | Habeas corpus", "resultado": "Provido | Parcialmente provido | Desprovido | Não conhecido | Ordem concedida | Ordem denegada", "data": "AAAA-MM-DD", "efeito": "o que o acórdão mudou" }
+  }],
   "pendencias": ["o que a advogada precisa conferir ou fazer"]
 }
 ```
+
+Pedidos da execução (só na área execucao_penal): um item por pedido feito ao juízo da execução (progressão, livramento, remição, saída temporária, indulto, comutação etc.), com a decisão de cada um e, se houve, o recurso contra ela e o resultado. Recursos de sentença e acórdão nas demais áreas vão nos campos da ficha (apelação, resultado da apelação, recurso aos tribunais superiores).
 
 Prazos: só os que ainda estão correndo ou por vir, com a data final já contada. Andamentos: os atos relevantes (recebimento da denúncia, citação, decisões, sentença, recursos, prisões e solturas), do mais antigo para o mais recente.
 

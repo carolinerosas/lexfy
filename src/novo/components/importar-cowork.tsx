@@ -4,13 +4,17 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Check, ClipboardCopy, FileSearch } from "lucide-react";
-import { alterar, incluir, useDB } from "@/novo/lib/store";
+import { aguardarGravacoes, alterar, incluir, lerDB, useDB } from "@/novo/lib/store";
+import { createIncidente, getIncidentesByProcesso } from "@/lib/store";
 import { AREAS, areaDe } from "@/novo/lib/areas";
 import { data, hojeISO, semAcento } from "@/novo/lib/format";
 import { copiarTexto } from "@/novo/lib/whatsapp";
 import { instrucoesCowork, lerImportacao, type Importacao } from "@/novo/lib/importacao";
 import { BotaoInfo, CampoArea, Rotulado } from "./ui";
-import type { Caso, Cliente } from "@/novo/lib/types";
+import type { Caso, Cliente, RecursoPedido } from "@/novo/lib/types";
+
+const ROTULO_PEDIDO: Record<string, string> = { progressao_regime: "Progressão de regime", livramento_condicional: "Livramento condicional", remicao: "Remição", saida_temporaria: "Saída temporária", trabalho_extramuros: "Trabalho extramuros", regressao: "Regressão", unificacao_penas: "Unificação de penas", detracao: "Detração", indulto: "Indulto", comutacao: "Comutação", extincao_pena: "Extinção da pena", outro: "Outro" };
+const ROTULO_STATUS: Record<string, string> = { protocolado: "Protocolado", em_andamento: "Em andamento", deferido: "Deferido", parcialmente_deferido: "Parcialmente deferido", indeferido: "Indeferido", cumprido: "Cumprido", arquivado: "Arquivado" };
 
 const dig = (s?: string) => String(s ?? "").replace(/\D/g, "");
 type Marcas = Record<string, boolean>;
@@ -28,7 +32,8 @@ export function ImportarCowork() {
   const [casoAlvo, setCasoAlvo] = useState("novo");
   const [ficha, setFicha] = useState<Record<string, string | number>>({});
   const [usarCampo, setUsarCampo] = useState<Marcas>({});
-  const [sel, setSel] = useState<{ prazos: Marcas; audiencias: Marcas; andamentos: Marcas; vinculados: Marcas; pendencias: Marcas }>({ prazos: {}, audiencias: {}, andamentos: {}, vinculados: {}, pendencias: {} });
+  const [sel, setSel] = useState<{ prazos: Marcas; audiencias: Marcas; andamentos: Marcas; vinculados: Marcas; pendencias: Marcas; pedidos: Marcas }>({ prazos: {}, audiencias: {}, andamentos: {}, vinculados: {}, pendencias: {}, pedidos: {} });
+  const [gravando, setGravando] = useState(false);
   const [feito, setFeito] = useState<{ casoId: string; resumo: string } | null>(null);
 
   const casoExistente = db.casos.find((c) => c.id === casoAlvo);
@@ -65,7 +70,10 @@ export function ImportarCowork() {
       andamentos: todas(r.andamentos.length, (i) => andJa.some((z) => z.data === r.andamentos[i].data && semAcento(z.descricao).startsWith(semAcento(r.andamentos[i].descricao).slice(0, 40)))),
       vinculados: todas(r.vinculados.length, (i) => (caso?.vinculados ?? []).some((v) => dig(v.numero) === dig(r.vinculados[i].numero))),
       pendencias: todas(r.pendencias.length, () => false),
+      pedidos: todas(r.pedidos.length, () => false),
     });
+    // pedidos que o caso já tem (mesmo tipo e mesma data do pedido) começam desmarcados
+    if (caso && r.pedidos.length) getIncidentesByProcesso(caso.id).then((ja) => setSel((x) => ({ ...x, pedidos: todas(r.pedidos.length, (i) => ja.some((z) => z.tipo === r.pedidos[i].tipo && (z.data_pedido ?? "") === (r.pedidos[i].data_pedido ?? ""))) }))).catch(() => {});
   }
 
   const conta = useMemo(() => ({
@@ -73,10 +81,11 @@ export function ImportarCowork() {
     prazos: Object.values(sel.prazos).filter(Boolean).length, audiencias: Object.values(sel.audiencias).filter(Boolean).length,
     andamentos: Object.values(sel.andamentos).filter(Boolean).length, vinculados: Object.values(sel.vinculados).filter(Boolean).length,
     pendencias: Object.values(sel.pendencias).filter(Boolean).length,
-  }), [ficha, usarCampo, sel]);
+    pedidos: area.id === "execucao_penal" ? Object.values(sel.pedidos).filter(Boolean).length : 0,
+  }), [ficha, usarCampo, sel, area.id]);
 
-  function confirmar() {
-    if (!imp) return;
+  async function confirmar() {
+    if (!imp || gravando) return;
     if (!cli.nome?.trim()) return setErro("Informe o nome do cliente.");
     if (!proc.titulo?.trim()) return setErro("Informe o título do caso.");
     setErro("");
@@ -125,6 +134,27 @@ export function ImportarCowork() {
     imp.andamentos.forEach((a, i) => { if (sel.andamentos[i]) incluir("andamentos", { caso_id: casoId, data: a.data, descricao: a.fonte ? `${a.descricao} (${a.fonte})` : a.descricao, fonte: "tribunal", lido: true }); });
     imp.pendencias.forEach((t, i) => { if (sel.pendencias[i]) incluir("tarefas", { caso_id: casoId, titulo: t, estado: "a fazer", prioridade: "media", responsavel_id: respCaso }); });
 
+    // 4. pedidos da execução penal (aba Incidentes), cada um com a decisão e o recurso
+    if (conta.pedidos) {
+      setGravando(true);
+      try {
+        await aguardarGravacoes(); // o caso precisa estar no banco antes dos pedidos
+        const recursos: Record<string, RecursoPedido> = {};
+        for (const [i, x] of imp.pedidos.entries()) {
+          if (!sel.pedidos[i]) continue;
+          const inc = await createIncidente({ processo_id: casoId, titulo: x.titulo, tipo: x.tipo, status: x.status, data_pedido: x.data_pedido, data_decisao: x.data_decisao, resultado: x.resultado });
+          if (x.recurso) recursos[inc.id] = x.recurso;
+        }
+        if (Object.keys(recursos).length) {
+          const c = lerDB().casos.find((y) => y.id === casoId);
+          const ex = c?.execucao ?? { crimes: [], remicoes: [], interrupcoes: [] };
+          alterar("casos", casoId, { execucao: { ...ex, recursos: { ...(ex.recursos ?? {}), ...recursos } } });
+        }
+      } catch (e) {
+        setErro(`O caso foi gravado, mas os pedidos da execução não: ${e instanceof Error ? e.message : "erro"}. Lance-os na aba Incidentes.`);
+      } finally { setGravando(false); }
+    }
+
     const partes = [
       clienteExistente ? `cliente ${clienteNome} completado` : `cliente ${clienteNome} cadastrado`,
       casoExistente ? "caso atualizado" : "caso criado",
@@ -133,6 +163,7 @@ export function ImportarCowork() {
       conta.audiencias && `${conta.audiencias} audiência${conta.audiencias > 1 ? "s" : ""}`,
       conta.andamentos && `${conta.andamentos} andamento${conta.andamentos > 1 ? "s" : ""}`,
       conta.pendencias && `${conta.pendencias} tarefa${conta.pendencias > 1 ? "s" : ""}`,
+      conta.pedidos && `${conta.pedidos} pedido${conta.pedidos > 1 ? "s" : ""} da execução`,
     ].filter(Boolean);
     setFeito({ casoId, resumo: partes.join(", ") + "." });
     setImp(null); setTexto("");
@@ -250,6 +281,7 @@ export function ImportarCowork() {
           <ListaMarcavel titulo="Audiências" itens={imp.audiencias.map((a) => `${data(a.data_hora)} às ${a.data_hora.slice(11, 16)}: ${a.titulo} (${a.modalidade})${a.local ? ` · ${a.local}` : ""}`)} marcas={sel.audiencias} aoMarcar={(i) => marca("audiencias", i)} vazio="Nenhuma audiência nos autos." />
           <ListaMarcavel titulo="Andamentos" itens={imp.andamentos.map((a) => `${data(a.data)}: ${a.descricao}${a.fonte ? ` · ${a.fonte}` : ""}`)} marcas={sel.andamentos} aoMarcar={(i) => marca("andamentos", i)} vazio="Nenhum andamento." />
           <ListaMarcavel titulo="Processos vinculados" itens={imp.vinculados.map((v) => `${v.tipo}: ${v.numero}${v.situacao ? ` (${v.situacao})` : ""}`)} marcas={sel.vinculados} aoMarcar={(i) => marca("vinculados", i)} vazio="Nenhum processo vinculado." />
+          {area.id === "execucao_penal" && <ListaMarcavel titulo="Pedidos da execução (vão para a aba Incidentes)" itens={imp.pedidos.map((x) => `${x.data_pedido ? `${data(x.data_pedido)} · ` : ""}${ROTULO_PEDIDO[x.tipo]}: ${x.titulo}. ${ROTULO_STATUS[x.status]}${x.data_decisao ? ` em ${data(x.data_decisao)}` : ""}${x.resultado ? `: ${x.resultado}` : ""}${x.recurso ? ` · ${x.recurso.interposto}: ${x.recurso.resultado || "pendente"}` : ""}`)} marcas={sel.pedidos} aoMarcar={(i) => marca("pedidos", i)} vazio="Nenhum pedido da execução nos autos." />}
           <ListaMarcavel titulo="Pendências (viram tarefas do caso)" itens={imp.pendencias} marcas={sel.pendencias} aoMarcar={(i) => marca("pendencias", i)} vazio="Nenhuma pendência apontada." />
           {imp.partes.length > 0 && (
             <section className="painel">
@@ -261,7 +293,7 @@ export function ImportarCowork() {
           <section className="painel flex flex-wrap items-center justify-end gap-2 p-4">
             {erro && <p role="alert" className="mr-auto text-[13px] font-semibold text-perigo">{erro}</p>}
             <button className="btn btn-g" onClick={() => setImp(null)}>Descartar</button>
-            <button className="btn btn-p" onClick={confirmar}><Check />Confirmar e gravar</button>
+            <button className="btn btn-p" disabled={gravando} onClick={confirmar}><Check />{gravando ? "Gravando…" : "Confirmar e gravar"}</button>
           </section>
         </>
       )}

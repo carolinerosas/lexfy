@@ -15,6 +15,8 @@ import {
   getBeneficiosPenaisByProcesso, createBeneficioPenal, updateBeneficioPenal, deleteBeneficioPenal,
 } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { alterar, useDB } from "@/novo/lib/store";
+import type { RecursoPedido } from "@/novo/lib/types";
 import type { IncidenteExecucao, BeneficioPenal, IncidenteExecucaoTipo, IncidenteExecucaoStatus, BeneficioPenalTipo, BeneficioPenalStatus } from "@/types";
 
 
@@ -38,6 +40,7 @@ const incidenteStatusOptions: { value: IncidenteExecucaoStatus; label: string }[
   { value: "protocolado", label: "Protocolado" },
   { value: "em_andamento", label: "Em andamento" },
   { value: "deferido", label: "Deferido" },
+  { value: "parcialmente_deferido", label: "Parcialmente deferido" },
   { value: "indeferido", label: "Indeferido" },
   { value: "cumprido", label: "Cumprido" },
   { value: "arquivado", label: "Arquivado" },
@@ -52,10 +55,67 @@ const beneficioPenalStatusOptions: { value: BeneficioPenalStatus; label: string 
   { value: "em_estudo", label: "Em estudo" },
   { value: "requerido", label: "Requerido" },
   { value: "deferido", label: "Deferido" },
+  { value: "parcialmente_deferido", label: "Parcialmente deferido" },
   { value: "indeferido", label: "Indeferido" },
   { value: "prejudicado", label: "Prejudicado" },
 ];
 
+
+const recursoInterpostoOptions = [
+  { value: "", label: "Não interposto" },
+  { value: "Agravo em execução da defesa", label: "Agravo em execução da defesa" },
+  { value: "Agravo em execução do MP", label: "Agravo em execução do MP" },
+  { value: "Habeas corpus", label: "Habeas corpus" },
+];
+const recursoResultadoOptions = [
+  { value: "", label: "Pendente" },
+  { value: "Provido", label: "Provido" },
+  { value: "Parcialmente provido", label: "Parcialmente provido" },
+  { value: "Desprovido", label: "Desprovido" },
+  { value: "Não conhecido", label: "Não conhecido" },
+  { value: "Ordem concedida", label: "Ordem concedida" },
+  { value: "Ordem denegada", label: "Ordem denegada" },
+];
+
+/** Recursos dos pedidos, guardados na execução do caso (sem coluna nova no banco). */
+function useRecursos(processoId: string) {
+  const db = useDB();
+  const caso = db.casos.find((c) => c.id === processoId);
+  const recursos = caso?.execucao?.recursos ?? {};
+  const salvar = (id: string, r: RecursoPedido) => {
+    if (!caso) return;
+    const ex = caso.execucao ?? { crimes: [], remicoes: [], interrupcoes: [] };
+    const limpo = Object.fromEntries(Object.entries(r).filter(([, v]) => v)) as RecursoPedido;
+    const novos = { ...(ex.recursos ?? {}) };
+    if (Object.keys(limpo).length) novos[id] = limpo; else delete novos[id];
+    alterar("casos", caso.id, { execucao: { ...ex, recursos: novos } });
+  };
+  return { recursos, salvar };
+}
+
+function LinhaRecurso({ r }: { r?: RecursoPedido }) {
+  if (!r?.interposto) return null;
+  return (
+    <p className="mt-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 whitespace-pre-wrap">
+      <strong>Recurso:</strong> {r.interposto} · <strong>Resultado:</strong> {r.resultado || "Pendente"}{r.data ? ` (${formatDate(r.data)})` : ""}
+      {r.efeito ? `\n${r.efeito}` : ""}
+    </p>
+  );
+}
+
+function CamposRecurso({ r, setR }: { r: RecursoPedido; setR: (r: RecursoPedido) => void }) {
+  return (
+    <fieldset className="space-y-3 rounded-lg border border-gray-200 p-3">
+      <legend className="px-1 text-sm font-semibold text-gray-700">Recurso contra a decisão</legend>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Select label="Recurso" options={recursoInterpostoOptions} value={r.interposto ?? ""} onChange={(e) => setR({ ...r, interposto: e.target.value })} />
+        <Select label="Resultado do recurso" options={recursoResultadoOptions} value={r.resultado ?? ""} onChange={(e) => setR({ ...r, resultado: e.target.value })} />
+        <Input label="Data do acórdão" type="date" value={r.data ?? ""} onChange={(e) => setR({ ...r, data: e.target.value })} />
+      </div>
+      <Textarea label="O que o acórdão mudou" rows={2} value={r.efeito ?? ""} onChange={(e) => setR({ ...r, efeito: e.target.value })} />
+    </fieldset>
+  );
+}
 
 function EmptyTab({ text }: { text: string }) {
   return <div className="text-center py-12 text-gray-400 text-sm">{text}</div>;
@@ -79,8 +139,9 @@ function optionalNumber(value: string): number | undefined {
 
 
 function IncidentesTab({
-  incidentes, onAdd, onEdit, onDelete,
+  incidentes, onAdd, onEdit, onDelete, recursos,
 }: {
+  recursos: Record<string, RecursoPedido>;
   incidentes: IncidenteExecucao[];
   onAdd: () => void;
   onEdit: (incidente: IncidenteExecucao) => void;
@@ -105,7 +166,7 @@ function IncidentesTab({
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900">{incidente.titulo}</p>
                       <Badge variant="neutral">{optionLabel(incidenteTipoOptions, incidente.tipo)}</Badge>
-                      <Badge variant={incidente.status === "deferido" || incidente.status === "cumprido" ? "success" : incidente.status === "indeferido" ? "warning" : "neutral"}>
+                      <Badge variant={incidente.status === "deferido" || incidente.status === "parcialmente_deferido" || incidente.status === "cumprido" ? "success" : incidente.status === "indeferido" ? "warning" : "neutral"}>
                         {optionLabel(incidenteStatusOptions, incidente.status)}
                       </Badge>
                     </div>
@@ -119,6 +180,7 @@ function IncidentesTab({
                         <strong>Resultado:</strong> {incidente.resultado}
                       </p>
                     )}
+                    <LinhaRecurso r={recursos[incidente.id]} />
                     {incidente.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{incidente.observacoes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
@@ -145,8 +207,9 @@ function IncidentesTab({
 
 
 function BeneficiosPenaisTab({
-  beneficios, onAdd, onEdit, onDelete,
+  beneficios, onAdd, onEdit, onDelete, recursos,
 }: {
+  recursos: Record<string, RecursoPedido>;
   beneficios: BeneficioPenal[];
   onAdd: () => void;
   onEdit: (beneficio: BeneficioPenal) => void;
@@ -167,7 +230,7 @@ function BeneficiosPenaisTab({
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900">{beneficio.titulo}</p>
                       <Badge variant="neutral">{optionLabel(beneficioPenalTipoOptions, beneficio.tipo)}</Badge>
-                      <Badge variant={beneficio.status === "deferido" ? "success" : beneficio.status === "indeferido" ? "warning" : "neutral"}>
+                      <Badge variant={beneficio.status === "deferido" || beneficio.status === "parcialmente_deferido" ? "success" : beneficio.status === "indeferido" ? "warning" : "neutral"}>
                         {optionLabel(beneficioPenalStatusOptions, beneficio.status)}
                       </Badge>
                       {beneficio.decreto && <Badge variant="neutral">{beneficio.decreto}</Badge>}
@@ -178,6 +241,7 @@ function BeneficiosPenaisTab({
                     </div>
                     {beneficio.requisitos && <p className="mt-3 text-sm text-gray-600 whitespace-pre-wrap"><strong>Requisitos:</strong> {beneficio.requisitos}</p>}
                     {beneficio.resultado && <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap"><strong>Resultado:</strong> {beneficio.resultado}</p>}
+                    <LinhaRecurso r={recursos[beneficio.id]} />
                     {beneficio.observacoes && <p className="mt-2 text-xs text-gray-500 whitespace-pre-wrap">{beneficio.observacoes}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
@@ -212,6 +276,8 @@ function IncidenteModal({
   incidente: IncidenteExecucao | null;
   onSaved: () => void;
 }) {
+  const { recursos, salvar: salvarRecurso } = useRecursos(processoId);
+  const [recurso, setRecurso] = useState<RecursoPedido>({});
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState<IncidenteExecucaoTipo>("trabalho_extramuros");
   const [status, setStatus] = useState<IncidenteExecucaoStatus>("em_preparacao");
@@ -223,6 +289,7 @@ function IncidenteModal({
 
   useEffect(() => {
     if (!open) return;
+    setRecurso(incidente ? recursos[incidente.id] ?? {} : {});
     setTitulo(incidente?.titulo ?? "");
     setTipo(incidente?.tipo ?? "trabalho_extramuros");
     setStatus(incidente?.status ?? "em_preparacao");
@@ -231,7 +298,7 @@ function IncidenteModal({
     setDescricao(incidente?.descricao ?? "");
     setResultado(incidente?.resultado ?? "");
     setObservacoes(incidente?.observacoes ?? "");
-  }, [open, incidente]);
+  }, [open, incidente]); // eslint-disable-line react-hooks/exhaustive-deps -- recarrega só ao abrir
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -247,11 +314,8 @@ function IncidenteModal({
       resultado: cleanText(resultado),
       observacoes: cleanText(observacoes),
     };
-    if (incidente) {
-      await updateIncidente(incidente.id, payload);
-    } else {
-      await createIncidente(payload);
-    }
+    const id = incidente ? (await updateIncidente(incidente.id, payload), incidente.id) : (await createIncidente(payload)).id;
+    salvarRecurso(id, recurso);
     onSaved();
   }
 
@@ -269,6 +333,7 @@ function IncidenteModal({
         </div>
         <Textarea label="Descrição" placeholder="Contexto do incidente, pedido feito e documentos relevantes..." rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
         <Textarea label="Resultado" placeholder="Decisão, deferimento, exigências, observações da vara..." rows={3} value={resultado} onChange={(e) => setResultado(e.target.value)} />
+        <CamposRecurso r={recurso} setR={setRecurso} />
         <Textarea label="Observações internas" placeholder="Estratégia, próximos passos, pendências..." rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -289,6 +354,8 @@ function BeneficioPenalModal({
   beneficio: BeneficioPenal | null;
   onSaved: () => void;
 }) {
+  const { recursos, salvar: salvarRecurso } = useRecursos(processoId);
+  const [recurso, setRecurso] = useState<RecursoPedido>({});
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState<BeneficioPenalTipo>("comutacao");
   const [status, setStatus] = useState<BeneficioPenalStatus>("em_estudo");
@@ -301,6 +368,7 @@ function BeneficioPenalModal({
 
   useEffect(() => {
     if (!open) return;
+    setRecurso(beneficio ? recursos[beneficio.id] ?? {} : {});
     setTitulo(beneficio?.titulo ?? "");
     setTipo(beneficio?.tipo ?? "comutacao");
     setStatus(beneficio?.status ?? "em_estudo");
@@ -310,7 +378,7 @@ function BeneficioPenalModal({
     setRequisitos(beneficio?.requisitos ?? "");
     setResultado(beneficio?.resultado ?? "");
     setObservacoes(beneficio?.observacoes ?? "");
-  }, [open, beneficio]);
+  }, [open, beneficio]); // eslint-disable-line react-hooks/exhaustive-deps -- recarrega só ao abrir
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -327,11 +395,8 @@ function BeneficioPenalModal({
       resultado: cleanText(resultado),
       observacoes: cleanText(observacoes),
     };
-    if (beneficio) {
-      await updateBeneficioPenal(beneficio.id, payload);
-    } else {
-      await createBeneficioPenal(payload);
-    }
+    const id = beneficio ? (await updateBeneficioPenal(beneficio.id, payload), beneficio.id) : (await createBeneficioPenal(payload)).id;
+    salvarRecurso(id, recurso);
     onSaved();
   }
 
@@ -350,6 +415,7 @@ function BeneficioPenalModal({
         </div>
         <Textarea label="Requisitos analisados" placeholder="Requisito objetivo/subjetivo, impeditivos, falta grave, lapso..." rows={4} value={requisitos} onChange={(e) => setRequisitos(e.target.value)} />
         <Textarea label="Resultado" placeholder="Decisão, fundamento e providências..." rows={3} value={resultado} onChange={(e) => setResultado(e.target.value)} />
+        <CamposRecurso r={recurso} setR={setRecurso} />
         <Textarea label="Observações internas" placeholder="Notas de estratégia e pendências..." rows={3} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
@@ -363,6 +429,7 @@ function BeneficioPenalModal({
 
 
 export function ExecucaoPenalPanel({ processoId, parte }: { processoId: string; parte: "incidentes" | "beneficios" }) {
+  const { recursos } = useRecursos(processoId);
   const [incidentes, setIncidentes] = useState<IncidenteExecucao[]>([]);
   const [beneficios, setBeneficios] = useState<BeneficioPenal[]>([]);
   const [incidenteModal, setIncidenteModal] = useState(false);
@@ -383,6 +450,7 @@ export function ExecucaoPenalPanel({ processoId, parte }: { processoId: string; 
     <>
       {parte === "incidentes" ? (
         <IncidentesTab
+          recursos={recursos}
           incidentes={incidentes}
           onAdd={() => { setEditingIncidente(null); setIncidenteModal(true); }}
           onEdit={(i) => { setEditingIncidente(i); setIncidenteModal(true); }}
@@ -390,6 +458,7 @@ export function ExecucaoPenalPanel({ processoId, parte }: { processoId: string; 
         />
       ) : (
         <BeneficiosPenaisTab
+          recursos={recursos}
           beneficios={beneficios}
           onAdd={() => { setEditingBeneficio(null); setBeneficioModal(true); }}
           onEdit={(b) => { setEditingBeneficio(b); setBeneficioModal(true); }}

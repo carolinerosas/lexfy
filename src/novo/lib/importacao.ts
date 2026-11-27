@@ -6,6 +6,12 @@ import { semAcento } from "./format";
 
 export const VERSAO_IMPORTACAO = 1;
 
+/** Pedidos da execução penal: mesmos tipos e situações da aba Incidentes. */
+export const TIPOS_PEDIDO = ["progressao_regime", "livramento_condicional", "remicao", "saida_temporaria", "trabalho_extramuros", "regressao", "unificacao_penas", "detracao", "indulto", "comutacao", "extincao_pena", "outro"] as const;
+export const STATUS_PEDIDO = ["protocolado", "em_andamento", "deferido", "parcialmente_deferido", "indeferido", "cumprido", "arquivado"] as const;
+export type TipoPedido = (typeof TIPOS_PEDIDO)[number];
+export type StatusPedido = (typeof STATUS_PEDIDO)[number];
+
 const TIPO_LEGIVEL: Record<Campo["tipo"], string> = {
   t: "texto", l: "texto longo", m: "lista (array de textos, um item por elemento)", d: "data AAAA-MM-DD",
   v: "valor em reais (número, ex.: 1500.5)", n: "número", s: "\"Sim\" ou \"Não\"", o: "uma das opções",
@@ -70,9 +76,18 @@ Você vai ler o PDF dos autos de um processo, ou as informações dadas na conve
   "prazos": [{ "titulo": "", "data": "AAAA-MM-DD", "fatal": true, "fonte": "fls. 120" }],
   "audiencias": [{ "titulo": "", "data_hora": "AAAA-MM-DDTHH:MM", "local": "", "modalidade": "presencial, virtual ou híbrida" }],
   "andamentos": [{ "data": "AAAA-MM-DD", "descricao": "", "fonte": "evento 35" }],
+  "pedidos_execucao": [{
+    "tipo": "${TIPOS_PEDIDO.join(" | ")}",
+    "titulo": "", "data_pedido": "AAAA-MM-DD",
+    "status": "${STATUS_PEDIDO.join(" | ")}",
+    "data_decisao": "AAAA-MM-DD", "resultado": "o que a decisão concedeu ou negou, e por quê",
+    "recurso": { "interposto": "Agravo em execução da defesa | Agravo em execução do MP | Habeas corpus", "resultado": "Provido | Parcialmente provido | Desprovido | Não conhecido | Ordem concedida | Ordem denegada", "data": "AAAA-MM-DD", "efeito": "o que o acórdão mudou" }
+  }],
   "pendencias": ["o que a advogada precisa conferir ou fazer"]
 }
 \`\`\`
+
+Pedidos da execução (só na área execucao_penal): um item por pedido feito ao juízo da execução (progressão, livramento, remição, saída temporária, indulto, comutação etc.), com a decisão de cada um e, se houve, o recurso contra ela e o resultado. Recursos de sentença e acórdão nas demais áreas vão nos campos da ficha (apelação, resultado da apelação, recurso aos tribunais superiores).
 
 Prazos: só os que ainda estão correndo ou por vir, com a data final já contada. Andamentos: os atos relevantes (recebimento da denúncia, citação, decisões, sentença, recursos, prisões e solturas), do mais antigo para o mais recente.
 
@@ -122,6 +137,8 @@ export interface Importacao {
   prazos: { titulo: string; data: string; fatal: boolean; fonte?: string }[];
   audiencias: { titulo: string; data_hora: string; local?: string; modalidade: "presencial" | "virtual" | "híbrida" }[];
   andamentos: { data: string; descricao: string; fonte?: string }[];
+  pedidos: { tipo: TipoPedido; titulo: string; data_pedido?: string; status: StatusPedido; data_decisao?: string; resultado?: string;
+    recurso?: { interposto?: string; resultado?: string; data?: string; efeito?: string } }[];
   pendencias: string[];
   partes: { nome: string; papel?: string; polo?: string }[];
   /** O que não pôde ser aproveitado como veio (campo desconhecido, opção fora da lista, data inválida). */
@@ -272,7 +289,20 @@ export function lerImportacao(texto: string, areaForcada?: string): Importacao {
   const vinculados = arr(j.vinculados).map(obj).flatMap((x) => (txt(x.numero) ? [{ tipo: txt(x.tipo) || "Outro", numero: txt(x.numero), situacao: txt(x.situacao) || undefined }] : []));
   const partes = arr(j.partes).map(obj).flatMap((x) => (txt(x.nome) ? [{ nome: txt(x.nome), papel: txt(x.papel) || undefined, polo: txt(x.polo) || undefined }] : []));
   const pendencias = arr(j.pendencias).map(txt).filter(Boolean);
+  const chave = (v: unknown) => semAcento(txt(v)).replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
+  const pedidos = arr(j.pedidos_execucao).map(obj).flatMap((x) => {
+    const tipoTxt = chave(x.tipo);
+    const tipo = (TIPOS_PEDIDO.find((t) => t === tipoTxt || tipoTxt.startsWith(t.split("_")[0])) ?? "outro") as TipoPedido;
+    const stTxt = chave(x.status);
+    const status = (STATUS_PEDIDO.find((t) => t === stTxt) ?? (stTxt.startsWith("parcial") ? "parcialmente_deferido" : stTxt.startsWith("defer") ? "deferido" : stTxt.startsWith("indefer") ? "indeferido" : "em_andamento")) as StatusPedido;
+    const titulo = txt(x.titulo) || txt(x.tipo);
+    if (!titulo) return [];
+    const r = obj(x.recurso);
+    const recurso = txt(r.interposto) ? { interposto: txt(r.interposto), resultado: txt(r.resultado) || undefined, data: dataISO(r.data), efeito: txt(r.efeito) || undefined } : undefined;
+    return [{ tipo, titulo, data_pedido: dataISO(x.data_pedido), status, data_decisao: dataISO(x.data_decisao), resultado: txt(x.resultado) || undefined, recurso }];
+  });
+  if (pedidos.length && a.id !== "execucao_penal") avisos.push("Vieram pedidos de execução, mas a área escolhida não é Execução penal: eles só entram se a área for Execução penal.");
 
   if (Number(j.justio) && Number(j.justio) !== VERSAO_IMPORTACAO) avisos.push(`As instruções do Cowork são de outra versão (${txt(j.justio)}). Copie as instruções de novo.`);
-  return { cliente, processo, ficha, vinculados, prazos, audiencias, andamentos, pendencias, partes, avisos };
+  return { cliente, processo, ficha, vinculados, prazos, audiencias, andamentos, pedidos, pendencias, partes, avisos };
 }

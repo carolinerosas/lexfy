@@ -75,6 +75,7 @@ export type IncidenteExecucaoStatus =
   | "protocolado"
   | "em_andamento"
   | "deferido"
+  | "parcialmente_deferido"
   | "indeferido"
   | "cumprido"
   | "arquivado";
@@ -83,6 +84,7 @@ export type BeneficioPenalStatus =
   | "em_estudo"
   | "requerido"
   | "deferido"
+  | "parcialmente_deferido"
   | "indeferido"
   | "prejudicado";
 export type InqueritoSituacao =
